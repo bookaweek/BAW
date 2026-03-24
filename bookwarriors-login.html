@@ -955,16 +955,18 @@ async function submitBook() {
 
   // Build payload for sheet
   const payload = {
-    action:    'addBook',
+    action:    'logDaily',
     member:    currentMember,
     date:      toDateStr(now),
-    month:     monthStr,
-    title, author, category, status,
-    pages:     status === 'Completed' ? (parseInt(document.getElementById('b-pages').value) || 0) : 0,
-    rating:    status === 'Completed' ? (parseInt(document.getElementById('b-rating').value) || 0) : 0,
-    insight:   status === 'Completed' ? document.getElementById('b-insight').value.trim() : '',
-    actionTaken: status === 'Completed' ? document.getElementById('b-action').value.trim() : '',
-    recommend: status === 'Completed' ? document.getElementById('b-rec').value : '',
+    dateDisplay: now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
+    book:    isRestDay ? 'Rest Day' : book,
+    module:  isRestDay ? '—' : document.getElementById('d-mod').value,
+    minutes: isRestDay ? 0 : (parseInt(mins) || 0),
+    pages:   isRestDay ? 0 : (parseInt(document.getElementById('d-pages').value) || 0),
+    insight: isRestDay ? '— Rest Day —' : insight,
+    actionTaken:  isRestDay ? '' : document.getElementById('d-action').value.trim(),
+    rating:  isRestDay ? 0 : starRating,
+    isRestDay,
   };
 
   setBookLoading(true);
