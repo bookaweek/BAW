@@ -1050,7 +1050,7 @@ document.getElementById('dailyForm').addEventListener('submit', async (e) => {
     minutes: isRestDay ? 0 : (parseInt(mins) || 0),
     pages:   isRestDay ? 0 : (parseInt(document.getElementById('d-pages').value) || 0),
     insight: isRestDay ? '— Rest Day —' : insight,
-    action:  isRestDay ? '' : document.getElementById('d-action').value.trim(),
+    actionTaken:  isRestDay ? '' : document.getElementById('d-action').value.trim(),
     rating:  isRestDay ? 0 : starRating,
     isRestDay,
   };
