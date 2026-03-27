@@ -469,7 +469,7 @@ body::before {
         <div class="card">
           <div class="card-title">Read. Reflect. Execute.</div>
           <div class="field"><label for="d-insight">Key Insight <span class="req">*</span></label><textarea id="d-insight" placeholder="The most important thing you learned today..."></textarea></div>
-          <div class="field"><label for="d-action">Action Committed</label><textarea id="d-action" placeholder="One specific thing you will do because of this..." style="min-height:72px;"></textarea></div>
+          <div class="field"><label for="">Action Committed</label><textarea id="" placeholder="One specific thing you will do because of this..." style="min-height:72px;"></textarea></div>
         </div>
 
         <div class="card">
@@ -950,25 +950,24 @@ async function submitBook() {
   const now      = new Date();
   const monthStr = now.toLocaleDateString('en-GB', { month:'long', year:'numeric' });
 
-  // Add to local library
   const bookEntry = { title, author, status, category, addedAt: now.toISOString() };
   memberLibrary.push(bookEntry);
   saveLibrary();
 
-  // Build payload for sheet
   const payload = {
-    action:    'logDaily',
-    member:    currentMember,
-    date:      toDateStr(now),
-    dateDisplay: now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
-    book:    isRestDay ? 'Rest Day' : book,
-    module:  isRestDay ? '—' : document.getElementById('d-mod').value,
-    minutes: isRestDay ? 0 : (parseInt(mins) || 0),
-    pages:   isRestDay ? 0 : (parseInt(document.getElementById('d-pages').value) || 0),
-    insight: isRestDay ? '— Rest Day —' : insight,
-    actionTaken:  isRestDay ? '' : document.getElementById('d-action').value.trim(),
-    rating:  isRestDay ? 0 : starRating,
-    isRestDay,
+    action:      'addBook',
+    member:      currentMember,
+    date:        toDateStr(now),
+    month:       monthStr,
+    title,
+    author,
+    category,
+    status,
+    pages:       status === 'Completed' ? (parseInt(document.getElementById('b-pages').value) || 0) : 0,
+    rating:      status === 'Completed' ? (parseInt(document.getElementById('b-rating').value) || 0) : 0,
+    insight:     status === 'Completed' ? document.getElementById('b-insight').value.trim() : '',
+    actionTaken: status === 'Completed' ? document.getElementById('b-action').value.trim() : '',
+    recommend:   status === 'Completed' ? document.getElementById('b-rec').value : '',
   };
 
   setBookLoading(true);
@@ -979,7 +978,6 @@ async function submitBook() {
       `<em>${escHtml(title)}</em> has been ${status === 'Completed' ? 'logged as completed' : 'added to your reading library'} and will appear in the Daily Log dropdown.`,
       [['Book', title], ['Author', author || '—'], ['Status', status], ['Category', category]]
     );
-    // Reset book form
     document.getElementById('b-title').value  = '';
     document.getElementById('b-author').value = '';
     document.getElementById('completedFields').style.display = 'none';
@@ -993,7 +991,15 @@ async function submitBook() {
     setBookLoading(false);
   }
 }
-
+  function markComplete(idx) {
+  var book = memberLibrary[idx];
+  document.getElementById('b-title').value  = book.title;
+  document.getElementById('b-author').value = book.author || '';
+  document.getElementById('b-status').value = 'Completed';
+  document.getElementById('completedFields').style.display = 'block';
+  setMode('books');
+  window.scrollTo(0, document.getElementById('b-title').offsetTop - 20);
+}
 // ═══════════════════════════════════════════════════════════════════════════
 // DAILY LOG
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1052,7 +1058,7 @@ document.getElementById('dailyForm').addEventListener('submit', async (e) => {
     minutes: isRestDay ? 0 : (parseInt(mins) || 0),
     pages:   isRestDay ? 0 : (parseInt(document.getElementById('d-pages').value) || 0),
     insight: isRestDay ? '— Rest Day —' : insight,
-    actionTaken:  isRestDay ? '' : document.getElementById('d-action').value.trim(),
+    actionTaken:  isRestDay ? '' : document.getElementById('').value.trim(),
     rating:  isRestDay ? 0 : starRating,
     isRestDay,
   };
