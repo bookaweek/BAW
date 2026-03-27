@@ -870,7 +870,8 @@ function renderLibrary() {
         <div class="bi-title">${escHtml(b.title)}</div>
         <div class="bi-author">${escHtml(b.author || '—')} · ${b.status}</div>
       </div>
-      <button class="bi-del" onclick="removeBook(${i})" title="Remove">✕</button>
+      <button class="bi-del" onclick="markComplete(${i})" title="Mark Complete" style="color:var(--teal)">✅</button>
+<button class="bi-del" onclick="removeBook(${i})" title="Remove">✕</button>
     </div>
   `).join('');
 }
