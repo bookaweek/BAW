@@ -543,8 +543,7 @@ body::before {
           <div class="field"><label for="b-rating">Rating (1-5)</label><input type="number" id="b-rating" placeholder="5" min="1" max="5" inputmode="numeric"></div>
         </div>
         <div class="field"><label for="b-insight">Top Insight</label><textarea id="b-insight" placeholder="The single most valuable thing you took from this book..." style="min-height:72px;"></textarea></div>
-        <div class="field"><label for="b-action">Action Committed</label><textarea id="b-action" placeholder="What will you do differently because of this book?" style="min-height:72px;"></textarea></div>
-        <div class="field">
+        <div class="field"><label for="d-action">Action Committed</label><textarea id="d-action" placeholder="One specific thing you will do because of this..." style="min-height:72px;"></textarea></div>
           <label for="b-rec">Recommend?</label>
           <select id="b-rec">
             <option value="⭐⭐⭐⭐⭐ Must Read">⭐⭐⭐⭐⭐ Must Read</option>
@@ -967,7 +966,7 @@ async function submitBook() {
     pages:       status === 'Completed' ? (parseInt(document.getElementById('b-pages').value) || 0) : 0,
     rating:      status === 'Completed' ? (parseInt(document.getElementById('b-rating').value) || 0) : 0,
     insight:     status === 'Completed' ? document.getElementById('b-insight').value.trim() : '',
-    actionTaken: status === 'Completed' ? document.getElementById('b-action').value.trim() : '',
+   actionTaken:  isRestDay ? '' : document.getElementById('d-action').value.trim(),
     recommend:   status === 'Completed' ? document.getElementById('b-rec').value : '',
   };
 
