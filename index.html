@@ -708,6 +708,232 @@ img { max-width: 100%; }
     </div>
   </div>
 
+
+  <!-- ═══ NEWSLETTER SECTION ═══ -->
+  <div class="nl-section" style="opacity:0;animation:fadeUp .9s 1.5s ease forwards;margin-bottom:44px;">
+
+    <!-- outer card — matches brand card style -->
+    <div class="nl-card" style="
+      position:relative;
+      overflow:hidden;
+      border-radius:5px;
+      border:1px solid rgba(184,151,42,.32);
+      background:linear-gradient(150deg,rgba(14,26,52,.92),rgba(5,10,20,.98));
+      box-shadow:0 28px 80px rgba(0,0,0,.5),0 0 80px rgba(184,151,42,.04) inset;
+    ">
+      <!-- top gold bar -->
+      <div style="height:2px;background:linear-gradient(to right,transparent,var(--gold2) 20%,var(--gold) 50%,var(--gold2) 80%,transparent);opacity:.75;"></div>
+
+      <!-- corners -->
+      <div style="position:absolute;top:15px;left:15px;width:46px;height:46px;border-top:1px solid rgba(184,151,42,.42);border-left:1px solid rgba(184,151,42,.42);pointer-events:none;z-index:2;"></div>
+      <div style="position:absolute;top:15px;right:15px;width:46px;height:46px;border-top:1px solid rgba(184,151,42,.42);border-right:1px solid rgba(184,151,42,.42);pointer-events:none;z-index:2;"></div>
+      <div style="position:absolute;bottom:15px;left:15px;width:46px;height:46px;border-bottom:1px solid rgba(184,151,42,.42);border-left:1px solid rgba(184,151,42,.42);pointer-events:none;z-index:2;"></div>
+      <div style="position:absolute;bottom:15px;right:15px;width:46px;height:46px;border-bottom:1px solid rgba(184,151,42,.42);border-right:1px solid rgba(184,151,42,.42);pointer-events:none;z-index:2;"></div>
+
+      <!-- ambient glow -->
+      <div style="position:absolute;top:-80px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(184,151,42,.08) 0%,transparent 70%);pointer-events:none;"></div>
+
+      <!-- inner padding -->
+      <div style="padding:56px 52px 48px;text-align:center;position:relative;z-index:1;">
+
+        <!-- eyebrow -->
+        <div style="display:inline-flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <div style="width:36px;height:1px;background:linear-gradient(to right,transparent,var(--gold));"></div>
+          <span style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:.52em;text-transform:uppercase;color:rgba(184,151,42,.65);">Weekly Newsletter</span>
+          <div style="width:36px;height:1px;background:linear-gradient(to left,transparent,var(--gold));"></div>
+        </div>
+
+        <!-- heading -->
+        <h2 style="font-family:'Cinzel Decorative',serif;font-weight:900;font-size:clamp(22px,3.8vw,40px);color:var(--cream);margin:0 0 12px;line-height:1.1;text-shadow:0 2px 40px rgba(184,151,42,.18);">
+          Read. Reflect. Execute.<br>
+          <span style="background:linear-gradient(135deg,var(--goldp) 0%,var(--gold) 45%,var(--goldd) 80%,var(--goldp) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Every Week. In Your Inbox.</span>
+        </h2>
+
+        <!-- subtext -->
+        <p style="font-family:'EB Garamond',serif;font-size:19px;font-style:italic;color:rgba(200,188,158,.65);line-height:1.72;max-width:520px;margin:0 auto 36px;">
+          Weekly book insights, season progress, execution challenges and drops straight to your inbox. Free. Every week.
+        </p>
+
+        <!-- divider -->
+        <div style="display:flex;align-items:center;gap:0;max-width:360px;margin:0 auto 36px;">
+          <div style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(184,151,42,.4));"></div>
+          <div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(184,151,42,.3);background:rgba(184,151,42,.06);transform:rotate(45deg);flex-shrink:0;">
+            <span style="transform:rotate(-45deg);display:block;font-size:8px;color:var(--gold);">◆</span>
+          </div>
+          <div style="flex:1;height:1px;background:linear-gradient(to left,transparent,rgba(184,151,42,.4));"></div>
+        </div>
+
+        <!-- FORM (idle state) -->
+        <div id="nl-form-wrap" style="max-width:500px;margin:0 auto;">
+          <div style="margin-bottom:14px;">
+            <input
+              id="nl-name"
+              type="text"
+              placeholder="Your First Name"
+              required
+              style="
+                width:100%;padding:17px 20px;
+                font-family:'EB Garamond',serif;font-size:18px;
+                background:rgba(8,14,28,.85);
+                border:1px solid rgba(184,151,42,.22);
+                border-radius:4px;color:var(--cream);
+                outline:none;box-sizing:border-box;
+                transition:border-color .25s,box-shadow .25s;
+              "
+              onfocus="this.style.borderColor='rgba(184,151,42,.7)';this.style.boxShadow='0 0 0 3px rgba(184,151,42,.1)'"
+              onblur="this.style.borderColor='rgba(184,151,42,.22)';this.style.boxShadow='none'"
+            >
+          </div>
+          <div style="margin-bottom:22px;">
+            <input
+              id="nl-email"
+              type="email"
+              placeholder="Your Email Address"
+              required
+              style="
+                width:100%;padding:17px 20px;
+                font-family:'EB Garamond',serif;font-size:18px;
+                background:rgba(8,14,28,.85);
+                border:1px solid rgba(184,151,42,.22);
+                border-radius:4px;color:var(--cream);
+                outline:none;box-sizing:border-box;
+                transition:border-color .25s,box-shadow .25s;
+              "
+              onfocus="this.style.borderColor='rgba(184,151,42,.7)';this.style.boxShadow='0 0 0 3px rgba(184,151,42,.1)'"
+              onblur="this.style.borderColor='rgba(184,151,42,.22)';this.style.boxShadow='none'"
+            >
+          </div>
+
+          <!-- error -->
+          <div id="nl-error" style="display:none;color:#e07070;font-family:'EB Garamond',serif;font-size:16px;margin-bottom:14px;padding:12px 16px;background:rgba(192,57,43,.08);border:1px solid rgba(192,57,43,.22);border-radius:4px;"></div>
+
+          <!-- submit button -->
+          <button
+            id="nl-btn"
+            onclick="nlSubmit()"
+            style="
+              width:100%;padding:20px;
+              background:linear-gradient(135deg,var(--goldp) 0%,var(--gold) 40%,var(--goldd) 80%,var(--gold) 100%);
+              background-size:200% 100%;
+              color:var(--navy);
+              font-family:'Cinzel',serif;font-size:15px;font-weight:700;
+              letter-spacing:.24em;text-transform:uppercase;
+              border:none;border-radius:4px;cursor:pointer;
+              box-shadow:0 4px 28px rgba(184,151,42,.38);
+              transition:all .4s ease;position:relative;overflow:hidden;
+            "
+            onmouseover="this.style.backgroundPosition='right center';this.style.boxShadow='0 8px 40px rgba(184,151,42,.55)';this.style.transform='translateY(-2px)'"
+            onmouseout="this.style.backgroundPosition='';this.style.boxShadow='0 4px 28px rgba(184,151,42,.38)';this.style.transform=''"
+          >
+            <span id="nl-btn-text">📬 &nbsp; Join the BookWarriors Newsletter</span>
+            <span id="nl-btn-loading" style="display:none;">Subscribing...</span>
+          </button>
+        </div>
+
+        <!-- SUCCESS STATE (hidden until subscribed) -->
+        <div id="nl-success" style="display:none;max-width:500px;margin:0 auto;">
+          <div style="
+            background:rgba(184,151,42,.08);
+            border:1px solid rgba(184,151,42,.4);
+            border-radius:5px;
+            padding:32px 28px;
+          ">
+            <!-- pulsing gold checkmark -->
+            <div style="
+              width:72px;height:72px;border-radius:50%;
+              background:linear-gradient(135deg,var(--goldp),var(--gold));
+              display:flex;align-items:center;justify-content:center;
+              margin:0 auto 20px;font-size:32px;
+              box-shadow:0 0 0 10px rgba(184,151,42,.12),0 0 0 20px rgba(184,151,42,.06);
+            ">✓</div>
+            <div style="font-family:'Cinzel Decorative',serif;font-size:clamp(18px,3vw,26px);font-weight:900;color:var(--cream);margin-bottom:10px;">
+              You Are In, BookWarrior.
+            </div>
+            <div style="font-family:'EB Garamond',serif;font-size:18px;font-style:italic;color:rgba(200,188,158,.65);line-height:1.7;">
+              Check your inbox for a welcome message. Your weekly insights start now.
+            </div>
+            <div style="margin-top:18px;font-family:'Cinzel',serif;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:rgba(184,151,42,.5);">
+              We Read. We Reflect. We Execute.
+            </div>
+          </div>
+        </div>
+
+        <!-- footnote -->
+        <p style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:rgba(184,151,42,.28);margin:24px 0 0;">
+          No spam. Unsubscribe anytime. Read. Reflect. Execute.
+        </p>
+
+      </div>
+
+      <!-- bottom shimmer -->
+      <div style="height:1px;background:linear-gradient(to right,transparent,rgba(184,151,42,.28),transparent);"></div>
+    </div>
+  </div>
+
+  <script>
+  async function nlSubmit() {
+    const name  = document.getElementById('nl-name').value.trim();
+    const email = document.getElementById('nl-email').value.trim();
+    const btn   = document.getElementById('nl-btn');
+    const errEl = document.getElementById('nl-error');
+    const btnTxt= document.getElementById('nl-btn-text');
+    const btnLd = document.getElementById('nl-btn-loading');
+
+    // Basic validation
+    errEl.style.display = 'none';
+    if (!name) { errEl.textContent = 'Please enter your first name.'; errEl.style.display='block'; return; }
+    if (!email || !email.includes('@')) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display='block'; return; }
+
+    // Loading state
+    btn.disabled = true;
+    btn.style.opacity = '.7';
+    btn.style.cursor = 'not-allowed';
+    btnTxt.style.display = 'none';
+    btnLd.style.display  = 'inline';
+
+    try {
+      const res = await fetch('https://api.brevo.com/v3/contacts', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'api-key': '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'
+        },
+        body: JSON.stringify({
+          email: email,
+          attributes: { FIRSTNAME: name },
+          listIds: [3],
+          updateEnabled: true
+        })
+      });
+
+      if (res.ok || res.status === 204 || res.status === 201) {
+        document.getElementById('nl-form-wrap').style.display = 'none';
+        document.getElementById('nl-success').style.display  = 'block';
+      } else {
+        const data = await res.json().catch(()=>({}));
+        throw new Error(data.message || 'Subscription failed. Please try again.');
+      }
+    } catch(err) {
+      errEl.textContent = err.message || 'Something went wrong. Please try again.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor  = 'pointer';
+      btnTxt.style.display = 'inline';
+      btnLd.style.display  = 'none';
+    }
+  }
+
+  // Allow Enter key submission
+  ['nl-name','nl-email'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); nlSubmit(); }
+    });
+  });
+  </script>
+
+
   <!-- Footer -->
   <footer class="footer">
     <span class="fi">@bookaweek</span>
@@ -723,5 +949,3 @@ const c=document.getElementById('ptcls');
 for(let i=0;i<34;i++){
   const p=document.createElement('div');p.className='p';
   const s=Math.random()>.75?3:Math.random()>.5
-
-  import NewsletterForm from "./NewsletterForm";
