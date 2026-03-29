@@ -469,7 +469,9 @@ body::before {
         <div class="card">
           <div class="card-title">Read. Reflect. Execute.</div>
           <div class="field"><label for="d-insight">Key Insight <span class="req">*</span></label><textarea id="d-insight" placeholder="The most important thing you learned today..."></textarea></div>
-        <div class="field"><label for="d-action">Action Committed</label><textarea id="d-action" placeholder="One specific thing you will do because of this..." style="min-height:72px;"></textarea></div>
+          <div class="field"><label for="">Action Committed</label><textarea id="" placeholder="One specific thing you will do because of this..." style="min-height:72px;"></textarea></div>
+        </div>
+
         <div class="card">
           <div class="card-title">Rate This Session</div>
           <div class="stars" id="starsRow">
@@ -1057,7 +1059,7 @@ document.getElementById('dailyForm').addEventListener('submit', async (e) => {
     minutes: isRestDay ? 0 : (parseInt(mins) || 0),
     pages:   isRestDay ? 0 : (parseInt(document.getElementById('d-pages').value) || 0),
     insight: isRestDay ? '— Rest Day —' : insight,
-    actionTaken:  isRestDay ? '' : document.getElementById('d-action').value.trim(),
+    actionTaken:  isRestDay ? '' : document.getElementById('').value.trim(),
     rating:  isRestDay ? 0 : starRating,
     isRestDay,
   };
