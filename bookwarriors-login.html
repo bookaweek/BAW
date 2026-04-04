@@ -454,7 +454,7 @@ body::before {
 // ═══════════════════════════════════════════════════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', {scope:'/'}).catch(()=>{});
+    navigator.serviceWorker.register('sw.js', { scope: './' }).catch(()=>{});
   });
 }
 
@@ -537,7 +537,7 @@ function checkDailyReminder(){
     {title:'BookAWeek',body:'Every day you log is a brick in the life you are building.'},
   ];
   const m=msgs[Math.floor(Math.random()*msgs.length)];
-  try{new Notification(m.title,{body:m.body,icon:'/icon-192.png',tag:'baw-daily',renotify:true});localStorage.setItem('baw_last_reminder',Date.now());}catch(e){}
+  try{new Notification(m.title,{body:m.body,icon:'icon-192.png',tag:'baw-daily',renotify:true});localStorage.setItem('baw_last_reminder',Date.now());}catch(e){}
 }
 
 function showToast(msg,type){
@@ -611,6 +611,7 @@ function selectMember(name,skipSave){
   sessionStorage.setItem(STORAGE_PREFIX+'current_member',name);
   document.getElementById('memberScreen').classList.add('hidden');
   document.getElementById('mainApp').style.display='block';
+  if (window._showNotifAfterLogin) setTimeout(window._showNotifAfterLogin, 500);
   document.getElementById('greetName').textContent=name;
   document.getElementById('greetSub').textContent='Ready to log your session?';
   loadLibrary();setupWeekly();setMode('daily');
@@ -867,7 +868,7 @@ function resetDailyForm(){
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      await navigator.serviceWorker.register('sw.js', { scope: './' });
       navigator.serviceWorker.addEventListener('message', e => {
         if (e.data && e.data.type === 'SYNC_LOGS') syncPendingLogs();
       });
@@ -1031,7 +1032,7 @@ function checkAndFireDailyReminder() {
   ];
   const m = msgs[Math.floor(Math.random()*msgs.length)];
   try {
-    new Notification(m.title, { body:m.body, icon:'/icon-192.png', tag:'baw-daily', renotify:true });
+    new Notification(m.title, { body:m.body, icon:'icon-192.png', tag:'baw-daily', renotify:true });
     localStorage.setItem('baw_last_reminder', Date.now().toString());
   } catch(e) {}
 }
