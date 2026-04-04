@@ -1,20 +1,17 @@
-// BookAWeek Service Worker v1.0
-// Handles: offline caching + push notifications
+// BookAWeek Service Worker v2 — Offline + Push Notifications
+// Uses relative paths — works on GitHub Pages subdirectories
 
-const CACHE_NAME = 'bookaweek-v1';
-const OFFLINE_URLS = ['/bookwarriors-login.html'];
+const CACHE_NAME = 'bookaweek-v2';
 
-// ── INSTALL: cache the app shell ──
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(OFFLINE_URLS);
-    })
+    caches.open(CACHE_NAME).then(cache =>
+      cache.addAll(['bookwarriors-login.html','manifest.json','icon-192.png','icon-512.png']).catch(()=>{})
+    )
   );
   self.skipWaiting();
 });
 
-// ── ACTIVATE: clean old caches ──
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -24,64 +21,51 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// ── FETCH: serve from cache when offline ──
 self.addEventListener('fetch', event => {
-  // Only intercept same-origin GET requests
-  if (event.request.method !== 'GET') return;
-  if (!event.request.url.startsWith(self.location.origin)) return;
+  if (event.request.url.includes('script.google.com') ||
+      event.request.url.includes('api.brevo.com') ||
+      event.request.url.includes('fonts.googleapis.com') ||
+      event.request.url.includes('fonts.gstatic.com')) return;
 
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // Cache successful responses
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).then(response => {
+        if (event.request.method === 'GET' && response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
         return response;
-      })
-      .catch(() => {
-        // Offline fallback
-        return caches.match(event.request).then(cached => {
-          if (cached) return cached;
-          // For navigation requests, return the app
-          if (event.request.mode === 'navigate') {
-            return caches.match('/bookwarriors-login.html');
-          }
-        });
-      })
-  );
-});
-
-// ── PUSH: receive push notifications ──
-self.addEventListener('push', event => {
-  let data = { title: 'BookAWeek', body: 'Time to log your session. We Read. We Reflect. We Execute.', icon: '/icon-192.png' };
-  try { data = { ...data, ...event.data.json() }; } catch(e) {}
-
-  event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: data.icon || '/icon-192.png',
-      badge: '/icon-96.png',
-      vibrate: [200, 100, 200],
-      tag: 'bookaweek-reminder',
-      renotify: true,
-      data: { url: data.url || '/bookwarriors-login.html' }
+      }).catch(() => {
+        if (event.request.mode === 'navigate') return caches.match('bookwarriors-login.html');
+      });
     })
   );
 });
 
-// ── NOTIFICATION CLICK: open the app ──
+self.addEventListener('push', event => {
+  let data = { title:'BookAWeek', body:'Time to log your reading session! Open the app now.', icon:'icon-192.png' };
+  try { data = event.data.json(); } catch(e) {}
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body, icon: data.icon || 'icon-192.png',
+      badge: 'icon-72.png', tag: 'bookaweek-reminder', renotify: true,
+      data: { url: 'bookwarriors-login.html' }
+    })
+  );
+});
+
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      for (const client of clientList) {
-        if (client.url.includes('bookwarriors-login') && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(event.notification.data.url || '/bookwarriors-login.html');
-      }
+    clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
+      for (const c of list) if (c.url.includes('bookwarriors') && 'focus' in c) return c.focus();
+      if (clients.openWindow) return clients.openWindow('bookwarriors-login.html');
     })
   );
+});
+
+self.addEventListener('sync', event => {
+  if (event.tag === 'sync-logs')
+    self.clients.matchAll().then(list => list.forEach(c => c.postMessage({ type:'SYNC_LOGS' })));
 });
