@@ -1,4 +1,5 @@
-// BookAWeek Service Worker v2
+// BookAWeek Service Worker v2 — Offline + Push Notifications
+// Uses relative paths — works on GitHub Pages subdirectories
 
 const CACHE_NAME = 'bookaweek-v2';
 
@@ -22,14 +23,17 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.url.includes('script.google.com') ||
+      event.request.url.includes('api.brevo.com') ||
       event.request.url.includes('fonts.googleapis.com') ||
       event.request.url.includes('fonts.gstatic.com')) return;
+
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
       return fetch(event.request).then(response => {
         if (event.request.method === 'GET' && response && response.status === 200) {
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
       }).catch(() => {
@@ -40,12 +44,13 @@ self.addEventListener('fetch', event => {
 });
 
 self.addEventListener('push', event => {
-  let data = { title:'BookAWeek', body:'Time to log your reading session!', icon:'icon-192.png' };
+  let data = { title:'BookAWeek', body:'Time to log your reading session! Open the app now.', icon:'icon-192.png' };
   try { data = event.data.json(); } catch(e) {}
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body, icon: data.icon || 'icon-192.png',
-      badge: 'icon-72.png', tag: 'bookaweek-reminder', renotify: true
+      badge: 'icon-72.png', tag: 'bookaweek-reminder', renotify: true,
+      data: { url: 'bookwarriors-login.html' }
     })
   );
 });
@@ -58,4 +63,9 @@ self.addEventListener('notificationclick', event => {
       if (clients.openWindow) return clients.openWindow('bookwarriors-login.html');
     })
   );
-});v
+});
+
+self.addEventListener('sync', event => {
+  if (event.tag === 'sync-logs')
+    self.clients.matchAll().then(list => list.forEach(c => c.postMessage({ type:'SYNC_LOGS' })));
+});
