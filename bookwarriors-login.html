@@ -468,19 +468,36 @@ window.onload = function() {
   setDate();
   setQuote();
   updateOffline();
+  // Show banner if prompt fired before onload
+  if (window._installReady) { var b=document.getElementById('install-bar'); if(b) b.style.display='block'; }
+  // iOS Safari fallback
+  var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIOS && !window.navigator.standalone && !localStorage.getItem(PRE+'ios_shown')){
+    setTimeout(function(){var b=document.getElementById('install-bar');if(b)b.style.display='block';window._iosInstall=true;},5000);
+  }
   // Register SW
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js', {scope:'./'})
       .then(function(r){ console.log('SW ok'); })
       .catch(function(e){ console.log('SW fail',e); });
   }
-  // Install prompt
-  window.addEventListener('beforeinstallprompt', function(e) {
-    e.preventDefault();
-    deferredInstall = e;
-    document.getElementById('install-bar').style.display = 'block';
-  });
 };
+
+// ── INSTALL PROMPT — must be outside window.onload to catch early fires ──
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  deferredInstall = e;
+  var bar = document.getElementById('install-bar');
+  if (bar) { bar.style.display = 'block'; }
+  else { window._installReady = true; }
+});
+
+window.addEventListener('appinstalled', function() {
+  var bar = document.getElementById('install-bar');
+  if (bar) bar.style.display = 'none';
+  deferredInstall = null;
+  toast('BookAWeek installed! Open it from your home screen.');
+});
 
 // ── OFFLINE ──
 function updateOffline() {
@@ -491,11 +508,21 @@ window.addEventListener('offline', updateOffline);
 
 // ── INSTALL ──
 function installApp() {
-  if (!deferredInstall) return;
+  if (window._iosInstall) {
+    localStorage.setItem(PRE+'ios_shown','1');
+    document.getElementById('install-bar').style.display='none';
+    alert('To install on iPhone or iPad:\n\n1. Tap the Share button (box with arrow) at the bottom of Safari\n2. Tap "Add to Home Screen"\n3. Tap "Add"\n\nBookAWeek will appear on your home screen!');
+    return;
+  }
+  if (!deferredInstall) {
+    toast('To install: open browser menu and tap "Add to Home Screen"');
+    return;
+  }
   deferredInstall.prompt();
   deferredInstall.userChoice.then(function(r) {
-    document.getElementById('install-bar').style.display = 'none';
-    deferredInstall = null;
+    document.getElementById('install-bar').style.display='none';
+    deferredInstall=null;
+    if(r.outcome==='accepted') toast('BookAWeek installed on your home screen!');
   });
 }
 
