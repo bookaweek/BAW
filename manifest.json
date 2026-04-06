@@ -1,13 +1,20 @@
 {
-  "name": "BOOKAWEEK",
-  "short_name": "BOOKAWEEK",
-  "description": "Read · Reflect · Execute — BOOKWARRIORS Reading Tracker",
-  "start_url": "/bookwarriors-login.html",
+  "name": "BookAWeek",
+  "short_name": "BookAWeek",
+  "description": "We Read. We Reflect. We Execute.",
+  "start_url": "bookwarriors-login.html",
+  "scope": ".",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0A2A66",
   "theme_color": "#0A2A66",
-  "orientation": "portrait",
   "icons": [
+    {
+      "src": "icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "icon-192.png",
       "sizes": "192x192",
@@ -20,5 +27,12 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": [
+    "education",
+    "productivity",
+    "lifestyle"
+  ],
+  "lang": "en",
+  "dir": "ltr"
 }
