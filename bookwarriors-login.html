@@ -187,6 +187,107 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .pin-back{font-size:20px;color:rgba(255,255,255,.6)}
 .pin-clear{font-size:16px;color:rgba(255,255,255,.4)}
 .pin-change{display:block;width:100%;margin-top:16px;padding:10px;background:transparent;border:none;color:rgba(255,255,255,.35);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+
+/* ── STREAK SYSTEM ── */
+.streak-card {
+  margin: 14px 16px 0;
+  background: linear-gradient(135deg, rgba(242,183,5,.15), rgba(224,123,57,.1));
+  border: 1px solid rgba(242,183,5,.35);
+  border-radius: 18px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.streak-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(45deg,transparent,transparent 20px,rgba(242,183,5,.03) 20px,rgba(242,183,5,.03) 21px);
+  pointer-events: none;
+}
+.streak-fire {
+  font-size: 40px;
+  line-height: 1;
+  flex-shrink: 0;
+  animation: fireFlicker 1.8s ease-in-out infinite alternate;
+}
+@keyframes fireFlicker {
+  0%   { transform: scale(1) rotate(-2deg); }
+  50%  { transform: scale(1.08) rotate(2deg); }
+  100% { transform: scale(1.04) rotate(-1deg); }
+}
+.streak-info { flex: 1; min-width: 0; }
+.streak-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--gold);
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.streak-unit {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(242,183,5,.7);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.streak-label {
+  font-size: 12px;
+  color: rgba(255,255,255,.5);
+  margin-top: 3px;
+}
+.streak-best {
+  font-size: 11px;
+  color: rgba(242,183,5,.55);
+  margin-top: 2px;
+}
+.streak-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.streak-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.sb-fire   { background: rgba(242,183,5,.2);  color: var(--gold);   border: 1px solid rgba(242,183,5,.4); }
+.sb-ice    { background: rgba(13,122,110,.2); color: var(--teal);   border: 1px solid rgba(13,122,110,.4); }
+.sb-legend { background: rgba(107,63,160,.2); color: #B388FF;       border: 1px solid rgba(107,63,160,.4); }
+
+/* Streak milestone toast */
+.milestone-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10,42,102,.92);
+  z-index: 600;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 28px;
+  text-align: center;
+}
+.milestone-overlay.show { display: flex; animation: fadeIn .4s ease; }
+.ms-emoji  { font-size: 72px; margin-bottom: 20px; animation: popIn .6s cubic-bezier(.34,1.56,.64,1) both; }
+.ms-num    { font-family: 'Playfair Display', serif; font-size: 80px; font-weight: 900; color: var(--gold); line-height: 1; }
+.ms-word   { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: #fff; margin: 8px 0 4px; }
+.ms-sub    { font-size: 15px; color: rgba(255,255,255,.6); line-height: 1.6; max-width: 280px; margin-bottom: 28px; }
+.ms-close  { height: 52px; padding: 0 40px; background: var(--gold); color: var(--navy); border: none; border-radius: 14px; font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; cursor: pointer; }
+
 </style>
 </head>
 <body>
@@ -256,6 +357,30 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     <div class="date-badge"><span id="dayName">Monday</span> &middot; <span id="fullDate">...</span></div>
     <div class="member-greeting">Hey, <em id="greetName">...</em> &#x1F44B;</div>
     <div class="member-sub" id="greetSub">Ready to log your session?</div>
+  </div>
+
+
+  <!-- ── STREAK CARD ── -->
+  <div class="streak-card" id="streakCard">
+    <div class="streak-fire" id="streakFire">&#x1F525;</div>
+    <div class="streak-info">
+      <div class="streak-num">
+        <span id="streakCount">0</span>
+        <span class="streak-unit">day streak</span>
+      </div>
+      <div class="streak-label" id="streakLabel">Log today to start your streak</div>
+      <div class="streak-best" id="streakBest"></div>
+    </div>
+    <div class="streak-badges" id="streakBadges"></div>
+  </div>
+
+  <!-- ── MILESTONE OVERLAY ── -->
+  <div class="milestone-overlay" id="milestoneOverlay">
+    <div class="ms-emoji" id="msEmoji">&#x1F525;</div>
+    <div class="ms-num"  id="msNum">7</div>
+    <div class="ms-word" id="msWord">Day Streak!</div>
+    <div class="ms-sub"  id="msSub">One week of consistent reading. You are building the identity of a true BookWarrior.</div>
+    <button class="ms-close" onclick="closeMilestone()">Keep Going &#x1F525;</button>
   </div>
 
   <!-- Notification banner (shown after login) -->
@@ -624,6 +749,7 @@ function login(name) {
   document.getElementById('mainApp').style.display='block';
   document.getElementById('greetName').textContent=name;
   loadLib(); setupWeekly(); setMode('daily');
+  renderStreak();
   showNotifBanner();
 }
 
@@ -744,6 +870,7 @@ document.getElementById('dailyForm').addEventListener('submit',async function(e)
   setDL(true);
   try{
     await fetch(URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    recordLog();
     success(rest?'Rest Day Logged!':'Session Logged!',
       rest?'Recovery is part of the system.':payload.minutes+' minutes logged. Every session builds the edge.',
       rest?[['Member',member],['Type','Rest Day']]:[['Member',member],['Minutes',payload.minutes+' min'],['Book',(book||'').slice(0,22)]]);
@@ -863,6 +990,140 @@ function setQuote(){
 function dateStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0D7A6E;color:#fff;padding:12px 22px;border-radius:12px;font-family:DM Sans,sans-serif;font-size:13px;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,.35);z-index:9999;max-width:90%;text-align:center';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},4000);}
+
+
+// ══════════════════════════════════════════════
+// STREAK SYSTEM
+// ══════════════════════════════════════════════
+
+var MILESTONES = {
+  3:   { emoji:'&#x1F4A5;', word:'3 Day Streak!',   sub:'You showed up 3 days in a row. The habit is forming. Keep going.' },
+  7:   { emoji:'&#x1F525;', word:'One Week!',        sub:'7 straight days of reading. You are 1% ahead of who you were last week.' },
+  14:  { emoji:'&#x26A1;',  word:'Two Weeks!',       sub:'14 days. Discipline is no longer an effort. It is becoming identity.' },
+  21:  { emoji:'&#x1F4AA;', word:'21 Days Strong!',  sub:'Scientists say habits form at 21 days. You just crossed the line.' },
+  30:  { emoji:'&#x1F451;', word:'30 Day Legend!',   sub:'One month of unbroken commitment. You are not like most people. You never were.' },
+  60:  { emoji:'&#x1F31F;', word:'60 Days Elite!',   sub:'Two months. Most people quit in week one. You are still here, still reading.' },
+  90:  { emoji:'&#x1F3C6;', word:'90 Day Champion!', sub:'Three months of consistent reading. This is no longer a challenge. This is who you are.' },
+  184: { emoji:'&#x1F985;', word:'Full Season!',     sub:'184 days. Every single one. You did not just complete BookAWeek. You became a BookWarrior Legend.' }
+};
+
+function streakKey()   { return PRE + member + '_streak'; }
+function streakBestKey(){ return PRE + member + '_streak_best'; }
+function lastLogKey()  { return PRE + member + '_last_log'; }
+
+function getStreak()   { return parseInt(localStorage.getItem(streakKey())  || '0'); }
+function getBest()     { return parseInt(localStorage.getItem(streakBestKey()) || '0'); }
+function getLastLog()  { return localStorage.getItem(lastLogKey()) || ''; }
+
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function yesterdayStr() {
+  var d = new Date(); d.setDate(d.getDate()-1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function recordLog() {
+  var today   = todayStr();
+  var lastLog = getLastLog();
+  if (lastLog === today) return; // Already logged today
+
+  var current = getStreak();
+  // Extend streak if logged yesterday, else restart
+  if (lastLog === yesterdayStr()) {
+    current = current + 1;
+  } else if (lastLog === '') {
+    current = 1; // First ever log
+  } else {
+    current = 1; // Streak broken — restart
+  }
+
+  var best = getBest();
+  if (current > best) {
+    best = current;
+    localStorage.setItem(streakBestKey(), best);
+  }
+
+  localStorage.setItem(streakKey(), current);
+  localStorage.setItem(lastLogKey(), today);
+
+  renderStreak();
+
+  // Check for milestone
+  if (MILESTONES[current]) {
+    setTimeout(function() { showMilestone(current); }, 1200);
+  }
+}
+
+function renderStreak() {
+  var streak = getStreak();
+  var best   = getBest();
+  var today  = todayStr();
+  var last   = getLastLog();
+
+  // Check if streak is at risk (logged yesterday but not today)
+  var atRisk = (last === yesterdayStr());
+  // Check if streak is broken (not logged yesterday or today)
+  var broken = (last !== today && last !== yesterdayStr() && streak > 0);
+
+  if (broken) {
+    localStorage.setItem(streakKey(), '0');
+    streak = 0;
+  }
+
+  document.getElementById('streakCount').textContent = streak;
+
+  // Fire emoji changes with streak length
+  var fire = document.getElementById('streakFire');
+  if      (streak === 0)   fire.innerHTML = '&#x1F4D6;';
+  else if (streak >= 90)   fire.innerHTML = '&#x1F3C6;';
+  else if (streak >= 30)   fire.innerHTML = '&#x1F451;';
+  else if (streak >= 14)   fire.innerHTML = '&#x26A1;';
+  else if (streak >= 7)    fire.innerHTML = '&#x1F525;';
+  else                     fire.innerHTML = '&#x1F4A5;';
+
+  // Label
+  var lbl = document.getElementById('streakLabel');
+  if (streak === 0) {
+    lbl.textContent = 'Log today to start your streak';
+    lbl.style.color = 'rgba(255,255,255,.5)';
+  } else if (last === today) {
+    lbl.textContent = 'Logged today. Streak protected.';
+    lbl.style.color = 'rgba(13,122,110,.9)';
+  } else if (atRisk) {
+    lbl.textContent = 'Log today to protect your streak!';
+    lbl.style.color = 'rgba(224,123,57,.9)';
+  }
+
+  // Best
+  var bestEl = document.getElementById('streakBest');
+  if (best > 0) bestEl.textContent = 'Personal best: ' + best + ' days';
+  else bestEl.textContent = '';
+
+  // Badges
+  var badges = document.getElementById('streakBadges');
+  var html2 = '';
+  if (streak >= 7)   html2 += '<div class="streak-badge sb-fire">&#x1F525; ' + streak + ' day streak</div>';
+  if (streak >= 30)  html2 += '<div class="streak-badge sb-ice">&#x1F451; 30+ Legend</div>';
+  if (streak >= 90)  html2 += '<div class="streak-badge sb-legend">&#x1F3C6; Elite</div>';
+  if (streak === 0 && last === today) html2 += '<div class="streak-badge sb-ice">&#x2705; Today logged</div>';
+  badges.innerHTML = html2;
+}
+
+function showMilestone(days) {
+  var m = MILESTONES[days];
+  if (!m) return;
+  document.getElementById('msEmoji').innerHTML = m.emoji;
+  document.getElementById('msNum').textContent  = days;
+  document.getElementById('msWord').textContent  = m.word;
+  document.getElementById('msSub').textContent   = m.sub;
+  document.getElementById('milestoneOverlay').classList.add('show');
+}
+function closeMilestone() {
+  document.getElementById('milestoneOverlay').classList.remove('show');
+}
+
 </script>
 </body>
 </html>
