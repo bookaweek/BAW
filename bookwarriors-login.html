@@ -288,6 +288,133 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .ms-sub    { font-size: 15px; color: rgba(255,255,255,.6); line-height: 1.6; max-width: 280px; margin-bottom: 28px; }
 .ms-close  { height: 52px; padding: 0 40px; background: var(--gold); color: var(--navy); border: none; border-radius: 14px; font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; cursor: pointer; }
 
+
+/* ── BOOK COMPLETION MODAL ── */
+.modal-wrap {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10,42,102,.88);
+  z-index: 450;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+.modal-wrap.show { display: flex; animation: fadeIn .25s ease; }
+.modal-sheet {
+  background: var(--off-w);
+  border-radius: 24px 24px 0 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0 0 40px;
+  -webkit-overflow-scrolling: touch;
+}
+.modal-handle {
+  width: 40px; height: 4px;
+  background: var(--lgray);
+  border-radius: 2px;
+  margin: 14px auto 0;
+}
+.modal-head {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--lgray);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--navy);
+}
+.modal-close {
+  width: 32px; height: 32px;
+  border: none; background: var(--lgray);
+  border-radius: 50%; font-size: 16px;
+  cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  color: var(--cgray); flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.modal-book-chip {
+  margin: 14px 20px 0;
+  background: linear-gradient(135deg, rgba(10,42,102,.08), rgba(10,42,102,.04));
+  border: 1px solid rgba(10,42,102,.15);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.modal-book-icon { font-size: 24px; flex-shrink: 0; }
+.modal-book-name { font-size: 14px; font-weight: 700; color: var(--navy); }
+.modal-book-auth { font-size: 12px; color: var(--cgray); margin-top: 2px; }
+.modal-body { padding: 0 20px; }
+.modal-body .field { margin-top: 14px; margin-bottom: 0; }
+.modal-body .field label { font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 6px; display: block; }
+.modal-body .field input,
+.modal-body .field select,
+.modal-body .field textarea {
+  width: 100%; padding: 0 14px; height: 50px;
+  background: #fff; border: 2px solid var(--lgray);
+  border-radius: 12px; font-family: 'DM Sans', sans-serif;
+  font-size: 15px; color: var(--dgray);
+  outline: none; -webkit-appearance: none;
+  transition: border-color .2s;
+}
+.modal-body .field textarea { height: auto; min-height: 80px; padding: 12px 14px; resize: none; line-height: 1.55; }
+.modal-body .field input:focus,
+.modal-body .field select:focus,
+.modal-body .field textarea:focus { border-color: var(--navy); }
+.modal-submit {
+  margin: 20px 20px 0;
+  width: calc(100% - 40px);
+  height: 58px;
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  border: none; border-radius: 16px;
+  color: var(--gold);
+  font-family: 'Playfair Display', serif;
+  font-size: 16px; font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(10,42,102,.3);
+  -webkit-tap-highlight-color: transparent;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.modal-submit:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Book status badge on library cards */
+.bi-status {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 20px;
+  margin-top: 3px; display: inline-block;
+}
+.bi-status.reading   { background: rgba(10,42,102,.1);  color: var(--navy); }
+.bi-status.completed { background: rgba(13,122,110,.12); color: var(--teal); }
+.bi-status.nextup    { background: rgba(242,183,5,.15);  color: #8a6200; }
+
+/* Mark complete button on each book card */
+.bi-complete {
+  height: 32px; padding: 0 10px;
+  background: rgba(13,122,110,.1);
+  border: 1px solid rgba(13,122,110,.3);
+  border-radius: 8px;
+  color: var(--teal); font-size: 12px; font-weight: 700;
+  cursor: pointer; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+  display: flex; align-items: center; gap: 4px;
+}
+.bi-complete.done {
+  background: rgba(13,122,110,.08);
+  border-color: rgba(13,122,110,.2);
+  color: rgba(13,122,110,.5);
+  cursor: default;
+}
+
 </style>
 </head>
 <body>
@@ -562,6 +689,65 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </div>
   </div>
 
+
+  <!-- ── BOOK COMPLETION MODAL ── -->
+  <div class="modal-wrap" id="completeModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-head">
+        <div class="modal-title">&#x2705; Log Completed Book</div>
+        <button class="modal-close" onclick="closeCompleteModal()">&#x2715;</button>
+      </div>
+      <div class="modal-book-chip">
+        <div class="modal-book-icon">&#x1F4DA;</div>
+        <div>
+          <div class="modal-book-name" id="modal-book-name">Book Title</div>
+          <div class="modal-book-auth" id="modal-book-auth">Author</div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Total Pages Read</label>
+          <input type="number" id="c-pages" placeholder="e.g. 280" inputmode="numeric" min="1">
+        </div>
+        <div class="field">
+          <label>Rating <span class="req">*</span></label>
+          <select id="c-rating">
+            <option value="" disabled selected>Rate this book...</option>
+            <option value="5">&#x2B50;&#x2B50;&#x2B50;&#x2B50;&#x2B50; Must Read</option>
+            <option value="4">&#x2B50;&#x2B50;&#x2B50;&#x2B50; Recommended</option>
+            <option value="3">&#x2B50;&#x2B50;&#x2B50; Good</option>
+            <option value="2">&#x2B50;&#x2B50; OK</option>
+            <option value="1">&#x2B50; Skip</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Top Insight <span class="req">*</span></label>
+          <textarea id="c-insight" placeholder="The single most valuable thing you took from this book..."></textarea>
+        </div>
+        <div class="field">
+          <label>Action Committed</label>
+          <textarea id="c-action" placeholder="What will you do differently because of this book?"></textarea>
+        </div>
+        <div class="field">
+          <label>Would you recommend it?</label>
+          <select id="c-rec">
+            <option value="Must Read">&#x1F525; Must Read</option>
+            <option value="Recommended">&#x1F44D; Recommended</option>
+            <option value="Maybe">&#x1F914; Maybe</option>
+            <option value="Skip">&#x274C; Skip</option>
+          </select>
+        </div>
+        <div class="err-box" id="completeErr" style="margin: 10px 0 0"></div>
+      </div>
+      <button class="modal-submit" id="completeSubmit" onclick="submitComplete()">
+        <span id="cIcon">&#x1F4DA;</span>
+        <span id="cTxt">Mark as Completed</span>
+        <div class="spinner" id="cSpin"></div>
+      </button>
+    </div>
+  </div>
+
   <div class="quote"><div class="q-text" id="qText"></div><div class="q-auth" id="qAuth"></div></div>
   <div class="footer">BOOKAWEEK &middot; Mar&#x2013;Sep 2026</div>
 </div>
@@ -777,7 +963,22 @@ function renderLib(){
   var el=document.getElementById('bookList');
   if(!lib.length){ el.innerHTML='<div class="empty-lib"><span class="el-icon">&#x1F4D6;</span>No books yet.<br>Add books below.</div>'; return; }
   el.innerHTML=lib.map(function(b,i){
-    return '<div class="book-item"><div class="bi-num">'+(i+1)+'</div><div class="bi-info"><div class="bi-title">'+esc(b.t)+'</div><div class="bi-author">'+esc(b.a||'')+'</div></div><button class="bi-del" onclick="delBook('+i+')" style="color:var(--red)">&#x2715;</button></div>';
+    var done = b.s === 'Completed';
+    var statusClass = done ? 'completed' : (b.s === 'Next Up' ? 'nextup' : 'reading');
+    var statusLabel = done ? '&#x2705; Completed' : (b.s === 'Next Up' ? '&#x1F4CC; Next Up' : '&#x1F4D6; Reading');
+    var completeBtn = done
+      ? '<button class="bi-complete done" disabled>&#x2705; Done</button>'
+      : '<button class="bi-complete" onclick="openCompleteModal('+i+')">Mark Complete</button>';
+    return '<div class="book-item">'
+      + '<div class="bi-num">'+(i+1)+'</div>'
+      + '<div class="bi-info">'
+      + '<div class="bi-title">'+esc(b.t)+'</div>'
+      + '<div class="bi-author">'+esc(b.a||'')+'</div>'
+      + '<span class="bi-status '+statusClass+'">'+statusLabel+'</span>'
+      + '</div>'
+      + completeBtn
+      + '<button class="bi-del" onclick="delBook('+i+')" style="color:var(--red)">&#x2715;</button>'
+      + '</div>';
   }).join('');
 }
 function dropBooks(){
@@ -1122,6 +1323,126 @@ function showMilestone(days) {
 }
 function closeMilestone() {
   document.getElementById('milestoneOverlay').classList.remove('show');
+}
+
+
+// ══════════════════════════════════════════════
+// BOOK COMPLETION MODAL
+// ══════════════════════════════════════════════
+var _completeIdx = -1;
+
+function openCompleteModal(idx) {
+  _completeIdx = idx;
+  var b = lib[idx];
+  document.getElementById('modal-book-name').textContent = b.t;
+  document.getElementById('modal-book-auth').textContent = b.a || 'Unknown Author';
+  // Clear fields
+  document.getElementById('c-pages').value   = '';
+  document.getElementById('c-rating').value  = '';
+  document.getElementById('c-insight').value = '';
+  document.getElementById('c-action').value  = '';
+  document.getElementById('c-rec').value     = 'Must Read';
+  document.getElementById('completeErr').classList.remove('show');
+  // Reset button
+  document.getElementById('cIcon').style.display = 'inline';
+  document.getElementById('cTxt').textContent    = 'Mark as Completed';
+  document.getElementById('cSpin').style.display = 'none';
+  document.getElementById('completeSubmit').disabled = false;
+  document.getElementById('completeModal').classList.add('show');
+}
+
+function closeCompleteModal() {
+  document.getElementById('completeModal').classList.remove('show');
+  _completeIdx = -1;
+}
+
+// Close modal on backdrop tap
+document.getElementById('completeModal').addEventListener('click', function(e) {
+  if (e.target === this) closeCompleteModal();
+});
+
+async function submitComplete() {
+  if (_completeIdx < 0) return;
+  var err = document.getElementById('completeErr');
+  err.classList.remove('show');
+
+  var rating  = document.getElementById('c-rating').value;
+  var insight = document.getElementById('c-insight').value.trim();
+
+  if (!rating)  { err.textContent = 'Please rate this book.'; err.classList.add('show'); return; }
+  if (!insight) { err.textContent = 'Please share your top insight.'; err.classList.add('show'); return; }
+
+  var b = lib[_completeIdx];
+  var pages  = parseInt(document.getElementById('c-pages').value) || 0;
+  var action = document.getElementById('c-action').value.trim();
+  var rec    = document.getElementById('c-rec').value;
+  var now    = new Date();
+
+  // Update local library entry
+  lib[_completeIdx].s = 'Completed';
+  lib[_completeIdx].rating  = rating;
+  lib[_completeIdx].insight = insight;
+  lib[_completeIdx].pages   = pages;
+  saveLib();
+
+  // Loading state
+  document.getElementById('completeSubmit').disabled = true;
+  document.getElementById('cIcon').style.display = 'none';
+  document.getElementById('cSpin').style.display = 'block';
+  document.getElementById('cTxt').textContent    = 'Saving...';
+
+  // Send to Google Sheet — action:'completeBook' updates existing row
+  var payload = {
+    action:      'completeBook',
+    member:      member,
+    title:       b.t,
+    author:      b.a || '',
+    date:        dateStr(),
+    completedAt: now.toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'}),
+    pages:       pages,
+    rating:      rating,
+    insight:     insight,
+    actionTaken: action,
+    recommend:   rec,
+    month:       now.toLocaleDateString('en-GB', {month:'long', year:'numeric'})
+  };
+
+  try {
+    await fetch(URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    closeCompleteModal();
+    renderLib();
+    dropBooks();
+    // Celebration
+    success(
+      '&#x1F4DA; Book Completed!',
+      '<em>' + esc(b.t) + '</em> logged as completed. Every book is a new version of you.',
+      [['Book', b.t.slice(0,24)], ['Rating', rating + ' stars'], ['Pages', pages || 'Not entered']]
+    );
+    // Bonus streak milestone for book count
+    var completedCount = lib.filter(function(x){ return x.s === 'Completed'; }).length;
+    var bookMilestones = {1:'First book completed!', 6:'Halfway to 12!', 12:'A dozen books!', 24:'Full season complete!'};
+    if (bookMilestones[completedCount]) {
+      setTimeout(function(){
+        document.getElementById('msEmoji').innerHTML = '&#x1F4DA;';
+        document.getElementById('msNum').textContent  = completedCount;
+        document.getElementById('msWord').textContent  = bookMilestones[completedCount];
+        document.getElementById('msSub').textContent   = completedCount === 24
+          ? 'You read 24 books in one season. You are a BookWarrior Legend. This movement exists because of people like you.'
+          : 'Every book is a brick. Keep building.';
+        document.getElementById('milestoneOverlay').classList.add('show');
+      }, 1800);
+    }
+  } catch(e) {
+    err.textContent = 'Saved locally. Will sync when reconnected.';
+    err.classList.add('show');
+    closeCompleteModal();
+    renderLib();
+  }
 }
 
 </script>
