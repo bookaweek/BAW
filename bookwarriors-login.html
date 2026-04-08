@@ -482,42 +482,53 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </form>
   </div>
 
-  <!-- BOOKS -->
-  <div id="mode-books" style="display:none">
-    <div style="margin:16px 16px 0"><div class="month-badge">&#x1F4C5; <span id="currentMonth">March 2026</span> &mdash; Library</div></div>
-    <div class="card">
-      <div class="card-title">Your Books</div>
-      <div class="book-list" id="bookList"><div class="empty-lib"><span class="el-icon">&#x1F4D6;</span>No books yet.<br>Add books below.</div></div>
+ <div class="card">
+  <div class="card-title">Add a Book</div>
+  <div class="field"><label for="b-title">Title <span class="req">*</span></label><input type="text" id="b-title" placeholder="e.g. Atomic Habits" autocomplete="off"></div>
+  <div class="field"><label for="b-author">Author</label><input type="text" id="b-author" placeholder="e.g. James Clear" autocomplete="off"></div>
+  <div class="two-col">
+    <div class="field"><label for="b-status">Status</label>
+      <select id="b-status" onchange="document.getElementById('completedFields').style.display=this.value==='Completed'?'block':'none'">
+        <option value="Reading">📖 Reading</option>
+        <option value="Completed">✅ Completed</option>
+        <option value="Next Up">📌 Next Up</option>
+      </select>
     </div>
-    <div class="card">
-      <div class="card-title">Add a Book</div>
-      <div class="field"><label for="b-title">Title <span class="req">*</span></label><input type="text" id="b-title" placeholder="e.g. Atomic Habits" autocomplete="off"></div>
-      <div class="field"><label for="b-author">Author</label><input type="text" id="b-author" placeholder="e.g. James Clear" autocomplete="off"></div>
-      <div class="two-col">
-        <div class="field"><label for="b-status">Status</label>
-          <select id="b-status">
-            <option value="Reading">&#x1F4D6; Reading</option>
-            <option value="Completed">&#x2705; Completed</option>
-            <option value="Next Up">&#x1F4CC; Next Up</option>
-          </select>
-        </div>
-        <div class="field"><label for="b-cat">Category</label>
-          <select id="b-cat">
-            <option>Business</option><option>Leadership</option><option>Psychology</option>
-            <option>Finance</option><option>Biography</option><option>Philosophy</option>
-            <option>Science</option><option>Self-Help</option><option>Strategy</option><option>Other</option>
-          </select>
-        </div>
-      </div>
-      <div class="err-box" id="bookErr"></div>
-      <div style="margin-top:14px">
-        <button type="button" class="submit-btn" id="bookSubmit" onclick="submitBook()">
-          <div class="btn-inner"><span id="bIcon">&#x2795;</span><span id="bTxt">Add to Library</span><div class="spinner" id="bSpin"></div></div>
-        </button>
-      </div>
+    <div class="field"><label for="b-cat">Category</label>
+      <select id="b-cat">
+        <option>Business</option><option>Leadership</option><option>Psychology</option>
+        <option>Finance</option><option>Biography</option><option>Philosophy</option>
+        <option>Science</option><option>Self-Help</option><option>Strategy</option><option>Other</option>
+      </select>
     </div>
   </div>
 
+  <!-- COMPLETED FIELDS — hidden until status = Completed -->
+  <div id="completedFields" style="display:none">
+    <div class="two-col">
+      <div class="field"><label for="b-pages">Total Pages</label><input type="number" id="b-pages" placeholder="280" inputmode="numeric"></div>
+      <div class="field"><label for="b-rating">Rating (1-5)</label><input type="number" id="b-rating" placeholder="5" min="1" max="5" inputmode="numeric"></div>
+    </div>
+    <div class="field"><label for="b-insight">Top Insight</label><textarea id="b-insight" placeholder="The single most valuable thing you took from this book..." style="min-height:72px"></textarea></div>
+    <div class="field"><label for="b-action">Action Committed</label><textarea id="b-action" placeholder="What will you do differently because of this book?" style="min-height:72px"></textarea></div>
+    <div class="field"><label for="b-rec">Recommend?</label>
+      <select id="b-rec">
+        <option value="⭐⭐⭐⭐⭐ Must Read">⭐⭐⭐⭐⭐ Must Read</option>
+        <option value="⭐⭐⭐⭐ Recommended">⭐⭐⭐⭐ Recommended</option>
+        <option value="⭐⭐⭐ Good">⭐⭐⭐ Good</option>
+        <option value="⭐⭐ OK">⭐⭐ OK</option>
+        <option value="⭐ Skip">⭐ Skip</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="err-box" id="bookErr"></div>
+  <div style="margin-top:14px">
+    <button type="button" class="submit-btn" id="bookSubmit" onclick="submitBook()">
+      <div class="btn-inner"><span id="bIcon">➕</span><span id="bTxt">Add to Library</span><div class="spinner" id="bSpin"></div></div>
+    </button>
+  </div>
+</div>
   <!-- WEEKLY -->
   <div id="mode-weekly" style="display:none">
     <div class="unlock-msg" id="weeklyLocked" style="display:none">
@@ -773,12 +784,39 @@ function loadLib(){
 function saveLib(){
   try{localStorage.setItem(libKey(),JSON.stringify(lib));}catch(e){}
 }
-function renderLib(){
-  var el=document.getElementById('bookList');
-  if(!lib.length){ el.innerHTML='<div class="empty-lib"><span class="el-icon">&#x1F4D6;</span>No books yet.<br>Add books below.</div>'; return; }
-  el.innerHTML=lib.map(function(b,i){
-    return '<div class="book-item"><div class="bi-num">'+(i+1)+'</div><div class="bi-info"><div class="bi-title">'+esc(b.t)+'</div><div class="bi-author">'+esc(b.a||'')+'</div></div><button class="bi-del" onclick="delBook('+i+')" style="color:var(--red)">&#x2715;</button></div>';
+function renderLib() {
+  var list = document.getElementById('bookList');
+  if (!lib.length) {
+    list.innerHTML = '<div class="empty-lib"><span class="el-icon">📖</span>No books yet.<br>Add books below.</div>';
+    return;
+  }
+  list.innerHTML = lib.map(function(b,i) {
+    var done = b.status === 'Completed';
+    return '<div class="book-item" style="' + (done?'background:#f0fff4;':'') + '">'
+      + '<div class="bi-num" style="' + (done?'background:#1A7A3C;':'') + '">' + (done?'✓':i+1) + '</div>'
+      + '<div class="bi-info">'
+      + '<div class="bi-title">' + escHtml(b.title) + '</div>'
+      + '<div class="bi-author" style="color:' + (done?'#1A7A3C':'') + '">' + escHtml(b.author||'') + ' ' + (done?'· ✅ Completed':'· 📖 Reading') + '</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;flex-shrink:0;">'
+      + (!done ? '<button style="width:32px;height:32px;border:1.5px solid rgba(26,122,60,0.3);background:rgba(26,122,60,0.08);border-radius:8px;font-size:16px;cursor:pointer;" onclick="markComplete(' + i + ')" title="Mark finished">✅</button>' : '')
+      + '<button class="bi-del" onclick="removeBook(' + i + ')" title="Remove">✕</button>'
+      + '</div>'
+      + '</div>';
   }).join('');
+}
+
+function markComplete(idx) {
+  document.getElementById('b-title').value  = lib[idx].title;
+  document.getElementById('b-author').value = lib[idx].author || '';
+  document.getElementById('b-status').value = 'Completed';
+  document.getElementById('completedFields').style.display = 'block';
+  lib[idx].status = 'Completed';
+  saveLib();
+  renderLib();
+  document.getElementById('b-title').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+  
 }
 function dropBooks(){
   var s=document.getElementById('d-book'), cur=s.value;
@@ -809,25 +847,58 @@ document.getElementById('d-book').addEventListener('change',function(){
 function delBook(i){
   if(confirm('Remove "'+lib[i].t+'"?')){lib.splice(i,1);saveLib();renderLib();dropBooks();}
 }
-async function submitBook(){
-  var title=document.getElementById('b-title').value.trim();
-  var err=document.getElementById('bookErr'); err.classList.remove('show');
-  if(!title){err.textContent='Please enter the book title.';err.classList.add('show');return;}
-  var author=document.getElementById('b-author').value.trim();
-  var status=document.getElementById('b-status').value;
-  lib.push({t:title,a:author,s:status}); saveLib();
-  setBL(true);
-  try{
-    await fetch(URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:document.getElementById('b-cat').value})});
-    success('Book Added!','<em>'+esc(title)+'</em> added to your library.',[['Book',title],['Status',status]]);
-    document.getElementById('b-title').value='';
-    document.getElementById('b-author').value='';
-    renderLib();dropBooks();
-  }catch(e){ err.textContent='Saved locally.'; err.classList.add('show'); }
-  finally{setBL(false);}
-}
+async function submitBook() {
+  var title  = document.getElementById('b-title').value.trim();
+  var errEl  = document.getElementById('bookErr');
+  errEl.classList.remove('show');
+  if (!title) { errEl.textContent='Please enter the book title.'; errEl.classList.add('show'); return; }
 
+  var status   = document.getElementById('b-status').value;
+  var author   = document.getElementById('b-author').value.trim();
+  var category = document.getElementById('b-cat').value;
+  var now      = new Date();
+  var monthStr = now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+
+  var bookEntry = { title:title, author:author, status:status, category:category, addedAt:now.toISOString() };
+  lib.push(bookEntry);
+  saveLib();
+
+  var payload = {
+    action:      'addBook',
+    member:      member,
+    date:        toDateStr(now),
+    month:       monthStr,
+    title:       title,
+    author:      author,
+    category:    category,
+    status:      status,
+    pages:       status==='Completed' ? (parseInt(document.getElementById('b-pages').value)||0) : 0,
+    rating:      status==='Completed' ? (parseInt(document.getElementById('b-rating').value)||0) : 0,
+    insight:     status==='Completed' ? document.getElementById('b-insight').value.trim() : '',
+    actionTaken: status==='Completed' ? document.getElementById('b-action').value.trim()  : '',
+    recommend:   status==='Completed' ? document.getElementById('b-rec').value             : '',
+  };
+
+  setBookLoading(true);
+  try {
+    await fetch(URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    showSuccess(
+      status==='Completed' ? '📖 Book Logged!' : '📚 Added to Library!',
+      title + (status==='Completed' ? ' logged as completed.' : ' added to your library.'),
+      [['Book',title],['Author',author||'—'],['Status',status],['Category',category]]
+    );
+    document.getElementById('b-title').value  = '';
+    document.getElementById('b-author').value = '';
+    document.getElementById('b-status').value = 'Reading';
+    document.getElementById('completedFields').style.display = 'none';
+    renderLib();
+    refreshDrop();
+  } catch(e) {
+    errEl.textContent='Connection failed. Book saved locally.'; errEl.classList.add('show');
+  } finally {
+    setBookLoading(false);
+  }
+}
 // ── DAILY ──
 function toggleRest(){
   rest=!rest;
@@ -865,7 +936,7 @@ document.getElementById('dailyForm').addEventListener('submit',async function(e)
     minutes:rest?0:(parseInt(mins)||0),
     pages:rest?0:(parseInt(document.getElementById('d-pages').value)||0),
     insight:rest?'Rest Day':insight,
-    action:rest?'':document.getElementById('d-action').value.trim(),
+    actionCommitted: isRestDay ? '' : document.getElementById('d-action').value.trim(),
     rating:rest?0:stars,isRestDay:rest};
   setDL(true);
   try{
