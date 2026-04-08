@@ -482,41 +482,199 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </form>
   </div>
 
-  <!-- BOOKS -->
-  <div id="mode-books" style="display:none">
-    <div style="margin:16px 16px 0"><div class="month-badge">&#x1F4C5; <span id="currentMonth">March 2026</span> &mdash; Library</div></div>
-    <div class="card">
-      <div class="card-title">Your Books</div>
-      <div class="book-list" id="bookList"><div class="empty-lib"><span class="el-icon">&#x1F4D6;</span>No books yet.<br>Add books below.</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">Add a Book</div>
-      <div class="field"><label for="b-title">Title <span class="req">*</span></label><input type="text" id="b-title" placeholder="e.g. Atomic Habits" autocomplete="off"></div>
-      <div class="field"><label for="b-author">Author</label><input type="text" id="b-author" placeholder="e.g. James Clear" autocomplete="off"></div>
-      <div class="two-col">
-        <div class="field"><label for="b-status">Status</label>
-          <select id="b-status">
-            <option value="Reading">&#x1F4D6; Reading</option>
-            <option value="Completed">&#x2705; Completed</option>
-            <option value="Next Up">&#x1F4CC; Next Up</option>
-          </select>
-        </div>
-        <div class="field"><label for="b-cat">Category</label>
-          <select id="b-cat">
-            <option>Business</option><option>Leadership</option><option>Psychology</option>
-            <option>Finance</option><option>Biography</option><option>Philosophy</option>
-            <option>Science</option><option>Self-Help</option><option>Strategy</option><option>Other</option>
-          </select>
-        </div>
+// ═══════════════════════════════════════════════════════════════════════════
+// LIBRARY (Books Mode)
+// ═══════════════════════════════════════════════════════════════════════════
+function libKey() { return STORAGE_PREFIX + currentMember + '_library'; }
+
+function loadLibrary() {
+  try {
+    var s = localStorage.getItem(libKey());
+    if (s) { memberLibrary = JSON.parse(s); return; }
+    s = sessionStorage.getItem(libKey());
+    if (s) { memberLibrary = JSON.parse(s); saveLibrary(); return; }
+    var c = getCookie(libKey());
+    if (c) { memberLibrary = JSON.parse(decodeURIComponent(c)); saveLibrary(); return; }
+    memberLibrary = [];
+  } catch(e) { memberLibrary = []; }
+}
+
+function saveLibrary() {
+  var d = JSON.stringify(memberLibrary);
+  try { localStorage.setItem(libKey(), d); } catch(e) {}
+  try { sessionStorage.setItem(libKey(), d); } catch(e) {}
+  try {
+    var exp = new Date(); exp.setDate(exp.getDate() + 180);
+    document.cookie = libKey() + '=' + encodeURIComponent(d) + ';expires=' + exp.toUTCString() + ';path=/;SameSite=Lax';
+  } catch(e) {}
+}
+
+function getCookie(name) {
+  var parts = document.cookie.split(';');
+  for (var i = 0; i < parts.length; i++) {
+    var p = parts[i].trim();
+    if (p.startsWith(name + '=')) return p.substring(name.length + 1);
+  }
+  return null;
+}
+
+function renderLibrary() {
+  const list = document.getElementById('bookList');
+  if (memberLibrary.length === 0) {
+    list.innerHTML = '<div class="empty-lib"><span class="el-icon">📖</span>No books added yet.<br>Add the books you\'re reading this month below.</div>';
+    return;
+  }
+  list.innerHTML = memberLibrary.map((b, i) => {
+    const isDone = b.status === 'Completed';
+    return `
+    <div class="book-item" style="${isDone ? 'background:#f0fff4;border-color:#1A7A3C22;' : ''}">
+      <div class="bi-num" style="${isDone ? 'background:#1A7A3C;' : ''}">${isDone ? '✓' : i+1}</div>
+      <div class="bi-info">
+        <div class="bi-title">${escHtml(b.title)}</div>
+        <div class="bi-author" style="color:${isDone ? '#1A7A3C' : ''}">${escHtml(b.author || '')} ${isDone ? '· ✅ Completed' : '· 📖 Reading'}</div>
       </div>
-      <div class="err-box" id="bookErr"></div>
-      <div style="margin-top:14px">
-        <button type="button" class="submit-btn" id="bookSubmit" onclick="submitBook()">
-          <div class="btn-inner"><span id="bIcon">&#x2795;</span><span id="bTxt">Add to Library</span><div class="spinner" id="bSpin"></div></div>
-        </button>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        ${!isDone ? `<button class="bi-complete" onclick="markComplete(${i})" title="Mark as finished">✅</button>` : ''}
+        <button class="bi-del" onclick="removeBook(${i})" title="Remove">✕</button>
       </div>
-    </div>
-  </div>
+    </div>`;
+  }).join('');
+}
+
+function refreshBookDropdown() {
+  const sel = document.getElementById('d-book');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="" disabled>Select from your library...</option>';
+  if (memberLibrary.length === 0) {
+    sel.innerHTML += '<option value="" disabled>— Add books in the My Books tab —</option>';
+  } else {
+    memberLibrary.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.title + (b.author ? ' — ' + b.author : '');
+      opt.textContent = b.title + (b.author ? ' · ' + b.author : '');
+      if (opt.value === cur) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+  // Also allow manual entry option
+  const manual = document.createElement('option');
+  manual.value = '__manual__'; manual.textContent = '✏️ Type a book title...';
+  sel.appendChild(manual);
+}
+
+function refreshWeeklyBookDropdown() {
+  const sel = document.getElementById('w-book');
+  sel.innerHTML = '<option value="" disabled selected>Select...</option><option value="—">— None this week —</option>';
+  memberLibrary.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.title; opt.textContent = b.title;
+    sel.appendChild(opt);
+  });
+}
+
+// Handle manual book title entry
+document.getElementById('d-book').addEventListener('change', function() {
+  if (this.value === '__manual__') {
+    const title = prompt('Enter book title:');
+    if (title && title.trim()) {
+      // Add to library temporarily
+      memberLibrary.push({ title: title.trim(), author: '', status: 'Reading', category: 'Other', addedAt: new Date().toISOString() });
+      saveLibrary();
+      refreshBookDropdown();
+      document.getElementById('d-book').value = title.trim();
+    } else {
+      this.value = '';
+    }
+  }
+  updateProgress();
+});
+
+function removeBook(idx) {
+  if (confirm('Remove "' + memberLibrary[idx].title + '" from your library?')) {
+    memberLibrary.splice(idx, 1);
+    saveLibrary();
+    renderLibrary();
+    refreshBookDropdown();
+  }
+}
+
+// ── MARK A LIBRARY BOOK AS COMPLETED ─────────────────────────────────────────
+function markComplete(idx) {
+  const book = memberLibrary[idx];
+  // Pre-fill the completion form with this book's details
+  document.getElementById('b-title').value  = book.title;
+  document.getElementById('b-author').value = book.author || '';
+  document.getElementById('b-status').value = 'Completed';
+  document.getElementById('completedFields').style.display = 'block';
+  // Scroll to the add form
+  document.getElementById('b-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById('b-title').focus();
+  // Mark in library locally
+  memberLibrary[idx].status = 'Completed';
+  saveLibrary();
+  renderLibrary();
+}
+
+// Show/hide completed fields based on status
+document.getElementById('b-status').addEventListener('change', function() {
+  document.getElementById('completedFields').style.display = this.value === 'Completed' ? 'block' : 'none';
+});
+
+async function submitBook() {
+  const title = document.getElementById('b-title').value.trim();
+  const errEl = document.getElementById('bookErr');
+  errEl.classList.remove('show');
+
+  if (!title) { errEl.textContent = 'Please enter the book title.'; errEl.classList.add('show'); return; }
+
+  const status   = document.getElementById('b-status').value;
+  const author   = document.getElementById('b-author').value.trim();
+  const category = document.getElementById('b-cat').value;
+  const now      = new Date();
+  const monthStr = now.toLocaleDateString('en-GB', { month:'long', year:'numeric' });
+
+  // Add to local library
+  const bookEntry = { title, author, status, category, addedAt: now.toISOString() };
+  memberLibrary.push(bookEntry);
+  saveLibrary();
+
+  // Build payload for sheet
+  const payload = {
+    action:    'addBook',
+    member:    currentMember,
+    date:      toDateStr(now),
+    month:     monthStr,
+    title, author, category, status,
+    pages:     status === 'Completed' ? (parseInt(document.getElementById('b-pages').value) || 0) : 0,
+    rating:    status === 'Completed' ? (parseInt(document.getElementById('b-rating').value) || 0) : 0,
+    insight:   status === 'Completed' ? document.getElementById('b-insight').value.trim() : '',
+    actionTaken: status === 'Completed' ? document.getElementById('b-action').value.trim() : '',
+    recommend: status === 'Completed' ? document.getElementById('b-rec').value : '',
+  };
+
+  setBookLoading(true);
+  try {
+    await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    showSuccessOverlay(
+      status === 'Completed' ? '📖 Book Logged!' : '📚 Added to Library!',
+      `<em>${escHtml(title)}</em> has been ${status === 'Completed' ? 'logged as completed' : 'added to your reading library'} and will appear in the Daily Log dropdown.`,
+      [['Book', title], ['Author', author || '—'], ['Status', status], ['Category', category]]
+    );
+    // Reset book form
+    document.getElementById('b-title').value  = '';
+    document.getElementById('b-author').value = '';
+    document.getElementById('completedFields').style.display = 'none';
+    document.getElementById('b-status').value = 'Reading';
+    renderLibrary();
+    refreshBookDropdown();
+  } catch(e) {
+    errEl.textContent = 'Connection failed. Book saved locally — will sync when reconnected.';
+    errEl.classList.add('show');
+  } finally {
+    setBookLoading(false);
+  }
+}
+
 
   <!-- WEEKLY -->
   <div id="mode-weekly" style="display:none">
