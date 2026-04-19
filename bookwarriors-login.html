@@ -627,31 +627,58 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     <button class="ms-close" onclick="closeMilestone()">Keep Going &#x1F525;</button>
   </div>
 
-  <!-- Notification banner (shown after login) -->
-  <div id="notif-bar">
-    <div class="nb-row">
-      <div style="font-size:22px">&#x1F514;</div>
-      <div class="nb-txt">
-        <div class="nb-title">Never miss a reading day</div>
-        <div class="nb-sub">Get daily reminders to log your session</div>
+  <!-- Notification prompt — always visible until granted -->
+  <div id="notif-bar" style="display:none;margin:14px 16px 0;">
+    <button onclick="enableNotifs()" style="
+      width:100%;padding:16px 18px;
+      background:linear-gradient(135deg,rgba(242,183,5,.18),rgba(242,183,5,.08));
+      border:2px solid rgba(242,183,5,.5);
+      border-radius:14px;cursor:pointer;
+      display:flex;align-items:center;gap:12px;
+      -webkit-tap-highlight-color:transparent;
+      text-align:left;
+    ">
+      <div style="font-size:28px;flex-shrink:0;">&#x1F514;</div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;">Enable Daily Reminders</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.55);line-height:1.4;">Tap to get reminded every day before your streak breaks</div>
       </div>
-      <div class="nb-btns">
-        <button class="nb-enable" onclick="enableNotifs()">Enable</button>
-        <button class="nb-later" onclick="dismissNotif()">Later</button>
-      </div>
-    </div>
+      <div style="font-size:20px;color:rgba(242,183,5,.7);">&#x2192;</div>
+    </button>
+    <button onclick="dismissNotif()" style="
+      display:block;width:100%;padding:6px;margin-top:6px;
+      background:none;border:none;color:rgba(255,255,255,.25);
+      font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;
+      text-align:center;-webkit-tap-highlight-color:transparent;">
+      Not now
+    </button>
   </div>
 
-  <!-- Install banner (shown when installable) -->
-  <div id="install-bar">
-    <div class="ib-row">
-      <div class="ib-icon">&#x1F4F2;</div>
-      <div class="ib-txt">
-        <div class="ib-title">Add to Home Screen</div>
-        <div class="ib-sub">Open BookAWeek like a native app, one tap from your home screen</div>
+  <!-- Install banner -->
+  <div id="install-bar" style="display:none;margin:14px 16px 0;">
+    <button onclick="installApp()" style="
+      width:100%;padding:16px 18px;
+      background:linear-gradient(135deg,rgba(13,122,110,.2),rgba(13,122,110,.08));
+      border:2px solid rgba(13,122,110,.5);
+      border-radius:14px;cursor:pointer;
+      display:flex;align-items:center;gap:12px;
+      -webkit-tap-highlight-color:transparent;
+      text-align:left;
+    ">
+      <div style="font-size:28px;flex-shrink:0;">&#x1F4F2;</div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;" id="ib-btn-text">Install BookAWeek App</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.55);line-height:1.4;" id="ib-btn-sub">Add to your home screen for instant one-tap access</div>
       </div>
-      <button class="ib-btn" onclick="installApp()"><span id="ib-btn-text">Install App</span></button>
-    </div>
+      <div style="font-size:20px;color:rgba(13,122,110,.8);">&#x2B07;</div>
+    </button>
+    <button onclick="document.getElementById('install-bar').style.display='none'" style="
+      display:block;width:100%;padding:6px;margin-top:6px;
+      background:none;border:none;color:rgba(255,255,255,.25);
+      font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;
+      text-align:center;-webkit-tap-highlight-color:transparent;">
+      Not now
+    </button>
   </div>
 
   <div class="mode-bar">
@@ -962,41 +989,92 @@ window.addEventListener('offline', updateOffline);
 
 // ── INSTALL ──
 function installApp() {
+  // iOS Safari
   if (window._iosInstall) {
-    localStorage.setItem(PRE+'ios_shown','1');
     document.getElementById('install-bar').style.display='none';
-    alert('To install on iPhone or iPad:\n\n1. Tap the Share button (box with arrow) at the bottom of Safari\n2. Tap "Add to Home Screen"\n3. Tap "Add"\n\nBookAWeek will appear on your home screen!');
+    showInstallGuide('ios');
     return;
   }
-  if (!deferredInstall) {
-    toast('To install: open browser menu and tap "Add to Home Screen"');
+  // Android Chrome — native prompt available
+  if (deferredInstall) {
+    deferredInstall.prompt();
+    deferredInstall.userChoice.then(function(r) {
+      document.getElementById('install-bar').style.display='none';
+      deferredInstall = null;
+      if (r.outcome === 'accepted') toast('BookAWeek installed on your home screen!');
+    });
     return;
   }
-  deferredInstall.prompt();
-  deferredInstall.userChoice.then(function(r) {
-    document.getElementById('install-bar').style.display='none';
-    deferredInstall=null;
-    if(r.outcome==='accepted') toast('BookAWeek installed on your home screen!');
-  });
+  // Android Chrome — no prompt yet (criteria not met)
+  var isAndroid = /android/i.test(navigator.userAgent);
+  if (isAndroid) {
+    showInstallGuide('android');
+  } else {
+    showInstallGuide('ios');
+  }
+}
+
+function showInstallGuide(platform) {
+  // Remove old guide if exists
+  var old = document.getElementById('install-guide');
+  if (old) old.remove();
+
+  var steps = platform === 'ios'
+    ? ['Open this page in <strong>Safari</strong> (not Chrome) on your iPhone','Tap the <strong>Share</strong> button at the bottom of the screen','Scroll down and tap <strong>Add to Home Screen</strong>','Tap <strong>Add</strong> in the top right','BookAWeek icon will appear on your home screen']
+    : ['Tap the <strong>3-dot menu</strong> (⋮) at the top right of Chrome','Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>','Tap <strong>Add</strong> to confirm','BookAWeek icon will appear on your home screen'];
+
+  var guide = document.createElement('div');
+  guide.id = 'install-guide';
+  guide.style.cssText = 'position:fixed;inset:0;background:rgba(10,42,102,.95);z-index:700;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;';
+  guide.innerHTML = [
+    '<div style="font-family:Playfair Display,serif;font-size:24px;font-weight:900;color:#fff;text-align:center;margin-bottom:8px;">Install BookAWeek</div>',
+    '<div style="font-size:13px;color:rgba(255,255,255,.5);text-align:center;margin-bottom:28px;">Follow these steps on your phone</div>',
+    steps.map(function(s,i){
+      return '<div style="display:flex;align-items:flex-start;gap:14px;width:100%;max-width:340px;margin-bottom:16px;">'
+        +'<div style="width:28px;height:28px;border-radius:50%;background:var(--gold);color:#0A2A66;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+(i+1)+'</div>'
+        +'<div style="font-size:14px;color:rgba(255,255,255,.8);line-height:1.6;padding-top:4px;">'+s+'</div>'
+        +'</div>';
+    }).join(''),
+    '<button onclick="document.getElementById('install-guide').remove()" style="margin-top:12px;width:100%;max-width:340px;height:52px;background:var(--gold);color:#0A2A66;border:none;border-radius:14px;font-family:Playfair Display,serif;font-size:16px;font-weight:700;cursor:pointer;">Got it</button>'
+  ].join('');
+  document.body.appendChild(guide);
 }
 
 // ── NOTIFICATIONS ──
 function enableNotifs() {
   document.getElementById('notif-bar').style.display = 'none';
-  if (!('Notification' in window)) { toast('Notifications not supported on this browser.'); return; }
+  if (!('Notification' in window)) {
+    toast('Your browser does not support notifications. Try Chrome or Samsung Internet.');
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    toast('Notifications are blocked. Go to browser Settings > Site Settings > Notifications and allow BookAWeek.');
+    return;
+  }
   Notification.requestPermission().then(function(p) {
     if (p === 'granted') {
       localStorage.setItem(PRE+'notifs','1');
-      toast('Daily reminders enabled!');
-      fireReminder();
+      toast('Daily reminders enabled! You will be reminded every day.');
+      // Fire a test notification immediately so they see it works
+      setTimeout(function(){
+        try {
+          var n = new Notification('BookAWeek', {
+            body: 'Reminders are ON. We will keep your streak alive.',
+            icon: 'icon-192.png',
+            badge: 'icon-72.png',
+            tag: 'baw-welcome'
+          });
+          n.onclick = function(){ window.focus(); n.close(); };
+        } catch(e){}
+      }, 500);
     } else {
-      localStorage.setItem(PRE+'notif_no','1');
+      toast('Notifications blocked. You can enable them in your browser settings.');
     }
   });
 }
 function dismissNotif() {
+  // Only hide for this session — will show again next login
   document.getElementById('notif-bar').style.display = 'none';
-  localStorage.setItem(PRE+'notif_no','1');
 }
 function showNotifBanner() {
   if (!('Notification' in window)) return;
@@ -1006,11 +1084,10 @@ function showNotifBanner() {
     return;
   }
   if (Notification.permission === 'denied') return;
-  if (localStorage.getItem(PRE+'notif_no')) return;
-  setTimeout(function(){
-    var bar = document.getElementById('notif-bar');
-    if (bar) bar.style.display = 'block';
-  }, 3000);
+  // Show immediately — no delay, no dismiss memory
+  // Warriors must actively choose "Not now" each session
+  var bar = document.getElementById('notif-bar');
+  if (bar) bar.style.display = 'block';
 }
 function fireReminder() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -1260,22 +1337,21 @@ function updateDots(prefix, val) {
 // ── INIT: render recent members on load ──
 function initAuthScreen() {
 
-  // ── ONE-TIME MIGRATION: existing members keep their PINs + get GAS sheets ──
-  if (!localStorage.getItem(PRE+'migrated_v3')) {
-    var legacy = {Dorcas:'1234',Haliyah:'2345',Jesulayomi:'3456',Juliet:'4567',Motolani:'5678',EA:'6789'};
-    var reg = getRegistry();
-    // Save PINs using normalised keys
-    Object.keys(legacy).forEach(function(name){
-      var key = name.toLowerCase();
-      if (!reg[key]) reg[key] = legacy[name];
-    });
+  // ── FORCE PIN RESET: clear old PINs — all members must set their own ──
+  if (!localStorage.getItem(PRE+'migrated_v4')) {
+    // Wipe the entire PIN registry — everyone starts fresh
+    localStorage.removeItem(PRE+'registry');
+    localStorage.removeItem(PRE+'migrated_v2');
+    localStorage.removeItem(PRE+'migrated_v3');
+    // Keep recent list so names still appear as quick-tap options
+    var reg = {};
     saveRegistry(reg);
     // Add to recent list
     var legacyNames = Object.keys(legacy);
     var recent = [];
     legacyNames.forEach(function(n){ recent.push(n); });
     try { localStorage.setItem(PRE+'recent', JSON.stringify(recent)); } catch(e){}
-    localStorage.setItem(PRE+'migrated_v3','1');
+    localStorage.setItem(PRE+'migrated_v4','1');
     // Register all existing warriors in GAS — creates their personal sheets
     legacyNames.forEach(function(name) {
       fetch(URL, {
