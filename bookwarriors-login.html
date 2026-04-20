@@ -1109,17 +1109,46 @@ function dismissNotif() {
   document.getElementById('notif-bar').style.display = 'none';
 }
 function showNotifBanner() {
-  if (!('Notification' in window)) return;
+  var bar = document.getElementById('notif-bar');
+  if (!bar) return;
+
+  // No Notification API (e.g. old browser)
+  if (!('Notification' in window)) {
+    bar.style.display = 'none';
+    return;
+  }
+
   if (Notification.permission === 'granted') {
+    // Already enabled — show green status badge instead of prompt
     localStorage.setItem(PRE+'notifs','1');
+    bar.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(13,122,110,.15);border:1px solid rgba(13,122,110,.4);border-radius:12px;">'
+      + '<div style="font-size:20px;">&#x1F514;</div>'
+      + '<div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.8);">Daily reminders are <span style="color:#4ADE80">ON</span></div>'
+      + '<button onclick="this.parentElement.parentElement.style.display='none'" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.3);font-size:18px;cursor:pointer;padding:0 4px;">&#x2715;</button>'
+      + '</div>';
+    bar.style.display = 'block';
+    // Hide after 4 seconds
+    setTimeout(function(){ bar.style.display = 'none'; }, 4000);
     fireReminder();
     return;
   }
-  if (Notification.permission === 'denied') return;
-  // Show immediately — no delay, no dismiss memory
-  // Warriors must actively choose "Not now" each session
-  var bar = document.getElementById('notif-bar');
-  if (bar) bar.style.display = 'block';
+
+  if (Notification.permission === 'denied') {
+    // Blocked — show how to fix it
+    bar.innerHTML = '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.35);border-radius:12px;">'
+      + '<div style="font-size:18px;flex-shrink:0;">&#x26D4;</div>'
+      + '<div style="flex:1;">'
+      + '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">Notifications blocked</div>'
+      + '<div style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.4;">Go to Chrome Settings &rarr; Site Settings &rarr; Notifications &rarr; find BookAWeek &rarr; Allow</div>'
+      + '</div>'
+      + '<button onclick="this.parentElement.parentElement.style.display='none'" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:18px;cursor:pointer;flex-shrink:0;padding:0 4px;">&#x2715;</button>'
+      + '</div>';
+    bar.style.display = 'block';
+    return;
+  }
+
+  // Default: permission not yet asked — show the enable button
+  bar.style.display = 'block';
 }
 function fireReminder() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -1128,9 +1157,14 @@ function fireReminder() {
     localStorage.setItem(PRE+'notifs','1');
   }
   var last = parseInt(localStorage.getItem(PRE+'last_notif')||0);
-  if ((Date.now()-last) < 20*3600000) return;
-  var h = new Date().getHours();
-  if (h < 7 || h > 22) return;
+  var firstTime = last === 0;
+  // Normal throttle: once per 20hrs between 7am-10pm
+  // First time: fire immediately regardless of time
+  if (!firstTime) {
+    if ((Date.now()-last) < 20*3600000) return;
+    var h = new Date().getHours();
+    if (h < 7 || h > 22) return;
+  }
   var msgs = [
     'Have you logged your reading session today, BookWarrior?',
     'The covenant calls. Open your book. Log your session.',
