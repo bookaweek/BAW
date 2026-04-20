@@ -1112,44 +1112,72 @@ function showNotifBanner() {
   var bar = document.getElementById('notif-bar');
   if (!bar) return;
 
-  // No Notification API (e.g. old browser)
+  // Clear previous content
+  while (bar.firstChild) bar.removeChild(bar.firstChild);
+
   if (!('Notification' in window)) {
     bar.style.display = 'none';
     return;
   }
 
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;';
+
+  var closeBtn = document.createElement('button');
+  closeBtn.style.cssText = 'margin-left:auto;background:none;border:none;color:rgba(255,255,255,.4);font-size:20px;cursor:pointer;flex-shrink:0;padding:0 4px;';
+  closeBtn.innerHTML = '&#x2715;';
+  closeBtn.onclick = function() { bar.style.display = 'none'; };
+
   if (Notification.permission === 'granted') {
-    // Already enabled — show green status badge instead of prompt
     localStorage.setItem(PRE+'notifs','1');
-    bar.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(13,122,110,.15);border:1px solid rgba(13,122,110,.4);border-radius:12px;">'
-      + '<div style="font-size:20px;">&#x1F514;</div>'
-      + '<div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.8);">Daily reminders are <span style="color:#4ADE80">ON</span></div>'
-      + '<button onclick="this.parentElement.parentElement.style.display='none'" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.3);font-size:18px;cursor:pointer;padding:0 4px;">&#x2715;</button>'
-      + '</div>';
+    wrap.style.background = 'rgba(13,122,110,.15)';
+    wrap.style.border      = '1px solid rgba(13,122,110,.4)';
+    var icon = document.createElement('div');
+    icon.style.fontSize = '20px';
+    icon.innerHTML = '&#x1F514;';
+    var txt = document.createElement('div');
+    txt.style.cssText = 'font-size:13px;font-weight:600;color:rgba(255,255,255,.8);';
+    txt.innerHTML = 'Daily reminders are <span style="color:#4ADE80">ON</span>';
+    wrap.appendChild(icon);
+    wrap.appendChild(txt);
+    wrap.appendChild(closeBtn);
+    bar.appendChild(wrap);
     bar.style.display = 'block';
-    // Hide after 4 seconds
     setTimeout(function(){ bar.style.display = 'none'; }, 4000);
     fireReminder();
     return;
   }
 
   if (Notification.permission === 'denied') {
-    // Blocked — show how to fix it
-    bar.innerHTML = '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.35);border-radius:12px;">'
-      + '<div style="font-size:18px;flex-shrink:0;">&#x26D4;</div>'
-      + '<div style="flex:1;">'
-      + '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">Notifications blocked</div>'
-      + '<div style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.4;">Go to Chrome Settings &rarr; Site Settings &rarr; Notifications &rarr; find BookAWeek &rarr; Allow</div>'
-      + '</div>'
-      + '<button onclick="this.parentElement.parentElement.style.display='none'" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:18px;cursor:pointer;flex-shrink:0;padding:0 4px;">&#x2715;</button>'
-      + '</div>';
+    wrap.style.background = 'rgba(192,57,43,.12)';
+    wrap.style.border      = '1px solid rgba(192,57,43,.35)';
+    wrap.style.alignItems  = 'flex-start';
+    var icon2 = document.createElement('div');
+    icon2.style.cssText = 'font-size:18px;flex-shrink:0;';
+    icon2.innerHTML = '&#x26D4;';
+    var txt2wrap = document.createElement('div');
+    txt2wrap.style.flex = '1';
+    var txt2title = document.createElement('div');
+    txt2title.style.cssText = 'font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;';
+    txt2title.textContent = 'Notifications blocked';
+    var txt2sub = document.createElement('div');
+    txt2sub.style.cssText = 'font-size:11px;color:rgba(255,255,255,.55);line-height:1.4;';
+    txt2sub.textContent = 'Go to Chrome Settings > Site Settings > Notifications > find BookAWeek > Allow';
+    txt2wrap.appendChild(txt2title);
+    txt2wrap.appendChild(txt2sub);
+    wrap.appendChild(icon2);
+    wrap.appendChild(txt2wrap);
+    wrap.appendChild(closeBtn);
+    bar.appendChild(wrap);
     bar.style.display = 'block';
     return;
   }
 
-  // Default: permission not yet asked — show the enable button
+  // Default: not yet asked — show enable button
   bar.style.display = 'block';
 }
+
+
 function fireReminder() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   // Auto-enable if permission was granted (e.g. via browser settings)
