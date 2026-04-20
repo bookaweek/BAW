@@ -957,9 +957,13 @@ window.onload = function() {
   }
   // Register SW
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js', {scope:'./'})
-      .then(function(r){ console.log('SW ok'); })
-      .catch(function(e){ console.log('SW fail',e); });
+    // Only register SW on the actual GitHub Pages domain
+    var onGitHubPages = location.hostname.includes('github.io') || location.hostname.includes('bookaweek');
+    if (onGitHubPages) {
+      navigator.serviceWorker.register('sw.js', {scope:'./'})
+        .then(function(){ console.log('SW registered'); })
+        .catch(function(e){ console.log('SW skipped:', e.message); });
+    }
   }
 };
 
