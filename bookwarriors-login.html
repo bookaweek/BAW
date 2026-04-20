@@ -1070,263 +1070,204 @@ function showInstallGuide(platform) {
 
 
 
-// ─── BOOKAWEEK NOTIFICATION SYSTEM ────────────────────────────────────────────
+<!-- ============================================================
+     BOOKAWEEK — NOTIFICATION FIX v3 (CORRECTED)
+     
+     INSTRUCTIONS:
+     1. Find and DELETE the previous BAW_NOTIF script block
+        (search for "BAW_NOTIF" or "SCHEDULE_DAILY" to find it)
+     2. Paste THIS block just before </body>
+     3. Deploy both this file AND the new sw.js
+     ============================================================ -->
 
-const BAW_NOTIF = {
 
-  // Your SW file path (relative to the HTML file)
-  SW_PATH: 'sw.js',
+(function() {
+  'use strict';
 
-  // Periodic sync tag — must match sw.js
-  SYNC_TAG: 'bookaweek-daily-reminder',
+  // ── BOOT: wait for DOM then initialize safely ──────────────────
+  // Wrapped in IIFE + try/catch so ANY error here CANNOT
+  // kill your continue button or any other JS on the page.
 
-  // Minimum interval for periodic sync (24 hours in ms)
-  SYNC_MIN_INTERVAL: 24 * 60 * 60 * 1000,
-
-  // DOM element IDs (update these if your HTML uses different IDs)
-  TOGGLE_BTN_ID: 'notifToggleBtn',
-  STATUS_TEXT_ID: 'notifStatusText',
-  TEST_BTN_ID: 'notifTestBtn',   // optional — add a "Test Notification" button
-
-  // ── INIT ────────────────────────────────────────────────────────────────────
-  async init() {
-    if (!('Notification' in window)) {
-      this.setStatus('Notifications not supported on this browser.', false);
-      return;
-    }
-    if (!('serviceWorker' in navigator)) {
-      this.setStatus('Service Worker not supported.', false);
-      return;
-    }
-
-    // Register the service worker if not already registered
-    await this.registerSW();
-
-    // Sync toggle UI to REAL browser permission state (survives reload)
-    this.syncUIToPermission();
-
-    // Wire up toggle button
-    const btn = document.getElementById(this.TOGGLE_BTN_ID);
-    if (btn) btn.addEventListener('click', () => this.handleToggle());
-
-    // Wire up test button (optional)
-    const testBtn = document.getElementById(this.TEST_BTN_ID);
-    if (testBtn) testBtn.addEventListener('click', () => this.sendTestNotification());
-  },
-
-  // ── REGISTER SERVICE WORKER ─────────────────────────────────────────────────
-  async registerSW() {
+  function initNotifications() {
     try {
-      const reg = await navigator.serviceWorker.register(this.SW_PATH);
-      console.log('[BAW] SW registered:', reg.scope);
-      return reg;
-    } catch (err) {
-      console.error('[BAW] SW registration failed:', err);
-      this.setStatus('Could not register service worker.', false);
-      return null;
-    }
-  },
 
-  // ── GET ACTIVE SW REGISTRATION ──────────────────────────────────────────────
-  async getSWRegistration() {
-    try {
-      return await navigator.serviceWorker.ready;
-    } catch {
-      return null;
-    }
-  },
+      // ── CONFIG ──────────────────────────────────────────────────
+      var SW_PATH = 'sw.js';
+      var SYNC_TAG = 'bookaweek-daily-reminder';
+      var NOTIFY_HOUR = 9; // 9:00 AM daily
 
-  // ── SYNC UI TO REAL PERMISSION STATE ────────────────────────────────────────
-  syncUIToPermission() {
-    const perm = Notification.permission;
-    const btn = document.getElementById(this.TOGGLE_BTN_ID);
+      // ── YOUR ACTUAL HTML ELEMENTS ───────────────────────────────
+      // Based on reading your HTML, your notification banner uses:
+      //   #notif-bar   → the banner container
+      //   .nb-enable   → the "Enable" button
+      //   .nb-later    → the "Later" button
+      var notifBar   = document.getElementById('notif-bar');
+      var enableBtn  = document.querySelector('.nb-enable');
+      var laterBtn   = document.querySelector('.nb-later');
 
-    if (perm === 'granted') {
-      this.setStatus('🔔 Daily reminders ON', true);
-      if (btn) {
-        btn.textContent = 'Turn Off Reminders';
-        btn.classList.add('notif-on');
-        btn.classList.remove('notif-off');
+      // ── GUARD: if elements don't exist, silently exit ───────────
+      // This prevents ANY null reference errors from crashing the page
+      if (!notifBar && !enableBtn) {
+        console.log('[BAW] Notification UI not found - skipping init');
+        return;
       }
-    } else if (perm === 'denied') {
-      this.setStatus('🚫 Notifications blocked. Enable in browser settings.', false);
-      if (btn) {
-        btn.textContent = 'Notifications Blocked';
-        btn.disabled = true;
+
+      // ── FEATURE DETECTION ───────────────────────────────────────
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        console.log('[BAW] Notifications not supported');
+        if (notifBar) notifBar.style.display = 'none';
+        return;
       }
-    } else {
-      // 'default' — not yet asked
-      this.setStatus('🔕 Daily reminders OFF', false);
-      if (btn) {
-        btn.textContent = 'Turn On Reminders';
-        btn.classList.add('notif-off');
-        btn.classList.remove('notif-on');
-      }
-    }
-  },
 
-  // ── HANDLE TOGGLE CLICK ─────────────────────────────────────────────────────
-  async handleToggle() {
-    const perm = Notification.permission;
-
-    if (perm === 'denied') {
-      alert('Notifications are blocked. Please go to your browser settings and allow notifications for this site, then refresh.');
-      return;
-    }
-
-    if (perm === 'granted') {
-      // User wants to turn OFF — unregister periodic sync
-      await this.unsubscribeNotifications();
-      this.setStatus('🔕 Daily reminders OFF', false);
-      const btn = document.getElementById(this.TOGGLE_BTN_ID);
-      if (btn) {
-        btn.textContent = 'Turn On Reminders';
-        btn.classList.add('notif-off');
-        btn.classList.remove('notif-on');
-      }
-      return;
-    }
-
-    // Permission is 'default' — request it
-    this.setStatus('⏳ Requesting permission...', false);
-
-    try {
-      const result = await Notification.requestPermission();
-
-      if (result === 'granted') {
-        await this.subscribeNotifications();
-        this.setStatus('🔔 Daily reminders ON', true);
-        const btn = document.getElementById(this.TOGGLE_BTN_ID);
-        if (btn) {
-          btn.textContent = 'Turn Off Reminders';
-          btn.classList.add('notif-on');
-          btn.classList.remove('notif-off');
-        }
-        // Show a welcome notification immediately so user sees it worked
-        await this.sendTestNotification('welcome');
-      } else if (result === 'denied') {
-        this.setStatus('🚫 Permission denied. Enable in browser settings.', false);
-      } else {
-        this.setStatus('🔕 Daily reminders OFF', false);
-      }
-    } catch (err) {
-      console.error('[BAW] Permission request error:', err);
-      this.setStatus('Error requesting permission.', false);
-    }
-  },
-
-  // ── SUBSCRIBE: Register periodic sync + message SW ─────────────────────────
-  async subscribeNotifications() {
-    const reg = await this.getSWRegistration();
-    if (!reg) return;
-
-    // ① Try Periodic Background Sync (most reliable for daily — Android Chrome 80+)
-    if ('periodicSync' in reg) {
-      try {
-        const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
-        if (status.state === 'granted') {
-          await reg.periodicSync.register(this.SYNC_TAG, {
-            minInterval: this.SYNC_MIN_INTERVAL
-          });
-          console.log('[BAW] Periodic Background Sync registered ✅');
+      // ── SHOW/HIDE BANNER BASED ON CURRENT PERMISSION ────────────
+      function syncBannerToPermission() {
+        var perm = Notification.permission;
+        if (perm === 'granted') {
+          // Already granted — hide the banner, schedule SW
+          if (notifBar) notifBar.style.display = 'none';
+          scheduleViaSW();
+        } else if (perm === 'denied') {
+          // Blocked — hide the banner (nothing we can do)
+          if (notifBar) notifBar.style.display = 'none';
         } else {
-          console.warn('[BAW] Periodic sync permission not granted — using SW setTimeout fallback');
+          // 'default' — show the banner after 3 seconds
+          setTimeout(function() {
+            if (notifBar) notifBar.style.display = 'block';
+          }, 3000);
         }
-      } catch (err) {
-        console.warn('[BAW] periodicSync registration failed:', err);
       }
-    }
 
-    // ② Always also message the SW to run its own setTimeout scheduler (backup)
-    if (reg.active) {
-      reg.active.postMessage({ type: 'SCHEDULE_DAILY' });
-      console.log('[BAW] SW daily scheduler activated ✅');
-    } else {
-      // SW might still be installing — wait for it
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        navigator.serviceWorker.controller?.postMessage({ type: 'SCHEDULE_DAILY' });
-      });
-    }
-
-    // ③ Store preference in localStorage so we can restore on reload
-    localStorage.setItem('baw_notifications', 'enabled');
-  },
-
-  // ── UNSUBSCRIBE ─────────────────────────────────────────────────────────────
-  async unsubscribeNotifications() {
-    const reg = await this.getSWRegistration();
-
-    if (reg && 'periodicSync' in reg) {
-      try {
-        await reg.periodicSync.unregister(this.SYNC_TAG);
-        console.log('[BAW] Periodic sync unregistered');
-      } catch (err) {
-        console.warn('[BAW] Could not unregister periodic sync:', err);
+      // ── ENABLE BUTTON CLICK ──────────────────────────────────────
+      if (enableBtn) {
+        enableBtn.addEventListener('click', function() {
+          Notification.requestPermission().then(function(result) {
+            if (result === 'granted') {
+              if (notifBar) notifBar.style.display = 'none';
+              registerSWAndSchedule();
+              // Show immediate confirmation notification
+              showWelcomeNotification();
+            } else {
+              if (notifBar) notifBar.style.display = 'none';
+            }
+          }).catch(function(err) {
+            console.warn('[BAW] Permission request failed:', err);
+            if (notifBar) notifBar.style.display = 'none';
+          });
+        });
       }
-    }
 
-    localStorage.setItem('baw_notifications', 'disabled');
-  },
-
-  // ── SEND TEST / WELCOME NOTIFICATION ────────────────────────────────────────
-  async sendTestNotification(type = 'test') {
-    const reg = await this.getSWRegistration();
-    if (!reg) return;
-
-    if (Notification.permission !== 'granted') {
-      alert('Please enable notifications first.');
-      return;
-    }
-
-    const messages = {
-      welcome: {
-        title: '🎉 BookAWeek Reminders Active!',
-        body: 'You\'ll get a daily reminder at 9:00 AM to log your reading. Keep reading. Keep executing!'
-      },
-      test: {
-        title: '📖 BookAWeek Test Notification',
-        body: 'Notifications are working! You\'ll be reminded daily to log your reading session.'
+      // ── LATER BUTTON CLICK ───────────────────────────────────────
+      if (laterBtn) {
+        laterBtn.addEventListener('click', function() {
+          if (notifBar) notifBar.style.display = 'none';
+          // Remember "later" so we don't spam the banner
+          try { localStorage.setItem('baw_notif_later', Date.now()); } catch(e) {}
+        });
       }
-    };
 
-    const msg = messages[type] || messages.test;
-
-    try {
-      await reg.showNotification(msg.title, {
-        body: msg.body,
-        icon: 'icon-192.png',
-        badge: 'icon-192.png',
-        tag: 'bookaweek-test',
-        renotify: true,
-        vibrate: [200, 100, 200],
-        data: { url: 'bookwarriors-login.html' }
-      });
-    } catch (err) {
-      console.error('[BAW] showNotification failed:', err);
-      // Fallback: use SW postMessage
-      if (reg.active) {
-        reg.active.postMessage({ type: 'TEST_NOTIFICATION' });
+      // ── REGISTER SERVICE WORKER ──────────────────────────────────
+      function registerSWAndSchedule() {
+        navigator.serviceWorker.register(SW_PATH)
+          .then(function(reg) {
+            console.log('[BAW] SW registered:', reg.scope);
+            // Wait for SW to be active then message it
+            if (reg.active) {
+              reg.active.postMessage({ type: 'SCHEDULE_DAILY' });
+            }
+            // Also try Periodic Background Sync
+            if ('periodicSync' in reg) {
+              navigator.permissions.query({ name: 'periodic-background-sync' })
+                .then(function(status) {
+                  if (status.state === 'granted') {
+                    reg.periodicSync.register(SYNC_TAG, {
+                      minInterval: 24 * 60 * 60 * 1000
+                    }).then(function() {
+                      console.log('[BAW] Periodic sync registered ✅');
+                    }).catch(function(e) {
+                      console.warn('[BAW] periodicSync register failed:', e);
+                    });
+                  }
+                }).catch(function(e) {
+                  console.warn('[BAW] periodicSync permission query failed:', e);
+                });
+            }
+          })
+          .catch(function(err) {
+            console.warn('[BAW] SW registration failed:', err);
+          });
       }
-    }
-  },
 
-  // ── SET STATUS TEXT ─────────────────────────────────────────────────────────
-  setStatus(message, isOn) {
-    const el = document.getElementById(this.STATUS_TEXT_ID);
-    if (el) {
-      el.textContent = message;
-      el.style.color = isOn ? '#C9A227' : '#888'; // Gold when ON, grey when OFF
+      // ── MESSAGE EXISTING SW TO SCHEDULE ─────────────────────────
+      function scheduleViaSW() {
+        navigator.serviceWorker.ready.then(function(reg) {
+          if (reg.active) {
+            reg.active.postMessage({ type: 'SCHEDULE_DAILY' });
+          }
+        }).catch(function(e) {
+          console.warn('[BAW] Could not message SW:', e);
+        });
+      }
+
+      // ── WELCOME NOTIFICATION (shows immediately on enable) ───────
+      function showWelcomeNotification() {
+        navigator.serviceWorker.ready.then(function(reg) {
+          return reg.showNotification('🎉 BookAWeek Reminders Active!', {
+            body: "You'll get a daily reminder at 9:00 AM to log your reading. Keep reading. Keep executing!",
+            icon: 'icon-192.png',
+            badge: 'icon-192.png',
+            tag: 'baw-welcome',
+            renotify: true,
+            vibrate: [200, 100, 200]
+          });
+        }).catch(function(e) {
+          console.warn('[BAW] Welcome notification failed:', e);
+        });
+      }
+
+      // ── CHECK IF "LATER" WAS CLICKED RECENTLY (24h cooldown) ────
+      function shouldShowBanner() {
+        try {
+          var later = localStorage.getItem('baw_notif_later');
+          if (later) {
+            var elapsed = Date.now() - parseInt(later, 10);
+            if (elapsed < 24 * 60 * 60 * 1000) return false; // 24h cooldown
+          }
+        } catch(e) {}
+        return true;
+      }
+
+      // ── INIT ─────────────────────────────────────────────────────
+      // Register SW on every page load (idempotent - safe to call repeatedly)
+      navigator.serviceWorker.register(SW_PATH)
+        .then(function() {
+          // SW registered or already registered
+          if (Notification.permission === 'granted') {
+            scheduleViaSW();
+          }
+        })
+        .catch(function(e) {
+          console.warn('[BAW] SW registration on init failed:', e);
+        });
+
+      // Show/hide banner based on current permission state
+      if (shouldShowBanner()) {
+        syncBannerToPermission();
+      }
+
+    } catch(err) {
+      // CRITICAL: catch ALL errors so nothing here can break
+      // the continue button or any other feature on the page
+      console.warn('[BAW] Notification init error (non-fatal):', err);
     }
-    console.log('[BAW Notifications]', message);
   }
-};
 
-// ─── BOOT ON DOM READY ────────────────────────────────────────────────────────
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => BAW_NOTIF.init());
-} else {
-  BAW_NOTIF.init();
-}
+  // ── RUN AFTER DOM IS READY ───────────────────────────────────────
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNotifications);
+  } else {
+    initNotifications();
+  }
+
 
 
 
