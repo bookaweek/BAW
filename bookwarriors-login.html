@@ -2044,7 +2044,105 @@ async function submitComplete() {
     renderLib();
   }
 }
+<!-- ============================================================ -->
+<!-- BOOKAWEEK NOTIFICATION SYSTEM - INITIALIZATION -->
+<!-- ============================================================ -->
 
+document.addEventListener('DOMContentLoaded', function() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => {
+        console.log('[BAW] ✅ Service Worker registered');
+        handleNotificationUI();
+      })
+      .catch(err => {
+        console.error('[BAW] ❌ SW registration failed:', err);
+      });
+  }
+
+  const enableBtn = document.querySelector('.nb-enable');
+  const laterBtn = document.querySelector('.nb-later');
+  const notifBar = document.getElementById('notif-bar');
+
+  if (enableBtn) {
+    enableBtn.addEventListener('click', requestNotificationPermission);
+  }
+
+  if (laterBtn) {
+    laterBtn.addEventListener('click', function() {
+      notifBar.style.display = 'none';
+      localStorage.setItem('notifBarDismissed', Date.now().toString());
+    });
+  }
+});
+
+function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    alert('Notifications not supported');
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    scheduleNotifications();
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    alert('Please enable notifications in browser settings');
+    return;
+  }
+
+  Notification.requestPermission().then(permission => {
+    if (permission === 'granted') {
+      document.getElementById('notif-bar').style.display = 'none';
+      localStorage.setItem('notificationsEnabled', 'true');
+      scheduleNotifications();
+    }
+  });
+}
+
+function scheduleNotifications() {
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'SCHEDULE_DAILY'
+    });
+    localStorage.setItem('notificationsScheduled', 'true');
+    console.log('[BAW] ✅ Notifications scheduled');
+  } else {
+    setTimeout(scheduleNotifications, 500);
+  }
+}
+
+function handleNotificationUI() {
+  const notifBar = document.getElementById('notif-bar');
+  if (!notifBar) return;
+
+  if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+    notifBar.style.display = 'none';
+    return;
+  }
+
+  const dismissed = localStorage.getItem('notifBarDismissed');
+  if (dismissed) {
+    const hours = (Date.now() - parseInt(dismissed)) / (1000 * 60 * 60);
+    if (hours < 24) {
+      notifBar.style.display = 'none';
+      return;
+    }
+  }
+
+  notifBar.style.display = 'block';
+}
+
+window.testNotification = function() {
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({type: 'TEST_NOTIFICATION'});
+    console.log('[BAW] 🧪 Test sent');
+  }
+};
+
+console.log('[BAW] Notification system loaded');
+  
 </script>
 </body>
 </html>
