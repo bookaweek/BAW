@@ -1272,249 +1272,395 @@ function showInstallGuide(platform) {
 
 
 
-// ── PINS ──
-// ══════════════════════════════════════════════
-// SELF-SERVICE AUTH SYSTEM
-// No hardcoded members. Any name can register.
-// PIN stored in localStorage. Synced to GAS sheet.
-// Scales to thousands of BookWarriors.
-// ══════════════════════════════════════════════
+<script>
+// ============================================================
+// BOOKAWEEK LOGIN SYSTEM - ALL FUNCTIONS
+// ============================================================
 
-var cand = '', buf = '', setPinBuf = '', confirmBuf = '', forgotBuf = '';
+// STATE MANAGEMENT
+let currentStep = 'stepName';
+let currentName = '';
+let currentPin = '';
+let newPin = '';
+let confirmPin = '';
+let forgotPin = '';
+let members = JSON.parse(localStorage.getItem('bawMembers') || '[]');
 
-// ── MEMBER REGISTRY (localStorage) ──
-function getRegistry() {
-  try { return JSON.parse(localStorage.getItem(PRE+'registry') || '{}'); } catch(e) { return {}; }
-}
-function saveRegistry(reg) {
-  try { localStorage.setItem(PRE+'registry', JSON.stringify(reg)); } catch(e) {}
-}
-function isRegistered(name) {
-  return !!getRegistry()[normName(name)];
-}
-function getPin(name) {
-  return getRegistry()[normName(name)] || '';
-}
-function savePin(name, pin) {
-  var reg = getRegistry();
-  reg[normName(name)] = pin;
-  saveRegistry(reg);
-}
-function normName(n) {
-  return n.trim().toLowerCase();
-}
-function getRecentMembers() {
-  try { return JSON.parse(localStorage.getItem(PRE+'recent') || '[]'); } catch(e) { return []; }
-}
-function addRecent(name) {
-  var recent = getRecentMembers().filter(function(n){ return normName(n) !== normName(name); });
-  recent.unshift(name);
-  if (recent.length > 5) recent = recent.slice(0,5);
-  try { localStorage.setItem(PRE+'recent', JSON.stringify(recent)); } catch(e) {}
-}
-
-// ── NAME STEP ──
+// STEP 1: NAME INPUT
 function nameInputChange() {
-  var val = document.getElementById('nameInput').value.trim();
-  var hint = document.getElementById('nameHint');
-  if (val.length < 2) { hint.textContent = ''; return; }
-  if (isRegistered(val)) {
-    hint.textContent = 'Welcome back, ' + val.split(' ')[0] + '! Enter your PIN to continue.';
-    hint.style.color = 'rgba(13,122,110,.9)';
+  const input = document.getElementById('nameInput');
+  const hint = document.getElementById('nameHint');
+  const name = input.value.trim();
+
+  if (name.length === 0) {
+    hint.textContent = '';
+    return;
+  }
+
+  if (name.length < 2) {
+    hint.textContent = '✓ Keep typing...';
+    hint.style.color = 'rgba(255,255,255,.3)';
+    return;
+  }
+
+  // Check if returning member
+  const existing = members.find(m => m.name.toLowerCase() === name.toLowerCase());
+  if (existing) {
+    hint.textContent = '📚 Welcome back!';
+    hint.style.color = 'rgba(13,122,110,0.8)';
   } else {
-    hint.textContent = 'New here? You will set your own PIN.';
-    hint.style.color = 'rgba(242,183,5,.7)';
+    hint.textContent = '✨ New BookWarrior!';
+    hint.style.color = 'rgba(242,183,5,0.7)';
   }
 }
 
 function proceedWithName() {
-  var name = document.getElementById('nameInput').value.trim();
+  const input = document.getElementById('nameInput');
+  const name = input.value.trim();
+
   if (name.length < 2) {
-    document.getElementById('nameHint').textContent = 'Please enter at least 2 characters.';
-    document.getElementById('nameHint').style.color = 'rgba(192,57,43,.9)';
+    alert('Please enter at least 2 characters');
     return;
   }
-  cand = name;
-  if (isRegistered(name)) {
-    // Returning member — go to PIN entry
-    document.getElementById('pinName').textContent = name.split(' ')[0];
-    buf = '';
-    updateDots('dot', buf);
-    document.getElementById('pinError').textContent = '';
+
+  currentName = name;
+
+  // Check if returning member
+  const existing = members.find(m => m.name.toLowerCase() === name.toLowerCase());
+
+  if (existing) {
+    // Go to PIN entry
     goToStep('stepPin');
+    document.getElementById('pinName').textContent = name;
+    currentPin = '';
+    updatePinDots('stepPin');
   } else {
-    // New member — go to PIN setup
-    document.getElementById('setPinName').textContent = name.split(' ')[0];
-    setPinBuf = '';
-    updateDots('sdot', setPinBuf);
-    document.getElementById('setPinError').textContent = '';
+    // New member - set PIN
     goToStep('stepSetPin');
+    document.getElementById('setPinName').textContent = name;
+    newPin = '';
+    updatePinDots('stepSetPin');
   }
 }
 
-function renderRecentMembers() {
-  var recent = getRecentMembers();
-  var el = document.getElementById('recentMembers');
-  if (!recent.length) { el.innerHTML = ''; return; }
-  var items = recent.map(function(name) {
-    var init = name.split(' ').map(function(w){ return w[0]; }).join('').toUpperCase().slice(0,2);
-    return '<button onclick="quickLogin(\''+name.replace(/'/g,"\'")+'\')"      style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;      background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);      border-radius:12px;color:#fff;font-family:DM Sans,sans-serif;font-size:14px;      cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:8px;      text-align:left;">      <div style="width:32px;height:32px;background:rgba(242,183,5,.15);border-radius:8px;        display:flex;align-items:center;justify-content:center;font-size:12px;        font-weight:700;color:var(--gold);flex-shrink:0;">'+init+'</div>      <span>'+name+'</span>      <span style="margin-left:auto;color:rgba(255,255,255,.3);font-size:12px;">&#x2192;</span>    </button>';
-  }).join('');
-  el.innerHTML = '<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;    color:rgba(255,255,255,.25);text-align:center;margin-bottom:10px;">Recent</div>' + items;
+// STEP 2: ENTER PIN (Returning Member)
+let pinAttempts = 0;
+function pinPress(digit) {
+  if (currentPin.length >= 4) return;
+  currentPin += digit;
+  updatePinDots('stepPin');
+
+  if (currentPin.length === 4) {
+    verifyPin();
+  }
 }
 
-function quickLogin(name) {
-  document.getElementById('nameInput').value = name;
-  nameInputChange();
-  proceedWithName();
+function pinBack() {
+  currentPin = currentPin.slice(0, -1);
+  updatePinDots('stepPin');
 }
 
-// ── STEP NAVIGATION ──
+function pinClear() {
+  currentPin = '';
+  updatePinDots('stepPin');
+}
+
+function verifyPin() {
+  const member = members.find(m => m.name.toLowerCase() === currentName.toLowerCase());
+  
+  if (member && member.pin === currentPin) {
+    loginSuccess(member);
+  } else {
+    pinAttempts++;
+    document.getElementById('pinError').textContent = '❌ Wrong PIN. Try again.';
+    document.getElementById('pinError').style.color = '#E07070';
+    
+    // Shake animation
+    const dots = document.querySelectorAll('#stepPin .pin-dot');
+    dots.forEach(dot => dot.classList.add('shake'));
+    setTimeout(() => dots.forEach(dot => dot.classList.remove('shake')), 400);
+
+    currentPin = '';
+    updatePinDots('stepPin');
+
+    if (pinAttempts >= 3) {
+      alert('Too many attempts. Reset your PIN.');
+      goToStep('stepForgot');
+      document.getElementById('forgotName').textContent = currentName;
+    }
+  }
+}
+
+// STEP 3: SET PIN (New Member)
+function setPinPress(digit) {
+  if (newPin.length >= 4) return;
+  newPin += digit;
+  updatePinDots('stepSetPin');
+
+  if (newPin.length === 4) {
+    goToStep('stepConfirmPin');
+    confirmPin = '';
+    updatePinDots('stepConfirmPin');
+  }
+}
+
+function setPinBack() {
+  newPin = newPin.slice(0, -1);
+  updatePinDots('stepSetPin');
+}
+
+function setPinClear() {
+  newPin = '';
+  document.getElementById('setPinError').textContent = '';
+  updatePinDots('stepSetPin');
+}
+
+// STEP 4: CONFIRM PIN
+function confirmPinPress(digit) {
+  if (confirmPin.length >= 4) return;
+  confirmPin += digit;
+  updatePinDots('stepConfirmPin');
+
+  if (confirmPin.length === 4) {
+    if (newPin === confirmPin) {
+      createNewMember();
+    } else {
+      document.getElementById('confirmPinError').textContent = '❌ PINs don\'t match';
+      document.getElementById('confirmPinError').style.color = '#E07070';
+      
+      const dots = document.querySelectorAll('#stepConfirmPin .pin-dot');
+      dots.forEach(dot => dot.classList.add('shake'));
+      setTimeout(() => dots.forEach(dot => dot.classList.remove('shake')), 400);
+
+      confirmPin = '';
+      updatePinDots('stepConfirmPin');
+    }
+  }
+}
+
+function confirmPinBack() {
+  confirmPin = confirmPin.slice(0, -1);
+  updatePinDots('stepConfirmPin');
+}
+
+function confirmPinClear() {
+  confirmPin = '';
+  document.getElementById('confirmPinError').textContent = '';
+  updatePinDots('stepConfirmPin');
+}
+
+function createNewMember() {
+  const newMember = {
+    id: Date.now(),
+    name: currentName,
+    pin: newPin,
+    createdAt: new Date().toISOString(),
+    lastLogin: new Date().toISOString()
+  };
+
+  members.push(newMember);
+  localStorage.setItem('bawMembers', JSON.stringify(members));
+
+  loginSuccess(newMember);
+}
+
+// STEP 5: FORGOT PIN
+function forgotPress(digit) {
+  if (forgotPin.length >= 4) return;
+  forgotPin += digit;
+  updatePinDots('stepForgot');
+
+  if (forgotPin.length === 4) {
+    resetPinForMember();
+  }
+}
+
+function forgotBack() {
+  forgotPin = forgotPin.slice(0, -1);
+  updatePinDots('stepForgot');
+}
+
+function forgotClear() {
+  forgotPin = '';
+  document.getElementById('forgotError').textContent = '';
+  updatePinDots('stepForgot');
+}
+
+function resetPinForMember() {
+  const member = members.find(m => m.name.toLowerCase() === currentName.toLowerCase());
+  if (member) {
+    member.pin = forgotPin;
+    localStorage.setItem('bawMembers', JSON.stringify(members));
+    loginSuccess(member);
+  }
+}
+
+// UI HELPERS
 function goToStep(stepId) {
-  ['stepName','stepPin','stepSetPin','stepConfirmPin','stepForgot'].forEach(function(id) {
-    document.getElementById(id).style.display = id === stepId ? 'block' : 'none';
+  // Hide all steps
+  document.getElementById('stepName').style.display = 'none';
+  document.getElementById('stepPin').style.display = 'none';
+  document.getElementById('stepSetPin').style.display = 'none';
+  document.getElementById('stepConfirmPin').style.display = 'none';
+  document.getElementById('stepForgot').style.display = 'none';
+
+  // Show selected step
+  document.getElementById(stepId).style.display = 'block';
+  currentStep = stepId;
+}
+
+function updatePinDots(stepId) {
+  let pin = '';
+  let prefix = '';
+
+  if (stepId === 'stepPin') {
+    pin = currentPin;
+    prefix = '';
+  } else if (stepId === 'stepSetPin') {
+    pin = newPin;
+    prefix = 's';
+  } else if (stepId === 'stepConfirmPin') {
+    pin = confirmPin;
+    prefix = 'c';
+  } else if (stepId === 'stepForgot') {
+    pin = forgotPin;
+    prefix = 'f';
+  }
+
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById(prefix + 'dot' + i);
+    if (dot) {
+      if (i < pin.length) {
+        dot.classList.add('filled');
+      } else {
+        dot.classList.remove('filled');
+      }
+    }
+  }
+}
+
+// LOGIN SUCCESS
+function loginSuccess(member) {
+  member.lastLogin = new Date().toISOString();
+  localStorage.setItem('bawMembers', JSON.stringify(members));
+  localStorage.setItem('currentMember', JSON.stringify(member));
+
+  // Hide login screen
+  document.getElementById('memberScreen').classList.add('hidden');
+  document.getElementById('mainApp').style.display = 'block';
+
+  // Initialize main app
+  initializeMainApp(member);
+}
+
+function initializeMainApp(member) {
+  // Show member greeting
+  const greeting = document.querySelector('.member-greeting');
+  if (greeting) {
+    greeting.innerHTML = `Welcome back, <em>${member.name}</em>!`;
+  }
+
+  console.log('✅ BookWarrior logged in:', member.name);
+}
+
+// Initialize on page load
+window.addEventListener('load', function() {
+  console.log('📖 BOOKAWEEK Login Page Loaded');
+  
+  // Load recent members
+  displayRecentMembers();
+
+  // Initialize notification system
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNotifications);
+  } else {
+    initNotifications();
+  }
+});
+
+function displayRecentMembers() {
+  const container = document.getElementById('recentMembers');
+  if (!container || members.length === 0) return;
+
+  container.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px;">Recent:</div>';
+  members.slice(-3).reverse().forEach(member => {
+    const btn = document.createElement('button');
+    btn.className = 'ms-btn';
+    btn.style.background = 'rgba(255,255,255,.08)';
+    btn.style.height = '40px';
+    btn.textContent = member.name;
+    btn.onclick = () => {
+      document.getElementById('nameInput').value = member.name;
+      proceedWithName();
+    };
+    container.appendChild(btn);
   });
 }
 
-// ── RETURNING MEMBER PIN ──
-function pinPress(d) {
-  if (buf.length>=4) return;
-  buf+=d; updateDots('dot',buf);
-  if (buf.length===4) setTimeout(checkPin,120);
-}
-function pinBack()  { buf=buf.slice(0,-1); updateDots('dot',buf); }
-function pinClear() { buf=''; updateDots('dot',buf); document.getElementById('pinError').textContent=''; }
-function checkPin() {
-  if (buf === getPin(cand)) {
-    sessionStorage.setItem(PRE+'member', cand);
-    sessionStorage.setItem(PRE+'ts', Date.now());
-    addRecent(cand);
-    login(cand);
-  } else {
-    document.getElementById('pinError').textContent = 'Incorrect PIN. Try again.';
-    for(var i=0;i<4;i++) document.getElementById('dot'+i).classList.add('shake');
-    buf=''; setTimeout(function(){ updateDots('dot',buf); },400);
-  }
-}
+// NOTIFICATION SYSTEM
+function initNotifications() {
+  try {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('[BAW] ✅ Service Worker registered'))
+        .catch(err => console.log('[BAW] SW error:', err));
+    }
 
-// ── NEW MEMBER: SET PIN ──
-function setPinPress(d) {
-  if (setPinBuf.length>=4) return;
-  setPinBuf+=d; updateDots('sdot',setPinBuf);
-  if (setPinBuf.length===4) {
-    setTimeout(function(){
-      // Check not a weak PIN
-      var weak = ['0000','1111','2222','3333','4444','5555','6666','7777','8888','9999','1234','4321','0000'];
-      if (weak.indexOf(setPinBuf) !== -1) {
-        document.getElementById('setPinError').textContent = 'Please choose a stronger PIN.';
-        setPinBuf=''; updateDots('sdot',setPinBuf); return;
+    setTimeout(function() {
+      const enableBtn = document.querySelector('.nb-enable');
+      const laterBtn = document.querySelector('.nb-later');
+
+      if (enableBtn && !enableBtn.__listener) {
+        enableBtn.__listener = true;
+        enableBtn.addEventListener('click', requestNotificationPermission);
       }
-      confirmBuf='';
-      updateDots('cdot',confirmBuf);
-      document.getElementById('confirmPinError').textContent='';
-      goToStep('stepConfirmPin');
-    },120);
+
+      if (laterBtn && !laterBtn.__listener) {
+        laterBtn.__listener = true;
+        laterBtn.addEventListener('click', function() {
+          const bar = document.getElementById('notif-bar');
+          if (bar) bar.style.display = 'none';
+          localStorage.setItem('notifBarDismissed', Date.now().toString());
+        });
+      }
+    }, 200);
+  } catch(e) {
+    console.error('[BAW] Notification init error:', e);
   }
 }
-function setPinBack()  { setPinBuf=setPinBuf.slice(0,-1); updateDots('sdot',setPinBuf); }
-function setPinClear() { setPinBuf=''; updateDots('sdot',setPinBuf); document.getElementById('setPinError').textContent=''; }
 
-// ── NEW MEMBER: CONFIRM PIN ──
-function confirmPinPress(d) {
-  if (confirmBuf.length>=4) return;
-  confirmBuf+=d; updateDots('cdot',confirmBuf);
-  if (confirmBuf.length===4) setTimeout(finalizeRegistration,120);
-}
-function confirmPinBack()  { confirmBuf=confirmBuf.slice(0,-1); updateDots('cdot',confirmBuf); }
-function confirmPinClear() { confirmBuf=''; updateDots('cdot',confirmBuf); }
-
-async function finalizeRegistration() {
-  if (confirmBuf !== setPinBuf) {
-    document.getElementById('confirmPinError').textContent = 'PINs do not match. Try again.';
-    for(var i=0;i<4;i++) document.getElementById('cdot'+i).classList.add('shake');
-    confirmBuf=''; setTimeout(function(){ updateDots('cdot',confirmBuf); },400);
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    scheduleNotifications();
     return;
   }
-  // Save PIN locally
-  savePin(cand, confirmBuf);
-  addRecent(cand);
-  // Register in Google Sheet
-  try {
-    await fetch(URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type':'text/plain'},
-      body: JSON.stringify({
-        action: 'registerMember',
-        member: cand,
-        date: dateStr(),
-        joinedAt: new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
-      })
-    });
-  } catch(e) { /* registration still works locally */ }
-  // Log in
-  sessionStorage.setItem(PRE+'member', cand);
-  sessionStorage.setItem(PRE+'ts', Date.now());
-  login(cand);
-}
-
-// ── FORGOT PIN ──
-function goToForgot() {
-  document.getElementById('forgotName').textContent = cand.split(' ')[0];
-  forgotBuf = '';
-  updateDots('fdot', forgotBuf);
-  document.getElementById('forgotError').textContent = '';
-  goToStep('stepForgot');
-}
-function forgotPress(d) {
-  if (forgotBuf.length>=4) return;
-  forgotBuf+=d; updateDots('fdot',forgotBuf);
-  if (forgotBuf.length===4) setTimeout(confirmForgot,120);
-}
-function forgotBack()  { forgotBuf=forgotBuf.slice(0,-1); updateDots('fdot',forgotBuf); }
-function forgotClear() { forgotBuf=''; updateDots('fdot',forgotBuf); }
-
-function confirmForgot() {
-  // Reset PIN directly — on their own device this is safe
-  savePin(cand, forgotBuf);
-  sessionStorage.setItem(PRE+'member', cand);
-  sessionStorage.setItem(PRE+'ts', Date.now());
-  addRecent(cand);
-  login(cand);
-}
-
-// ── DOT HELPER ──
-function updateDots(prefix, val) {
-  for(var i=0;i<4;i++){
-    var el = document.getElementById(prefix+i);
-    if (!el) continue;
-    el.classList.toggle('filled', i<val.length);
-    el.classList.remove('shake');
+  if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        const bar = document.getElementById('notif-bar');
+        if (bar) bar.style.display = 'none';
+        scheduleNotifications();
+      }
+    }).catch(e => console.log('[BAW] Error:', e));
   }
 }
 
-// ── INIT: render recent members on load ──
-function initAuthScreen() {
-
-  // ── ONE-TIME SETUP: runs once, sets migrated flag immediately ──
-  if (!localStorage.getItem(PRE+'migrated_v4')) {
-    // Set flag FIRST — so even if something fails below, it never loops
-    localStorage.setItem(PRE+'migrated_v4','1');
-    // Clean up any old migration keys
-    localStorage.removeItem(PRE+'migrated_v2');
-    localStorage.removeItem(PRE+'migrated_v3');
-    // Seed the recent list with known warrior names
-    var knownNames = ['Dorcas','Haliyah','Jesulayomi','Juliet','Motolani','EA'];
-    try { localStorage.setItem(PRE+'recent', JSON.stringify(knownNames)); } catch(e){}
-    // Do NOT wipe the registry — preserve any PINs already set by warriors
-    // This means existing warriors keep their PINs and don't get reset
+function scheduleNotifications() {
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({type: 'SCHEDULE_DAILY'});
   }
-  renderRecentMembers();
-  document.getElementById('nameInput').focus();
-  // Handle Enter key on name input
-  document.getElementById('nameInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); proceedWithName(); }
-  });
 }
+
+window.testNotification = function() {
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({type: 'TEST_NOTIFICATION'});
+    console.log('[BAW] 🧪 Test notification sent');
+  }
+};
+
+console.log('[BAW] All systems initialized');
+</script>
 
 // ── LOGIN ──
 function login(name) {
