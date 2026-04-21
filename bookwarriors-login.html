@@ -414,6 +414,299 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   cursor: default;
 }
 
+
+/* ══════════════════════════════════════════════
+   DASHBOARD & LEADERBOARD
+══════════════════════════════════════════════ */
+
+/* Sub-tabs inside dashboard */
+.dash-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 14px 16px 0;
+}
+.dash-tab {
+  flex: 1;
+  height: 42px;
+  border: 1.5px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  border-radius: 12px;
+  color: rgba(255,255,255,.5);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.dash-tab.active {
+  border-color: var(--gold);
+  background: rgba(242,183,5,.12);
+  color: var(--gold);
+}
+
+/* Stat cards grid */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 14px 16px 0;
+}
+.stat-card {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  padding: 16px 14px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.stat-card.gold::before  { background: var(--gold); }
+.stat-card.teal::before  { background: var(--teal); }
+.stat-card.orange::before{ background: var(--orange); }
+.stat-card.blue::before  { background: var(--blue); }
+.stat-card-icon { font-size: 22px; margin-bottom: 8px; display: block; }
+.stat-card-val {
+  font-family: 'Playfair Display', serif;
+  font-size: 30px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-card-val span {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255,255,255,.4);
+  margin-left: 3px;
+}
+.stat-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.35);
+}
+
+/* Progress ring */
+.progress-ring-wrap {
+  margin: 14px 16px 0;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.ring-svg { flex-shrink: 0; }
+.ring-info { flex: 1; }
+.ring-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.35);
+  margin-bottom: 6px;
+}
+.ring-count {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+}
+.ring-total {
+  font-size: 14px;
+  color: rgba(255,255,255,.4);
+  margin-top: 2px;
+}
+.ring-sub {
+  font-size: 12px;
+  color: rgba(255,255,255,.3);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+/* Consistency calendar */
+.cal-wrap {
+  margin: 14px 16px 0;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 20px;
+  padding: 18px;
+}
+.cal-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.35);
+  margin-bottom: 12px;
+}
+.cal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cal-day {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: rgba(255,255,255,.2);
+  font-weight: 700;
+}
+.cal-day.logged   { background: rgba(13,122,110,.4);  color: var(--teal); }
+.cal-day.rest     { background: rgba(107,63,160,.25); color: #B388FF; }
+.cal-day.today    { border: 2px solid var(--gold); color: var(--gold); }
+.cal-day.future   { opacity: .3; }
+
+/* ── LEADERBOARD ── */
+.lb-wrap {
+  margin: 14px 16px 0;
+}
+.lb-podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  height: 140px;
+}
+.lb-pod {
+  flex: 1;
+  border-radius: 14px 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 6px;
+  position: relative;
+  max-width: 110px;
+}
+.lb-pod-1 { background: linear-gradient(to top,rgba(242,183,5,.3),rgba(242,183,5,.08)); border: 1px solid rgba(242,183,5,.4); height: 140px; }
+.lb-pod-2 { background: linear-gradient(to top,rgba(192,192,192,.2),rgba(192,192,192,.04)); border: 1px solid rgba(255,255,255,.15); height: 110px; }
+.lb-pod-3 { background: linear-gradient(to top,rgba(205,127,50,.2),rgba(205,127,50,.04)); border: 1px solid rgba(205,127,50,.25); height: 90px; }
+.lb-medal { font-size: 22px; margin-bottom: 4px; }
+.lb-pod-name {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  max-width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-pod-score {
+  font-size: 10px;
+  color: rgba(255,255,255,.45);
+  margin-top: 2px;
+}
+.lb-rank-num {
+  position: absolute;
+  top: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  opacity: .5;
+}
+
+/* List entries 4+ */
+.lb-list {
+  background: rgba(255,255,255,.05);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.08);
+}
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  transition: background .15s;
+}
+.lb-row:last-child { border-bottom: none; }
+.lb-row.me { background: rgba(242,183,5,.08); border-left: 3px solid var(--gold); }
+.lb-pos {
+  width: 24px;
+  font-size: 13px;
+  font-weight: 900;
+  color: rgba(255,255,255,.3);
+  text-align: center;
+  flex-shrink: 0;
+}
+.lb-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--navy2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.lb-info { flex: 1; min-width: 0; }
+.lb-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-detail {
+  font-size: 11px;
+  color: rgba(255,255,255,.4);
+  margin-top: 2px;
+}
+.lb-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+.lb-badge.gold   { background: rgba(242,183,5,.2);  color: var(--gold); }
+.lb-badge.silver { background: rgba(255,255,255,.1); color: rgba(255,255,255,.6); }
+.lb-badge.bronze { background: rgba(205,127,50,.2);  color: #CD7F32; }
+.lb-badge.regular{ background: rgba(255,255,255,.06);color: rgba(255,255,255,.35); }
+
+/* Loading spinner for dashboard */
+.dash-loading {
+  padding: 40px 0;
+  text-align: center;
+  color: rgba(255,255,255,.3);
+  font-size: 13px;
+}
+.dash-loading .spin {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(242,183,5,.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin: 0 auto 10px;
+}
+
 </style>
 </head>
 <body>
@@ -680,10 +973,11 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </button>
   </div>
 
-  <div class="mode-bar">
-    <button class="mode-btn active" id="btn-daily" onclick="setMode('daily')"><span class="m-icon">&#x1F4C5;</span><span class="m-label">Daily Log</span></button>
-    <button class="mode-btn" id="btn-books" onclick="setMode('books')"><span class="m-icon">&#x1F4DA;</span><span class="m-label">My Books</span></button>
+  <div class="mode-bar" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+    <button class="mode-btn active" id="btn-daily"  onclick="setMode('daily')"><span class="m-icon">&#x1F4C5;</span><span class="m-label">Log</span></button>
+    <button class="mode-btn" id="btn-books"  onclick="setMode('books')"><span class="m-icon">&#x1F4DA;</span><span class="m-label">Books</span></button>
     <button class="mode-btn" id="btn-weekly" onclick="setMode('weekly')"><span class="m-icon">&#x1F4C6;</span><span class="m-label">Weekly</span></button>
+    <button class="mode-btn" id="btn-dash"   onclick="setMode('dash')"><span class="m-icon">&#x1F3C6;</span><span class="m-label">Stats</span></button>
   </div>
   <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
 
@@ -889,6 +1183,106 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <div class="spinner" id="cSpin"></div>
       </button>
     </div>
+  </div>
+
+
+  <!-- ══ DASHBOARD MODE ══ -->
+  <div id="mode-dash" style="display:none">
+
+    <!-- Sub-tabs: My Progress | Leaderboard -->
+    <div class="dash-tabs">
+      <button class="dash-tab active" id="dtab-progress" onclick="setDashTab('progress')">
+        &#x1F4CA; My Progress
+      </button>
+      <button class="dash-tab" id="dtab-board" onclick="setDashTab('board')">
+        &#x1F3C6; Leaderboard
+      </button>
+    </div>
+
+    <!-- MY PROGRESS -->
+    <div id="dash-progress">
+      <div class="dash-loading" id="dash-loading">
+        <div class="spin"></div>Loading your stats...
+      </div>
+
+      <!-- Book progress ring -->
+      <div class="progress-ring-wrap" id="dash-ring-wrap" style="display:none">
+        <svg class="ring-svg" width="90" height="90" viewBox="0 0 90 90">
+          <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"/>
+          <circle id="ring-arc" cx="45" cy="45" r="38" fill="none"
+            stroke="#F2B705" stroke-width="8"
+            stroke-linecap="round"
+            stroke-dasharray="238.76"
+            stroke-dashoffset="238.76"
+            transform="rotate(-90 45 45)"
+            style="transition:stroke-dashoffset .8s ease;"/>
+          <text x="45" y="49" text-anchor="middle"
+            font-family="Playfair Display,serif" font-size="18" font-weight="900" fill="#fff"
+            id="ring-pct">0%</text>
+        </svg>
+        <div class="ring-info">
+          <div class="ring-label">Season Progress</div>
+          <div class="ring-count"><span id="dash-books-done">0</span></div>
+          <div class="ring-total">of 24 books completed</div>
+          <div class="ring-sub" id="dash-books-remaining"></div>
+        </div>
+      </div>
+
+      <!-- 4 stat cards -->
+      <div class="stat-grid" id="dash-cards" style="display:none">
+        <div class="stat-card gold">
+          <span class="stat-card-icon">&#x1F525;</span>
+          <div class="stat-card-val" id="dc-streak">-<span>days</span></div>
+          <div class="stat-card-label">Streak</div>
+        </div>
+        <div class="stat-card teal">
+          <span class="stat-card-icon">&#x23F1;</span>
+          <div class="stat-card-val" id="dc-mins">-<span>min</span></div>
+          <div class="stat-card-label">Total Read</div>
+        </div>
+        <div class="stat-card orange">
+          <span class="stat-card-icon">&#x1F4C4;</span>
+          <div class="stat-card-val" id="dc-pages">-<span>pgs</span></div>
+          <div class="stat-card-label">Pages Read</div>
+        </div>
+        <div class="stat-card blue">
+          <span class="stat-card-icon">&#x1F4C5;</span>
+          <div class="stat-card-val" id="dc-days">-<span>days</span></div>
+          <div class="stat-card-label">Days Logged</div>
+        </div>
+      </div>
+
+      <!-- Consistency calendar -->
+      <div class="cal-wrap" id="dash-cal-wrap" style="display:none">
+        <div class="cal-title">&#x1F4C5; Season Consistency — Mar 16 to Today</div>
+        <div class="cal-grid" id="dash-cal"></div>
+        <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.4);">
+            <div style="width:14px;height:14px;border-radius:3px;background:rgba(13,122,110,.4);"></div>Logged
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.4);">
+            <div style="width:14px;height:14px;border-radius:3px;background:rgba(107,63,160,.25);"></div>Rest
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.4);">
+            <div style="width:14px;height:14px;border-radius:3px;background:rgba(255,255,255,.06);"></div>Missed
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div id="dash-board" style="display:none">
+      <div class="lb-wrap">
+        <div class="dash-loading" id="lb-loading">
+          <div class="spin"></div>Loading leaderboard...
+        </div>
+        <!-- Podium top 3 -->
+        <div class="lb-podium" id="lb-podium" style="display:none"></div>
+        <!-- List 4+ -->
+        <div class="lb-list" id="lb-list" style="display:none"></div>
+      </div>
+    </div>
+
   </div>
 
   <div class="quote"><div class="q-text" id="qText"></div><div class="q-auth" id="qAuth"></div></div>
@@ -1466,13 +1860,14 @@ function login(name) {
 // ── MODE ──
 function setMode(m) {
   mode=m;
-  ['daily','books','weekly'].forEach(function(x){
+  ['daily','books','weekly','dash'].forEach(function(x){
     document.getElementById('mode-'+x).style.display=x===m?'block':'none';
     document.getElementById('btn-'+x).classList.toggle('active',x===m);
   });
   if(m==='daily'){dropBooks();prog();}
   if(m==='books'){renderLib();}
   if(m==='weekly'){setupWeekly();weekDropBooks();}
+  if(m==='dash'){loadDashboard();}
 }
 
 // ── LIBRARY ──
@@ -1979,6 +2374,272 @@ async function submitComplete() {
     closeCompleteModal();
     renderLib();
   }
+}
+
+
+// ══════════════════════════════════════════════
+// DASHBOARD & LEADERBOARD
+// ══════════════════════════════════════════════
+
+var _dashLoaded = false;
+var _dashTab    = 'progress';
+
+function setDashTab(tab) {
+  _dashTab = tab;
+  document.getElementById('dtab-progress').classList.toggle('active', tab==='progress');
+  document.getElementById('dtab-board').classList.toggle('active', tab==='board');
+  document.getElementById('dash-progress').style.display = tab==='progress' ? 'block' : 'none';
+  document.getElementById('dash-board').style.display    = tab==='board'    ? 'block' : 'none';
+  if (tab === 'board' && !_dashLoaded) loadLeaderboard();
+}
+
+function loadDashboard() {
+  _dashLoaded = false;
+  setDashTab(_dashTab);
+  loadMyProgress();
+  if (_dashTab === 'board') loadLeaderboard();
+}
+
+// ─── MY PROGRESS ───────────────────────────────
+function loadMyProgress() {
+  var loading = document.getElementById('dash-loading');
+  var ring    = document.getElementById('dash-ring-wrap');
+  var cards   = document.getElementById('dash-cards');
+  var calWrap = document.getElementById('dash-cal-wrap');
+
+  loading.style.display = 'block';
+  ring.style.display    = 'none';
+  cards.style.display   = 'none';
+  calWrap.style.display = 'none';
+
+  // Fetch member stats from GAS
+  fetch(URL + '?action=getMemberStats&member=' + encodeURIComponent(member))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      loading.style.display = 'none';
+      if (!d || !d.success) { loading.innerHTML = '<div style="color:rgba(255,255,255,.3);padding:30px 0;text-align:center;">Could not load stats. Check connection.</div>'; loading.style.display='block'; return; }
+      renderProgressUI(d);
+    })
+    .catch(function(){
+      loading.style.display = 'none';
+      // Fallback: use local data
+      renderProgressFromLocal();
+    });
+}
+
+function renderProgressUI(d) {
+  // Streak card
+  var streak = getStreak();
+  document.getElementById('dc-streak').innerHTML = streak + '<span>days</span>';
+
+  // Stats from GAS
+  document.getElementById('dc-mins').innerHTML  = fmtNum(d.totalMins  || 0) + '<span>min</span>';
+  document.getElementById('dc-pages').innerHTML = fmtNum(d.totalPages || 0) + '<span>pgs</span>';
+  document.getElementById('dc-days').innerHTML  = (d.daysLogged || 0) + '<span>days</span>';
+
+  // Books ring
+  var done  = d.booksCompleted || 0;
+  var total = 24;
+  var pct   = Math.min(done / total, 1);
+  document.getElementById('dash-books-done').textContent = done;
+  document.getElementById('ring-pct').textContent = Math.round(pct*100) + '%';
+  document.getElementById('dash-books-remaining').textContent =
+    done >= total ? 'Full season complete!' :
+    (total - done) + ' books to complete the season';
+  // Animate ring
+  var circ = 238.76;
+  document.getElementById('ring-arc').style.strokeDashoffset = (circ - pct*circ).toFixed(2);
+
+  document.getElementById('dash-ring-wrap').style.display = 'flex';
+  document.getElementById('dash-cards').style.display     = 'grid';
+
+  // Calendar
+  buildCalendar(d.logDates || [], d.restDates || []);
+  document.getElementById('dash-cal-wrap').style.display = 'block';
+}
+
+function renderProgressFromLocal() {
+  // Use localStorage data when GAS is unavailable
+  var streak = getStreak();
+  var best   = getBest();
+  document.getElementById('dc-streak').innerHTML = streak + '<span>days</span>';
+  document.getElementById('dc-mins').innerHTML   = '?<span>min</span>';
+  document.getElementById('dc-pages').innerHTML  = '?<span>pgs</span>';
+  document.getElementById('dc-days').innerHTML   = '?<span>days</span>';
+
+  var done = lib.filter(function(b){ return b.s==='Completed'; }).length;
+  document.getElementById('dash-books-done').textContent = done;
+  var pct = Math.min(done/24,1);
+  document.getElementById('ring-pct').textContent = Math.round(pct*100)+'%';
+  document.getElementById('ring-arc').style.strokeDashoffset = (238.76 - pct*238.76).toFixed(2);
+  document.getElementById('dash-books-remaining').textContent = (24-done) + ' books to complete the season';
+
+  document.getElementById('dash-ring-wrap').style.display = 'flex';
+  document.getElementById('dash-cards').style.display     = 'grid';
+  buildCalendar([], []);
+  document.getElementById('dash-cal-wrap').style.display = 'block';
+}
+
+function buildCalendar(logDates, restDates) {
+  var cal     = document.getElementById('dash-cal');
+  cal.innerHTML = '';
+  var start   = new Date(2026,2,16); // Mar 16
+  var today   = new Date();
+  today.setHours(0,0,0,0);
+  var end     = new Date(Math.min(today.getTime(), new Date(2026,8,15).getTime()));
+  var logSet  = {};
+  var restSet = {};
+  (logDates  || []).forEach(function(d){ logSet[d]  = true; });
+  (restDates || []).forEach(function(d){ restSet[d] = true; });
+
+  for (var d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+    var ds  = fmtDate(d);
+    var div = document.createElement('div');
+    div.className = 'cal-day';
+    div.title     = ds;
+    var isToday   = ds === fmtDate(today);
+    if (isToday)       div.classList.add('today');
+    else if (logSet[ds])  div.classList.add('logged');
+    else if (restSet[ds]) div.classList.add('rest');
+    // else: missed — default grey
+    cal.appendChild(div);
+  }
+}
+
+// ─── LEADERBOARD ──────────────────────────────
+function loadLeaderboard() {
+  var loading = document.getElementById('lb-loading');
+  var podium  = document.getElementById('lb-podium');
+  var list    = document.getElementById('lb-list');
+
+  loading.style.display = 'block';
+  podium.style.display  = 'none';
+  list.style.display    = 'none';
+
+  fetch(URL + '?action=getLeaderboard')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      loading.style.display = 'none';
+      if (!d || !d.success || !d.board) { loading.innerHTML = '<div style="color:rgba(255,255,255,.3);padding:30px 0;text-align:center;">Could not load leaderboard.</div>'; loading.style.display='block'; return; }
+      renderLeaderboard(d.board);
+    })
+    .catch(function(){
+      loading.style.display = 'none';
+      loading.innerHTML = '<div style="color:rgba(255,255,255,.3);padding:30px 0;text-align:center;">Could not load leaderboard. Check connection.</div>';
+      loading.style.display = 'block';
+    });
+}
+
+function renderLeaderboard(board) {
+  var podium = document.getElementById('lb-podium');
+  var list   = document.getElementById('lb-list');
+  podium.innerHTML = '';
+  list.innerHTML   = '';
+
+  if (!board || board.length === 0) {
+    list.innerHTML = '<div class="lb-row"><div style="color:rgba(255,255,255,.3);padding:20px;text-align:center;width:100%;">No warriors yet. Start logging!</div></div>';
+    list.style.display = 'block';
+    return;
+  }
+
+  // Medals for top 3
+  var medals = ['&#x1F947;','&#x1F948;','&#x1F949;'];
+  var podClasses = ['lb-pod lb-pod-1','lb-pod lb-pod-2','lb-pod lb-pod-3'];
+  // Podium order: 2nd, 1st, 3rd
+  var podOrder = [1,0,2];
+  podOrder.forEach(function(idx) {
+    if (idx >= board.length) return;
+    var w   = board[idx];
+    var pod = document.createElement('div');
+    pod.className = podClasses[idx];
+
+    var rankNum = document.createElement('div');
+    rankNum.className = 'lb-rank-num';
+    rankNum.textContent = '#' + (idx+1);
+
+    var medal = document.createElement('div');
+    medal.className   = 'lb-medal';
+    medal.innerHTML   = medals[idx];
+
+    var init = document.createElement('div');
+    init.style.cssText = 'width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;margin-bottom:6px;';
+    init.textContent = getInitials(w.name);
+
+    var name = document.createElement('div');
+    name.className   = 'lb-pod-name';
+    name.textContent = w.name.split(' ')[0];
+
+    var score = document.createElement('div');
+    score.className = 'lb-pod-score';
+    score.textContent = w.booksCompleted + ' books';
+
+    if (idx+1 < board.length) pod.appendChild(rankNum);
+    pod.appendChild(medal);
+    pod.appendChild(init);
+    pod.appendChild(name);
+    pod.appendChild(score);
+    podium.appendChild(pod);
+  });
+
+  if (board.length > 0) podium.style.display = 'flex';
+
+  // List: all warriors
+  var badgeCls = ['gold','silver','bronze'];
+  board.forEach(function(w, i) {
+    var row = document.createElement('div');
+    row.className = 'lb-row' + (w.name === member ? ' me' : '');
+
+    var pos = document.createElement('div');
+    pos.className   = 'lb-pos';
+    pos.textContent = '#'+(i+1);
+
+    var av = document.createElement('div');
+    av.className   = 'lb-avatar';
+    av.textContent = getInitials(w.name);
+
+    var info = document.createElement('div');
+    info.className = 'lb-info';
+
+    var nm = document.createElement('div');
+    nm.className   = 'lb-name';
+    nm.textContent = w.name + (w.name===member?' (You)':'');
+
+    var det = document.createElement('div');
+    det.className   = 'lb-detail';
+    det.textContent = w.booksCompleted + ' books  ·  ' + fmtNum(w.totalMins) + ' min  ·  ' + w.streak + ' day streak';
+
+    info.appendChild(nm);
+    info.appendChild(det);
+
+    var badge = document.createElement('div');
+    badge.className = 'lb-badge ' + (i < 3 ? badgeCls[i] : 'regular');
+    badge.innerHTML = (w.streak > 0 ? '&#x1F525; '+w.streak : w.booksCompleted + ' books');
+
+    row.appendChild(pos);
+    row.appendChild(av);
+    row.appendChild(info);
+    row.appendChild(badge);
+    list.appendChild(row);
+  });
+
+  list.style.display = 'block';
+  _dashLoaded = true;
+}
+
+// ─── UTILS ─────────────────────────────────────
+function fmtNum(n) {
+  n = parseInt(n) || 0;
+  if (n >= 1000) return (n/1000).toFixed(1) + 'k';
+  return String(n);
+}
+function fmtDate(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+function getInitials(name) {
+  if (!name) return '?';
+  return name.split(' ').map(function(w){ return w[0]; }).join('').toUpperCase().slice(0,2);
 }
 
 </script>
