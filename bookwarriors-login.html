@@ -1567,8 +1567,16 @@ function showNotifBanner() {
     return;
   }
 
-  // Default: not yet asked — show enable button
+ // Default: not yet asked — build and show enable button
+  var enableBtn = document.createElement('button');
+  enableBtn.style.cssText = 'width:100%;padding:14px 18px;background:linear-gradient(135deg,rgba(242,183,5,.18),rgba(242,183,5,.08));border:2px solid rgba(242,183,5,.5);border-radius:14px;cursor:pointer;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent;color:#fff;font-family:DM Sans,sans-serif;font-size:13px;font-weight:700;text-align:left;';
+  enableBtn.innerHTML = '<span style="font-size:22px">🔔</span><div><div style="font-weight:700;margin-bottom:2px;">Enable Daily Reminders</div><div style="font-size:11px;opacity:.6;font-weight:400;">Get notified daily to log your reading</div></div>';
+  enableBtn.onclick = enableNotifs;
+  wrap.appendChild(enableBtn);
+  wrap.appendChild(closeBtn);
+  bar.appendChild(wrap);
   bar.style.display = 'block';
+}
 }
 
 
@@ -1593,10 +1601,14 @@ function fireReminder() {
     'We Read. We Reflect. We Execute. Your session is waiting.',
     'Every day you log is a brick in the life you are building.'
   ];
-  var n = new Notification('BookAWeek', {
-    body: msgs[Math.floor(Math.random()*msgs.length)],
-    icon: 'icon-192.png', badge:'icon-72.png',
-    tag:'baw', renotify:true
+ try {
+    var n = new Notification('BookAWeek', {
+      body: msgs[Math.floor(Math.random()*msgs.length)],
+      icon: 'icon-192.png', badge:'icon-72.png',
+      tag:'baw', renotify:true
+    });
+    n.onclick = function(){ window.focus(); n.close(); };
+  } catch(e) { console.warn('[BAW] Notification error:', e); }
   });
   n.onclick = function(){ window.focus(); n.close(); };
   localStorage.setItem(PRE+'last_notif', Date.now());
