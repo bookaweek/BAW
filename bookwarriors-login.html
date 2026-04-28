@@ -1295,14 +1295,14 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <div class="s-title" id="sTitle">Session <span>Logged!</span></div>
   <div class="s-msg" id="sMsg"></div>
   <div class="s-stats" id="sStats"></div>
-  <button class="again-btn" onclick="t`  closeSuccess()">Continue</button>
+  <button class="again-btn" onclick="closeSuccess()">Continue</button>
 </div>
 
 <script>
 // ═══════════════════════════════════════════════
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // ═══════════════════════════════════════════════
-const URL = 'https://script.google.com/macros/s/AKfycbxvlj-9KAV7qA96lnAmDjQ2pp0ixnnImTI9TKvQLKegs1NJ84OlgWlp-zFsgOf3whIEgg/exec';
+const URL = 'https://script.google.com/macros/s/AKfycbzBbVPZrVX5jRDb_dRsgQObJazGNpJS10_WBLGpGxa4YNFvBtrrfNNaarRyui9X_Oa3Tg/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 let deferredInstall = null;
@@ -2395,36 +2395,119 @@ function setDashTab(tab) {
 
 function loadDashboard() {
   _dashLoaded = false;
+  _sheetCache = null; // Always fetch fresh data when tab is opened
   setDashTab(_dashTab);
   loadMyProgress();
   if (_dashTab === 'board') loadLeaderboard();
 }
 
 // ─── MY PROGRESS ───────────────────────────────
+var SHEET_ID = '1UEHXooO2z6gEup2gmuiDPzqYwRkoYpTn6NneRBNtYvU';
+var GVIZ    = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&sheet=Dashboard';
+
+// Parse the Google Visualization JSONP response
+function parseGviz(raw) {
+  // Strip wrapper: google.visualization.Query.setResponse({...})
+  var start = raw.indexOf('{');
+  var end   = raw.lastIndexOf('}');
+  if (start === -1 || end === -1) return null;
+  try { return JSON.parse(raw.slice(start, end+1)); } catch(e) { return null; }
+}
+
+// Get cell value safely from gviz row
+function cellVal(row, colIdx) {
+  if (!row || !row.c || !row.c[colIdx] || row.c[colIdx].v === null) return 0;
+  return row.c[colIdx].v;
+}
+function cellStr(row, colIdx) {
+  if (!row || !row.c || !row.c[colIdx] || row.c[colIdx].v === null) return '';
+  return String(row.c[colIdx].v).trim();
+}
+
+// Shared data cache — fetch once, use for both progress and leaderboard
+var _sheetCache = null;
+var _sheetFetching = false;
+var _sheetCallbacks = [];
+
+function fetchSheetData(cb) {
+  if (_sheetCache) { cb(null, _sheetCache); return; }
+  _sheetCallbacks.push(cb);
+  if (_sheetFetching) return;
+  _sheetFetching = true;
+  fetch(GVIZ)
+    .then(function(r){ return r.text(); })
+    .then(function(raw){
+      var parsed = parseGviz(raw);
+      _sheetCache = parsed;
+      _sheetFetching = false;
+      _sheetCallbacks.forEach(function(fn){ fn(null, parsed); });
+      _sheetCallbacks = [];
+    })
+    .catch(function(err){
+      _sheetFetching = false;
+      _sheetCallbacks.forEach(function(fn){ fn(err, null); });
+      _sheetCallbacks = [];
+    });
+}
+
 function loadMyProgress() {
   var loading = document.getElementById('dash-loading');
   var ring    = document.getElementById('dash-ring-wrap');
   var cards   = document.getElementById('dash-cards');
   var calWrap = document.getElementById('dash-cal-wrap');
 
-  loading.style.display = 'block';
+  loading.style.display = 'flex';
+  loading.innerHTML     = '<div class="spin"></div><div>Loading your stats...</div>';
   ring.style.display    = 'none';
   cards.style.display   = 'none';
   calWrap.style.display = 'none';
 
-  // Fetch member stats from GAS
-  fetch(URL + '?action=getMemberStats&member=' + encodeURIComponent(member))
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      loading.style.display = 'none';
-      if (!d || !d.success) { loading.innerHTML = '<div style="color:rgba(255,255,255,.3);padding:30px 0;text-align:center;">Could not load stats. Check connection.</div>'; loading.style.display='block'; return; }
-      renderProgressUI(d);
-    })
-    .catch(function(){
-      loading.style.display = 'none';
-      // Fallback: use local data
+  fetchSheetData(function(err, data) {
+    if (err || !data || !data.table || !data.table.rows) {
+      loading.innerHTML = '<div style="padding:30px 0;text-align:center;color:rgba(255,255,255,.4);">Could not load stats.<br>Make sure the spreadsheet is set to Anyone with link can view.</div>';
+      return;
+    }
+
+    var rows      = data.table.rows;
+    // Leaderboard data: rows 9-14 (0-indexed), cols:
+    // C(2)=name, D(3)=books, E(4)=days, F(5)=mins, G(6)=pages, I(8)=badge
+    var memberLow = member.toLowerCase();
+    var myRow     = null;
+
+    for (var i = 9; i <= 14; i++) {
+      if (!rows[i]) continue;
+      var nm = cellStr(rows[i], 2).toLowerCase().replace(/[^a-z]/g,'');
+      var me = memberLow.replace(/[^a-z]/g,'');
+      if (nm === me || nm.indexOf(me) === 0 || me.indexOf(nm) === 0) {
+        myRow = rows[i]; break;
+      }
+    }
+
+    loading.style.display = 'none';
+
+    if (!myRow) {
+      // Not in leaderboard yet — show local fallback
       renderProgressFromLocal();
+      return;
+    }
+
+    var books = parseInt(cellVal(myRow, 3)) || 0;
+    var days  = parseInt(cellVal(myRow, 4)) || 0;
+    var mins  = parseInt(cellVal(myRow, 5)) || 0;
+    var pages = parseInt(cellVal(myRow, 6)) || 0;
+    var badge = cellStr(myRow, 8) || '';
+
+    renderProgressUI({
+      success:       true,
+      booksCompleted: books,
+      totalMins:     mins,
+      totalPages:    pages,
+      daysLogged:    days,
+      badge:         badge,
+      logDates:      [],
+      restDates:     []
     });
+  });
 }
 
 function renderProgressUI(d) {
@@ -2444,8 +2527,8 @@ function renderProgressUI(d) {
   document.getElementById('dash-books-done').textContent = done;
   document.getElementById('ring-pct').textContent = Math.round(pct*100) + '%';
   document.getElementById('dash-books-remaining').textContent =
-    done >= total ? 'Full season complete!' :
-    (total - done) + ' books to complete the season';
+    done >= total ? 'Full season complete! You are a BookWarrior Legend.' :
+    (total - done) + ' books remaining to complete the season';
   // Animate ring
   var circ = 238.76;
   document.getElementById('ring-arc').style.strokeDashoffset = (circ - pct*circ).toFixed(2);
@@ -2512,22 +2595,46 @@ function loadLeaderboard() {
   var podium  = document.getElementById('lb-podium');
   var list    = document.getElementById('lb-list');
 
-  loading.style.display = 'block';
+  loading.style.display = 'flex';
+  loading.innerHTML     = '<div class="spin"></div><div>Loading leaderboard...</div>';
   podium.style.display  = 'none';
   list.style.display    = 'none';
 
-  fetch(URL + '?action=getLeaderboard')
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      loading.style.display = 'none';
-      if (!d || !d.success || !d.board) { loading.innerHTML = '<div style="color:rgba(255,255,255,.3);padding:30px 0;text-align:center;">Could not load leaderboard.</div>'; loading.style.display='block'; return; }
-      renderLeaderboard(d.board);
-    })
-    .catch(function(){
-      loading.style.display = 'none';
-      loading.innerHTML = '<div style="color:rgba(255,255,255,.3);padding:30px 0;text-align:center;">Could not load leaderboard. Check connection.</div>';
-      loading.style.display = 'block';
+  fetchSheetData(function(err, data) {
+    if (err || !data || !data.table || !data.table.rows) {
+      loading.innerHTML = '<div style="padding:30px 0;text-align:center;color:rgba(255,255,255,.4);">Could not load leaderboard.<br>Check your connection.</div>';
+      return;
+    }
+
+    var rows  = data.table.rows;
+    var board = [];
+
+    // Rows 9-14 (indices) = rows 10-15 in sheet = the 6 warriors
+    for (var i = 9; i <= 14; i++) {
+      if (!rows[i]) continue;
+      var name = cellStr(rows[i], 2);
+      if (!name) continue;
+      board.push({
+        name:           name,
+        booksCompleted: parseInt(cellVal(rows[i], 3)) || 0,
+        daysLogged:     parseInt(cellVal(rows[i], 4)) || 0,
+        totalMins:      parseInt(cellVal(rows[i], 5)) || 0,
+        totalPages:     parseInt(cellVal(rows[i], 6)) || 0,
+        badge:          cellStr(rows[i], 8),
+        streak:         getStreak() // use local streak for current member
+      });
+    }
+
+    // Sort: books desc → mins desc
+    board.sort(function(a,b){
+      if (b.booksCompleted !== a.booksCompleted) return b.booksCompleted - a.booksCompleted;
+      return b.totalMins - a.totalMins;
     });
+
+    loading.style.display = 'none';
+    renderLeaderboard(board);
+    _dashLoaded = true;
+  });
 }
 
 function renderLeaderboard(board) {
