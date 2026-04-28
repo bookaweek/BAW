@@ -2833,13 +2833,10 @@ async function submitComplete() {
 
 // ══════════════════════════════════════════════
 // DASHBOARD & LEADERBOARD
-// Reads directly from GAS getDashboard action
-// No gviz. No sheet-name guessing. Always works.
 // ══════════════════════════════════════════════
 
 var _dashLoaded = false;
 var _dashTab    = 'progress';
-var _dashCache  = null;
 
 function setDashTab(tab) {
   _dashTab = tab;
@@ -2851,115 +2848,282 @@ function setDashTab(tab) {
 }
 
 function loadDashboard() {
-  _dashCache = null; // always fresh
   _dashLoaded = false;
+  _sheetCache = null; // Always fetch fresh data when tab is opened
   setDashTab(_dashTab);
   loadMyProgress();
   if (_dashTab === 'board') loadLeaderboard();
 }
 
-// ─── fetchDashboard: calls GAS getDashboard, caches result ───
-function fetchDashboard(cb) {
-  if (_dashCache) { cb(null, _dashCache); return; }
-  fetch(URL + '?action=getDashboard')
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (!d || !d.success) { cb(new Error(d && d.error ? d.error : 'No data'), null); return; }
-      _dashCache = d;
-      cb(null, d);
-    })
-    .catch(function(err) { cb(err, null); });
+// ─── MY PROGRESS ───────────────────────────────
+var SHEET_ID = '1UEHXooO2z6gEup2gmuiDPzqYwRkoYpTn6NneRBNtYvU';
+// Try the Dashboard sheet - use sheet name encoded properly
+// Also try without sheet param as fallback (reads first sheet)
+var GVIZ    = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&sheet=Dashboard&headers=0';
+var GVIZ_FB = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&headers=0';
+
+// Parse the Google Visualization JSONP response
+function parseGviz(raw) {
+  // Strip wrapper: google.visualization.Query.setResponse({...})
+  var start = raw.indexOf('{');
+  var end   = raw.lastIndexOf('}');
+  if (start === -1 || end === -1) return null;
+  try { return JSON.parse(raw.slice(start, end+1)); } catch(e) { return null; }
 }
 
-// ─── MY PROGRESS ───────────────────────────────
+// Get cell value safely from gviz row
+function cellVal(row, colIdx) {
+  if (!row || !row.c || !row.c[colIdx] || row.c[colIdx].v === null) return 0;
+  return row.c[colIdx].v;
+}
+function cellStr(row, colIdx) {
+  if (!row || !row.c || !row.c[colIdx] || row.c[colIdx].v === null) return '';
+  return String(row.c[colIdx].v).trim();
+}
+
+// Shared data cache — fetch once, use for both progress and leaderboard
+var _sheetCache = null;
+var _sheetFetching = false;
+var _sheetCallbacks = [];
+
+function fetchSheetData(cb) {
+  if (_sheetCache) { cb(null, _sheetCache); return; }
+  _sheetCallbacks.push(cb);
+  if (_sheetFetching) return;
+  _sheetFetching = true;
+
+  function tryFetch(url, fallbackUrl) {
+    fetch(url)
+      .then(function(r){ return r.text(); })
+      .then(function(raw){
+        var parsed = parseGviz(raw);
+        if (parsed && parsed.table && parsed.table.rows) {
+          parsed._board = extractLeaderboard(parsed.table.rows);
+        }
+        // If board is empty and we have a fallback, try it
+        if (fallbackUrl && (!parsed || !parsed._board || parsed._board.length === 0)) {
+          tryFetch(fallbackUrl, null);
+          return;
+        }
+        _sheetCache    = parsed;
+        _sheetFetching = false;
+        _sheetCallbacks.forEach(function(fn){ fn(null, parsed); });
+        _sheetCallbacks = [];
+      })
+      .catch(function(err){
+        if (fallbackUrl) { tryFetch(fallbackUrl, null); return; }
+        _sheetFetching = false;
+        _sheetCallbacks.forEach(function(fn){ fn(err, null); });
+        _sheetCallbacks = [];
+      });
+  }
+
+  tryFetch(GVIZ, GVIZ_FB);
+}
+
+// Dynamically find and parse leaderboard — never hardcodes row/col indices
+function extractLeaderboard(rows) {
+  var headerRow = -1, nameCol = -1, booksCol = -1;
+  var daysCol = -1, minsCol = -1, pagesCol = -1, badgeCol = -1;
+
+  // Step 1: scan every row for the header row containing 'MEMBER'
+  for (var r = 0; r < rows.length; r++) {
+    if (!rows[r] || !rows[r].c) continue;
+    for (var c = 0; c < rows[r].c.length; c++) {
+      var v = (cellStr(rows[r], c) || '').toUpperCase();
+      if (v === 'MEMBER') {
+        headerRow = r;
+        nameCol   = c;
+        // Now find sibling columns in the same row
+        for (var cc = 0; cc < rows[r].c.length; cc++) {
+          var h = (cellStr(rows[r], cc) || '').toUpperCase().replace(/\s/g,'');
+          if (h === 'BOOKS')                                    booksCol = cc;
+          else if (h === 'DAYSLOGGED')                         daysCol  = cc;
+          else if (h.indexOf('MINUTES') !== -1 || h === 'TOTALMINUTESREAD') minsCol  = cc;
+          else if (h.indexOf('PAGES')   !== -1 || h === 'TOTALPAGESREAD')   pagesCol = cc;
+          else if (h === 'BADGE' || h === '%')                 badgeCol = cc > badgeCol ? cc : badgeCol;
+        }
+        break;
+      }
+    }
+    if (headerRow >= 0) break;
+  }
+
+  if (headerRow < 0 || nameCol < 0) return [];
+
+  // Step 2: read all data rows after header
+  var board = [];
+  for (var dr = headerRow + 1; dr < rows.length; dr++) {
+    if (!rows[dr] || !rows[dr].c) continue;
+    var name = cleanName(cellStr(rows[dr], nameCol));
+    if (!name) continue;
+    // Skip if it looks like a footer/label
+    if (name.toUpperCase() === name && name.length > 3) continue;
+    board.push({
+      name:           name,
+      booksCompleted: parseInt(cellVal(rows[dr], booksCol))  || 0,
+      daysLogged:     parseInt(cellVal(rows[dr], daysCol))   || 0,
+      totalMins:      parseInt(cellVal(rows[dr], minsCol))   || 0,
+      totalPages:     parseInt(cellVal(rows[dr], pagesCol))  || 0,
+      badge:          cellStr(rows[dr], badgeCol)            || '',
+      streak:         0
+    });
+  }
+  return board;
+}
+
+// Normalise a name: strip emojis, accents → plain ASCII, trim
+function cleanName(s) {
+  if (!s) return '';
+  // Remove emoji ranges
+  s = s.replace(/[\u{1F000}-\u{1FFFF}]/gu, '');
+  s = s.replace(/[\u2600-\u27FF]/g, '');
+  // Remove common emoji shortcodes like 🎉
+  s = s.replace(/\p{Emoji}/gu, '');
+  // Strip any remaining non-ASCII
+  s = s.replace(/[^\x00-\x7F]/g, function(c){
+    // Try to get base ASCII via NFD
+    try {
+      var nfd = c.normalize('NFD');
+      return nfd.replace(/[\u0300-\u036f]/g,'').replace(/[^\x00-\x7F]/g,'');
+    } catch(e){ return ''; }
+  });
+  return s.trim();
+}
+
+// Also a plain-letter-only comparison for maximum robustness
+function lettersOnly(s) {
+  return cleanName(s).toLowerCase().replace(/[^a-z]/g,'');
+}
+
+// Fuzzy name match: handles accents & partial matches
+function nameMatch(sheetName, appName) {
+  var a = lettersOnly(sheetName);
+  var b = lettersOnly(appName);
+  if (!a || !b) return false;
+  return a === b || a.indexOf(b) === 0 || b.indexOf(a) === 0;
+}
+
 function loadMyProgress() {
   var loading = document.getElementById('dash-loading');
   var ring    = document.getElementById('dash-ring-wrap');
   var cards   = document.getElementById('dash-cards');
   var calWrap = document.getElementById('dash-cal-wrap');
-  loading.style.display = 'flex';
-  loading.innerHTML = '<div class="spin"></div><div>Loading your stats...</div>';
-  ring.style.display = cards.style.display = calWrap.style.display = 'none';
 
-  fetchDashboard(function(err, data) {
+  loading.style.display = 'flex';
+  loading.innerHTML     = '<div class="spin"></div><div>Loading your stats...</div>';
+  ring.style.display    = 'none';
+  cards.style.display   = 'none';
+  calWrap.style.display = 'none';
+
+  fetchSheetData(function(err, data) {
+    if (err || !data || !data.table || !data.table.rows) {
+      loading.innerHTML = '<div style="padding:30px 0;text-align:center;color:rgba(255,255,255,.4);">Could not load stats.<br>Make sure the spreadsheet is set to Anyone with link can view.</div>';
+      return;
+    }
+
+    var board = data._board || [];
     loading.style.display = 'none';
-    if (err || !data || !data.board) {
+
+    // Find this member in the pre-parsed leaderboard
+    var myEntry = null;
+    for (var bi = 0; bi < board.length; bi++) {
+      if (nameMatch(board[bi].name, member)) { myEntry = board[bi]; break; }
+    }
+
+    if (!myEntry) {
       renderProgressFromLocal();
       return;
     }
-    // Find member row
-    var myEntry = null;
-    for (var i = 0; i < data.board.length; i++) {
-      if (lettersOnly(data.board[i].name) === lettersOnly(member)) {
-        myEntry = data.board[i]; break;
-      }
-    }
-    if (!myEntry) { renderProgressFromLocal(); return; }
 
     renderProgressUI({
+      success:        true,
       booksCompleted: myEntry.booksCompleted,
       totalMins:      myEntry.totalMins,
       totalPages:     myEntry.totalPages,
-      daysLogged:     myEntry.daysLogged
+      daysLogged:     myEntry.daysLogged,
+      badge:          myEntry.badge,
+      logDates:       [],
+      restDates:      []
     });
   });
 }
 
 function renderProgressUI(d) {
-  document.getElementById('dc-streak').innerHTML = getStreak() + '<span>days</span>';
-  document.getElementById('dc-mins').innerHTML   = fmtNum(d.totalMins  || 0) + '<span>min</span>';
-  document.getElementById('dc-pages').innerHTML  = fmtNum(d.totalPages || 0) + '<span>pgs</span>';
-  document.getElementById('dc-days').innerHTML   = (d.daysLogged || 0) + '<span>days</span>';
+  // Streak card
+  var streak = getStreak();
+  document.getElementById('dc-streak').innerHTML = streak + '<span>days</span>';
 
-  var done = d.booksCompleted || 0;
-  var pct  = Math.min(done / 24, 1);
-  document.getElementById('dash-books-done').textContent      = done;
-  document.getElementById('ring-pct').textContent              = Math.round(pct*100) + '%';
-  document.getElementById('dash-books-remaining').textContent  =
-    done >= 24 ? 'Full season complete! You are a BookWarrior Legend.' :
-    (24 - done) + ' books remaining to complete the season';
-  document.getElementById('ring-arc').style.strokeDashoffset   = (238.76 - pct*238.76).toFixed(2);
+  // Stats from GAS
+  document.getElementById('dc-mins').innerHTML  = fmtNum(d.totalMins  || 0) + '<span>min</span>';
+  document.getElementById('dc-pages').innerHTML = fmtNum(d.totalPages || 0) + '<span>pgs</span>';
+  document.getElementById('dc-days').innerHTML  = (d.daysLogged || 0) + '<span>days</span>';
+
+  // Books ring
+  var done  = d.booksCompleted || 0;
+  var total = 24;
+  var pct   = Math.min(done / total, 1);
+  document.getElementById('dash-books-done').textContent = done;
+  document.getElementById('ring-pct').textContent = Math.round(pct*100) + '%';
+  document.getElementById('dash-books-remaining').textContent =
+    done >= total ? 'Full season complete! You are a BookWarrior Legend.' :
+    (total - done) + ' books remaining to complete the season';
+  // Animate ring
+  var circ = 238.76;
+  document.getElementById('ring-arc').style.strokeDashoffset = (circ - pct*circ).toFixed(2);
 
   document.getElementById('dash-ring-wrap').style.display = 'flex';
   document.getElementById('dash-cards').style.display     = 'grid';
-  buildCalendar([], []);
-  document.getElementById('dash-cal-wrap').style.display  = 'block';
+
+  // Calendar
+  buildCalendar(d.logDates || [], d.restDates || []);
+  document.getElementById('dash-cal-wrap').style.display = 'block';
 }
 
 function renderProgressFromLocal() {
-  document.getElementById('dc-streak').innerHTML = getStreak() + '<span>days</span>';
+  // Use localStorage data when GAS is unavailable
+  var streak = getStreak();
+  var best   = getBest();
+  document.getElementById('dc-streak').innerHTML = streak + '<span>days</span>';
+  document.getElementById('dc-mins').innerHTML   = '?<span>min</span>';
+  document.getElementById('dc-pages').innerHTML  = '?<span>pgs</span>';
+  document.getElementById('dc-days').innerHTML   = '?<span>days</span>';
+
   var done = lib.filter(function(b){ return b.s==='Completed'; }).length;
-  document.getElementById('dc-mins').innerHTML   = '—<span>min</span>';
-  document.getElementById('dc-pages').innerHTML  = '—<span>pgs</span>';
-  document.getElementById('dc-days').innerHTML   = '—<span>days</span>';
-  document.getElementById('dash-books-done').textContent     = done;
+  document.getElementById('dash-books-done').textContent = done;
   var pct = Math.min(done/24,1);
   document.getElementById('ring-pct').textContent = Math.round(pct*100)+'%';
   document.getElementById('ring-arc').style.strokeDashoffset = (238.76 - pct*238.76).toFixed(2);
   document.getElementById('dash-books-remaining').textContent = (24-done) + ' books to complete the season';
+
   document.getElementById('dash-ring-wrap').style.display = 'flex';
   document.getElementById('dash-cards').style.display     = 'grid';
   buildCalendar([], []);
-  document.getElementById('dash-cal-wrap').style.display  = 'block';
+  document.getElementById('dash-cal-wrap').style.display = 'block';
 }
 
 function buildCalendar(logDates, restDates) {
-  var cal   = document.getElementById('dash-cal');
+  var cal     = document.getElementById('dash-cal');
   cal.innerHTML = '';
-  var start = new Date(2026,2,16);
-  var today = new Date(); today.setHours(0,0,0,0);
-  var end   = new Date(Math.min(today.getTime(), new Date(2026,8,15).getTime()));
-  var logSet = {}, restSet = {};
-  (logDates||[]).forEach(function(d){ logSet[d]=true; });
-  (restDates||[]).forEach(function(d){ restSet[d]=true; });
+  var start   = new Date(2026,2,16); // Mar 16
+  var today   = new Date();
+  today.setHours(0,0,0,0);
+  var end     = new Date(Math.min(today.getTime(), new Date(2026,8,15).getTime()));
+  var logSet  = {};
+  var restSet = {};
+  (logDates  || []).forEach(function(d){ logSet[d]  = true; });
+  (restDates || []).forEach(function(d){ restSet[d] = true; });
+
   for (var d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
     var ds  = fmtDate(d);
     var div = document.createElement('div');
     div.className = 'cal-day';
-    div.title = ds;
-    if (ds === fmtDate(today)) div.classList.add('today');
-    else if (logSet[ds])       div.classList.add('logged');
-    else if (restSet[ds])      div.classList.add('rest');
+    div.title     = ds;
+    var isToday   = ds === fmtDate(today);
+    if (isToday)       div.classList.add('today');
+    else if (logSet[ds])  div.classList.add('logged');
+    else if (restSet[ds]) div.classList.add('rest');
+    // else: missed — default grey
     cal.appendChild(div);
   }
 }
@@ -2969,25 +3133,32 @@ function loadLeaderboard() {
   var loading = document.getElementById('lb-loading');
   var podium  = document.getElementById('lb-podium');
   var list    = document.getElementById('lb-list');
-  loading.style.display = 'flex';
-  loading.innerHTML = '<div class="spin"></div><div>Loading leaderboard...</div>';
-  podium.style.display = list.style.display = 'none';
 
-  fetchDashboard(function(err, data) {
-    if (err || !data || !data.board) {
-      loading.innerHTML = '<div style="padding:30px 0;text-align:center;color:rgba(255,255,255,.4);">Could not load leaderboard.<br><small style="font-size:11px;">Check your connection or sheet permissions.</small></div>';
+  loading.style.display = 'flex';
+  loading.innerHTML     = '<div class="spin"></div><div>Loading leaderboard...</div>';
+  podium.style.display  = 'none';
+  list.style.display    = 'none';
+
+  fetchSheetData(function(err, data) {
+    if (err || !data || !data.table || !data.table.rows) {
+      loading.innerHTML = '<div style="padding:30px 0;text-align:center;color:rgba(255,255,255,.4);">Could not load leaderboard.<br>Check your connection.</div>';
       return;
     }
-    var board = data.board.slice();
+
+    var board = (data._board || []).slice(); // use pre-parsed data
+
     // Inject local streak for current member
     board.forEach(function(w) {
-      if (lettersOnly(w.name) === lettersOnly(member)) w.streak = getStreak();
+      if (nameMatch(w.name, member)) w.streak = getStreak();
     });
+
+    // Sort: books desc → mins desc → days desc
     board.sort(function(a,b){
       if (b.booksCompleted !== a.booksCompleted) return b.booksCompleted - a.booksCompleted;
       if (b.totalMins      !== a.totalMins)      return b.totalMins      - a.totalMins;
       return b.daysLogged - a.daysLogged;
     });
+
     loading.style.display = 'none';
     renderLeaderboard(board);
     _dashLoaded = true;
@@ -2997,59 +3168,97 @@ function loadLeaderboard() {
 function renderLeaderboard(board) {
   var podium = document.getElementById('lb-podium');
   var list   = document.getElementById('lb-list');
-  podium.innerHTML = list.innerHTML = '';
+  podium.innerHTML = '';
+  list.innerHTML   = '';
 
-  if (!board || !board.length) {
+  if (!board || board.length === 0) {
     list.innerHTML = '<div class="lb-row"><div style="color:rgba(255,255,255,.3);padding:20px;text-align:center;width:100%;">No warriors yet. Start logging!</div></div>';
-    list.style.display = 'block'; return;
+    list.style.display = 'block';
+    return;
   }
 
-  var medals    = ['&#x1F947;','&#x1F948;','&#x1F949;'];
-  var podCls    = ['lb-pod lb-pod-1','lb-pod lb-pod-2','lb-pod lb-pod-3'];
-  var podOrder  = [1,0,2];
+  // Medals for top 3
+  var medals = ['&#x1F947;','&#x1F948;','&#x1F949;'];
+  var podClasses = ['lb-pod lb-pod-1','lb-pod lb-pod-2','lb-pod lb-pod-3'];
+  // Podium order: 2nd, 1st, 3rd
+  var podOrder = [1,0,2];
   podOrder.forEach(function(idx) {
     if (idx >= board.length) return;
     var w   = board[idx];
     var pod = document.createElement('div');
-    pod.className = podCls[idx];
-    pod.innerHTML =
-      '<div class="lb-rank-num">#'+(idx+1)+'</div>' +
-      '<div class="lb-medal">'+medals[idx]+'</div>' +
-      '<div style="width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;margin-bottom:6px;">'+getInitials(w.name)+'</div>' +
-      '<div class="lb-pod-name">'+w.name.split(' ')[0]+'</div>' +
-      '<div class="lb-pod-score">'+w.booksCompleted+' books</div>';
+    pod.className = podClasses[idx];
+
+    var rankNum = document.createElement('div');
+    rankNum.className = 'lb-rank-num';
+    rankNum.textContent = '#' + (idx+1);
+
+    var medal = document.createElement('div');
+    medal.className   = 'lb-medal';
+    medal.innerHTML   = medals[idx];
+
+    var init = document.createElement('div');
+    init.style.cssText = 'width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;margin-bottom:6px;';
+    init.textContent = getInitials(w.name);
+
+    var name = document.createElement('div');
+    name.className   = 'lb-pod-name';
+    name.textContent = w.name.split(' ')[0];
+
+    var score = document.createElement('div');
+    score.className = 'lb-pod-score';
+    score.textContent = w.booksCompleted + ' books';
+
+    if (idx+1 < board.length) pod.appendChild(rankNum);
+    pod.appendChild(medal);
+    pod.appendChild(init);
+    pod.appendChild(name);
+    pod.appendChild(score);
     podium.appendChild(pod);
   });
+
   if (board.length > 0) podium.style.display = 'flex';
 
+  // List: all warriors
   var badgeCls = ['gold','silver','bronze'];
   board.forEach(function(w, i) {
-    var isMe = lettersOnly(w.name) === lettersOnly(member);
-    var row  = document.createElement('div');
-    row.className = 'lb-row' + (isMe ? ' me' : '');
-    row.innerHTML =
-      '<div class="lb-pos">#'+(i+1)+'</div>' +
-      '<div class="lb-avatar">'+getInitials(w.name)+'</div>' +
-      '<div class="lb-info">' +
-        '<div class="lb-name">'+w.name+(isMe?' (You)':'')+'</div>' +
-        '<div class="lb-detail">'+w.booksCompleted+' books &nbsp;·&nbsp; '+fmtNum(w.totalMins)+' min &nbsp;·&nbsp; '+w.daysLogged+' days</div>' +
-      '</div>' +
-      '<div class="lb-badge '+(i < 3 ? badgeCls[i] : 'regular')+'">'+
-        (w.streak > 0 ? '&#x1F525; '+w.streak : w.booksCompleted+' books')+
-      '</div>';
+    var row = document.createElement('div');
+    row.className = 'lb-row' + (nameMatch(w.name, member) ? ' me' : '');
+
+    var pos = document.createElement('div');
+    pos.className   = 'lb-pos';
+    pos.textContent = '#'+(i+1);
+
+    var av = document.createElement('div');
+    av.className   = 'lb-avatar';
+    av.textContent = getInitials(w.name);
+
+    var info = document.createElement('div');
+    info.className = 'lb-info';
+
+    var nm = document.createElement('div');
+    nm.className   = 'lb-name';
+    nm.textContent = w.name + (w.name===member?' (You)':'');
+
+    var det = document.createElement('div');
+    det.className   = 'lb-detail';
+    det.textContent = w.booksCompleted + ' books  ·  ' + fmtNum(w.totalMins) + ' min  ·  ' + w.streak + ' day streak';
+
+    info.appendChild(nm);
+    info.appendChild(det);
+
+    var badge = document.createElement('div');
+    badge.className = 'lb-badge ' + (i < 3 ? badgeCls[i] : 'regular');
+    badge.innerHTML = (w.streak > 0 ? '&#x1F525; '+w.streak : w.booksCompleted + ' books');
+
+    row.appendChild(pos);
+    row.appendChild(av);
+    row.appendChild(info);
+    row.appendChild(badge);
     list.appendChild(row);
   });
+
   list.style.display = 'block';
   _dashLoaded = true;
-}
-
-// ── Utils shared ──
-function lettersOnly(s) {
-  if (!s) return '';
-  // strip emojis
-  s = s.replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/[\u2600-\u27FF]/g,'');
-  try { s = s.replace(/\p{Emoji}/gu,''); } catch(e){}
-  return s.trim().toLowerCase().replace(/[^a-z]/g,'');
 }
 
 // ─── UTILS ─────────────────────────────────────
