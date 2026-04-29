@@ -1446,6 +1446,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
           </div>
         </div>
       </div>
+      <div id="dash-last-updated" style="text-align:center;font-size:10px;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.35);margin:10px 0 4px;transition:opacity 1.5s;opacity:0.4;">⏳ Syncing live data...</div>
     </div>
 
     <!-- LEADERBOARD -->
@@ -1480,7 +1481,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // ═══════════════════════════════════════════════
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // ═══════════════════════════════════════════════
-const URL = 'https://script.google.com/macros/s/AKfycbxg_C5-qVNd4Ufstj9qDdcipr1dUhMxP0ksJgyfBwqs3peUknMH63iSr2ZA9xFK13xXNQ/exechttps://script.google.com/macros/s/AKfycbxg_C5-qVNd4Ufstj9qDdcipr1dUhMxP0ksJgyfBwqs3peUknMH63iSr2ZA9xFK13xXNQ/exec';
+const URL = 'https://script.google.com/macros/s/AKfycbyW1UUTWzQolv3L3RB4MOCBKk_TwEZo6uDrOdpR3nvJXvoJ7I5cPUPMkRQZ9zpKClXf7A/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 let deferredInstall = null;
@@ -2841,7 +2842,6 @@ async function submitComplete() {
 // ══════════════════════════════════════════════════════════════
 
 var _dashTab  = 'progress';
-var _pollTimer = null;
 
 // ── SEED DATA — exact values from Dashboard tab ──
 // These render immediately. GAS overwrites silently in background.
@@ -2879,76 +2879,189 @@ function setDashTab(tab) {
   if(db) db.style.display = tab==='board'    ? 'block' : 'none';
 }
 
-// ── MAIN ENTRY ──
+// ══════════════════════════════════════════════════════════════
+// LIVE SYNC ENGINE — Split-second updates from Google Sheets
+// ══════════════════════════════════════════════════════════════
+//
+// ARCHITECTURE:
+//  • Primary:   GAS getDashboard (same trusted URL as logging)
+//  • Polling:   3s active / paused when tab hidden
+//  • AbortCtrl: cancels stale requests — never waits for old ones
+//  • Warmup:    pre-fires GAS on page load to kill cold-start lag
+//  • Visibility: instant refetch when user switches back to tab
+//  • Focus:      instant refetch when window regains focus
+//  • Change det: hash-based — only re-renders when data changes
+//  • Sanity:     structural only — never blocks legitimate growth
+//  • Backoff:    3s→6s→12s→20s cap on consecutive GAS failures
+//  • Duplicate:  single _pollTimer declaration (no var conflicts)
+//
+// RESULT: ~1-3s from sheet update to app update (GAS cold start only)
+// ══════════════════════════════════════════════════════════════
+
+var _pollTimer   = null;
+var _failCount   = 0;
+var _lastHash    = '';
+var _abortCtrl   = null;
+var _polling     = false;
+var _warmedUp    = false;
+
+// ── ENTRY: called when user opens Stats tab ──
 function loadDashboard() {
   setDashTab(_dashTab);
-  renderMyProgress();        // instant — no fetch needed
-  renderLeaderboard(_board); // instant — seed data
-  fetchLiveBoard();          // background — updates silently
-  startPoll();
+  renderMyProgress();         // instant from seed
+  renderLeaderboard(_board);  // instant from seed
+  warmupAndFetch();           // kill cold start, then start engine
 }
 
-// ── BACKGROUND FETCH FROM GAS ──
+// ── WARMUP: fire a throwaway request to wake GAS, then real fetch ──
+function warmupAndFetch() {
+  if (!_warmedUp) {
+    _warmedUp = true;
+    // Warmup ping — we don't care about the response, just wake GAS
+    fetch(URL + '?action=ping&t=' + Date.now(), { cache: 'no-store' }).catch(function(){});
+    // Small delay so warmup ping hits first, then real fetch rides warm server
+    setTimeout(function() {
+      fetchLiveBoard();
+      startPoll();
+    }, 400);
+  } else {
+    fetchLiveBoard();
+    startPoll();
+  }
+}
+
+// ── HASH: detect real changes ──
+function boardHash(board) {
+  return board.map(function(w) {
+    return w.nameLo+'|'+w.booksCompleted+'|'+w.daysLogged+'|'+w.totalMins+'|'+w.totalPages;
+  }).join(';');
+}
+
+// ── SANITY: only catches column-order bugs, never real growth ──
+function isBoardValid(fresh) {
+  for (var i = 0; i < fresh.length; i++) {
+    var w = fresh[i];
+    if (w.booksCompleted > 52) return false;
+    if (w.totalMins > 0 && w.booksCompleted > 0 && w.totalMins < w.booksCompleted) return false;
+    if (w.totalPages > 0 && w.booksCompleted > 0 && w.totalPages < w.booksCompleted) return false;
+  }
+  return true;
+}
+
+// ── CORE FETCH with AbortController ──
 function fetchLiveBoard() {
-  fetch(URL + '?action=getDashboard', { cache: 'no-store' })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(!d || !d.success || !d.board || !d.board.length) return;
-      var fresh = d.board.map(function(w){
+  // Cancel any in-flight request
+  if (_abortCtrl) { try { _abortCtrl.abort(); } catch(e){} }
+  _abortCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+
+  var opts = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } };
+  if (_abortCtrl) opts.signal = _abortCtrl.signal;
+
+  var t0 = Date.now();
+  fetch(URL + '?action=getDashboard&t=' + t0, opts)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(d) {
+      _failCount = 0;
+      _abortCtrl = null;
+      if (!d || !d.success || !d.board || !d.board.length) return;
+
+      var fresh = d.board.map(function(w) {
         return {
-          name:           String(w.name||'').trim(),
+          name:           String(w.name || '').trim(),
           nameLo:         lettersOnly(w.name),
-          booksCompleted: parseInt(w.booksCompleted)||0,
-          daysLogged:     parseInt(w.daysLogged)||0,
-          totalMins:      parseInt(w.totalMins)||0,
-          totalPages:     parseInt(w.totalPages)||0
+          booksCompleted: parseInt(w.booksCompleted) || 0,
+          daysLogged:     parseInt(w.daysLogged)     || 0,
+          totalMins:      parseInt(w.totalMins)      || 0,
+          totalPages:     parseInt(w.totalPages)     || 0
         };
-      }).filter(function(w){
-        return w.name.length > 0 &&
-               w.booksCompleted <= 52 &&   // sanity: max 1 book/week for a year
-               w.totalMins      >= 0 &&
-               w.totalPages     >= 0;
-      });
-      if(!fresh.length) return;
-      // SANITY CHECK — column order verification using known data bounds:
-      // booksCompleted: 0–52 (max 1/week)
-      // daysLogged:     0–210 (max 30 weeks × 7 days)  
-      // totalMins:      always >= daysLogged (min 1 min per day)
-      // totalPages:     always >= 0
-      // If booksCompleted > 52, columns are shifted (days value in books slot)
-      var shifted = fresh.some(function(w){
-        return w.booksCompleted > 52
-            || (w.totalMins > 0 && w.totalMins < w.booksCompleted)
-            || (w.daysLogged > 0 && w.daysLogged < w.booksCompleted);
-      });
-      if(shifted) {
-        console.warn('GAS column mismatch detected — keeping seed data.');
+      }).filter(function(w) { return w.name.length >= 2; });
+
+      if (!fresh.length || !isBoardValid(fresh)) {
+        console.warn('[BAW] Invalid board from GAS — keeping current data');
         return;
       }
-      // Secondary check: for any known member, compare against seed
-      var seedMap = {};
-      _board.forEach(function(s){ seedMap[s.nameLo] = s; });
-      var wildlyWrong = fresh.some(function(w){
-        var s = seedMap[w.nameLo];
-        if(!s) return false;
-        // If GAS books > seed books * 5, it's reading the wrong column
-        return w.booksCompleted > (s.booksCompleted + 1) * 5;
-      });
-      if(wildlyWrong) {
-        console.warn('GAS data fails cross-check against seed — keeping seed.');
-        return;
-      }
-      _board = sortBoard(fresh);
+
+      sortBoard(fresh);
+      var newHash = boardHash(fresh);
+      if (newHash === _lastHash) return; // identical — skip re-render
+      _lastHash = newHash;
+
+      _board = fresh;
       renderMyProgress();
       renderLeaderboard(_board);
+      showSyncBadge(Date.now() - t0);
+
+      // Data just changed — restart poll at fast interval
+      restartPoll(3000);
     })
-    .catch(function(e){ console.warn('Dashboard fetch:', e.message); });
+    .catch(function(e) {
+      if (e.name === 'AbortError') return; // we cancelled it — not a failure
+      _failCount++;
+      _abortCtrl = null;
+      console.warn('[BAW] Fetch failed (' + _failCount + '):', e.message);
+      restartPoll(getInterval());
+    });
 }
 
-// ── AUTO-POLL ──
+// ── INTERVALS: 3s → 6s → 12s → 20s on failures ──
+function getInterval() {
+  if (_failCount === 0) return 3000;
+  if (_failCount === 1) return 6000;
+  if (_failCount === 2) return 12000;
+  return 20000;
+}
+
+// ── POLL CONTROL ──
 function startPoll() {
-  if(_pollTimer) clearInterval(_pollTimer);
-  _pollTimer = setInterval(fetchLiveBoard, 90000);
+  if (_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(fetchLiveBoard, getInterval());
+}
+
+function restartPoll(ms) {
+  if (_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(fetchLiveBoard, ms);
+}
+
+function stopPoll() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+}
+
+// ── VISIBILITY: pause/resume on tab switch ──
+(function() {
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      stopPoll();
+    } else {
+      if (_abortCtrl) { try { _abortCtrl.abort(); } catch(e){} _abortCtrl = null; }
+      fetchLiveBoard();
+      startPoll();
+    }
+  });
+  window.addEventListener('focus', function() {
+    if (!document.hidden) {
+      if (_abortCtrl) { try { _abortCtrl.abort(); } catch(e){} _abortCtrl = null; }
+      fetchLiveBoard();
+    }
+  });
+})();
+
+// ── SYNC BADGE ──
+function showSyncBadge(ms) {
+  var el = document.getElementById('dash-last-updated');
+  if (!el) return;
+  var now = new Date();
+  var t   = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+  el.textContent = '🟢 Live · ' + t + ' (' + ms + 'ms)';
+  el.style.color   = 'rgba(13,210,100,.8)';
+  el.style.opacity = '1';
+  clearTimeout(el._ft);
+  el._ft = setTimeout(function() {
+    el.style.color   = 'rgba(255,255,255,.3)';
+    el.style.opacity = '0.5';
+  }, 5000);
 }
 
 // ── MY PROGRESS ──
