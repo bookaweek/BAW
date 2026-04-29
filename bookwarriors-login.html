@@ -1560,10 +1560,12 @@ window.onload = function() {
         })
         .catch(function(e) { console.log('SW:', e.message); });
 
-      // Clear ALL caches on load to prevent stale HTML serving
+      // Clear only OLD cache versions — keep current v9
       if (window.caches) {
         caches.keys().then(function(keys) {
-          keys.forEach(function(key) { caches.delete(key); });
+          keys.forEach(function(key) {
+            if (key !== 'bookaweek-v9') caches.delete(key);
+          });
         });
       }
     } else {
@@ -1734,37 +1736,50 @@ function enableNotifs() {
 // ── FIRE NOTIFICATION THROUGH SW ─────────────────────────
 function fireViaSW(type, data) {
   if (!('serviceWorker' in navigator)) { fireDirectNotif(data); return; }
-  navigator.serviceWorker.ready.then(function(reg) {
-    if (!reg.active) { fireDirectNotif(data); return; }
-    reg.active.postMessage({
-      type: 'SHOW_NOTIF',
-      payload: {
-        title:   data.title  || 'BookAWeek',
-        body:    data.body   || 'Time to log your reading session!',
-        tag:     data.tag    || 'baw-reminder',
-        icon:    'icon-192.png',
-        badge:   'icon-72.png',
-        data:    { url: 'bookwarriors-login.html', member: member || '' }
-      }
-    });
+  var msg = {
+    type: 'SHOW_NOTIF',
+    payload: {
+      title:  data.title || 'BookAWeek',
+      body:   data.body  || 'Time to log your reading session!',
+      tag:    data.tag   || 'baw-reminder',
+      icon:   'icon-192.png',
+      badge:  'icon-72.png',
+      data:   { url: 'bookwarriors-login.html', member: member || '' }
+    }
+  };
+  // Use controller if available (works immediately)
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage(msg);
+    return;
+  }
+  // Otherwise wait for SW to be ready
+  navigator.serviceWorker.getRegistration().then(function(reg) {
+    if (reg && reg.active) { reg.active.postMessage(msg); }
+    else { fireDirectNotif(data); }
   }).catch(function() { fireDirectNotif(data); });
 }
 
 // ── SCHEDULE REMINDERS VIA SW ─────────────────────────────
 function scheduleViaSW() {
   if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.ready.then(function(reg) {
-    if (!reg.active) return;
-    reg.active.postMessage({
-      type: 'SCHEDULE',
-      payload: {
-        member:    member || '',
-        streak:    getStreak(),
-        lastLog:   localStorage.getItem(PRE+'lastLog') || '',
-        times:     NOTIF_TIMES,
-        enabled:   true
-      }
-    });
+  var payload = {
+    type: 'SCHEDULE',
+    payload: {
+      member:  member || '',
+      streak:  getStreak(),
+      lastLog: localStorage.getItem(PRE+'lastLog') || localStorage.getItem(lastLogKey()) || '',
+      times:   NOTIF_TIMES,
+      enabled: true
+    }
+  };
+  // Try controller first (fastest — already controlling)
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage(payload);
+    return;
+  }
+  // Fall back to registration.active
+  navigator.serviceWorker.getRegistration().then(function(reg) {
+    if (reg && reg.active) reg.active.postMessage(payload);
   }).catch(function(){});
 }
 
@@ -1885,15 +1900,16 @@ if ('serviceWorker' in navigator) {
     if (!e.data) return;
     if (e.data.type === 'RELOAD') window.location.reload();
     if (e.data.type === 'CHECK_LOGGED') {
-      // SW asking if member logged today — respond
-      var lastLog = localStorage.getItem(PRE+'lastLog') || '';
-      var today   = new Date().toISOString().slice(0, 10);
+      var logKey  = PRE + (member||'') + '_last_log';
+      var lastLog = localStorage.getItem(logKey) || localStorage.getItem(PRE+'lastLog') || '';
+      var today   = dateStr();
       var logged  = (lastLog === today);
       var streak  = getStreak();
-      if (e.source) {
-        e.source.postMessage({ type: 'LOG_STATUS', logged: logged, streak: streak, member: member || '' });
-      } else if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: 'LOG_STATUS', logged: logged, streak: streak, member: member || '' });
+      // Always respond via controller (e.source is null for SW→page messages)
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'LOG_STATUS', logged: logged, streak: streak, member: member || ''
+        });
       }
     }
   });
@@ -2152,9 +2168,22 @@ function login(name) {
   loadLib(); setupWeekly(); setMode('daily');
   renderStreak();
   showNotifBanner();
+  flushOnLogin();
   // Refresh SW reminder schedule on every login
   if (localStorage.getItem(PRE+'notifs') === '1') {
-    setTimeout(scheduleViaSW, 1000); // after SW is ready
+    // Wait for SW controller to be available
+    if ('serviceWorker' in navigator) {
+      if (navigator.serviceWorker.controller) {
+        scheduleViaSW();
+      } else {
+        navigator.serviceWorker.addEventListener('controllerchange', function handler() {
+          navigator.serviceWorker.removeEventListener('controllerchange', handler);
+          scheduleViaSW();
+        });
+        // Also try after a delay as backup
+        setTimeout(scheduleViaSW, 2500);
+      }
+    }
   }
 }
 
@@ -2539,6 +2568,54 @@ function prog(){
   var el=document.getElementById(id);
   if(el){el.addEventListener('input',prog);el.addEventListener('change',prog);}
 });
+
+// ══════════════════════════════════════════════════════════
+// GAS SEND + OFFLINE QUEUE
+// sendToGAS: fires fetch, queues on fail, retries on reconnect
+// ══════════════════════════════════════════════════════════
+function sendToGAS(payload) {
+  return fetch(URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify(payload)
+  });
+}
+
+function queueLog(payload) {
+  var key   = PRE + 'queue';
+  var queue = JSON.parse(localStorage.getItem(key) || '[]');
+  payload._ts = Date.now();
+  queue.push(payload);
+  // Cap queue at 200 entries
+  if (queue.length > 200) queue = queue.slice(-200);
+  localStorage.setItem(key, JSON.stringify(queue));
+}
+
+function flushQueue() {
+  var key   = PRE + 'queue';
+  var queue = JSON.parse(localStorage.getItem(key) || '[]');
+  if (!queue.length) return;
+  var pending = queue.slice();
+  localStorage.removeItem(key);
+  pending.forEach(function(payload) {
+    sendToGAS(payload).catch(function() {
+      // Re-queue if still offline
+      queueLog(payload);
+    });
+  });
+}
+
+// Flush any queued logs when connection returns
+window.addEventListener('online', function() {
+  setTimeout(flushQueue, 1000);
+});
+
+// Attempt flush on every login too
+function flushOnLogin() {
+  if (navigator.onLine) setTimeout(flushQueue, 2000);
+}
+
 (function(){ var _df=document.getElementById('dailyForm'); if(_df) _df.addEventListener('submit',async function(e){
   e.preventDefault();
   var err=document.getElementById('dailyErr'); err.classList.remove('show');
@@ -2569,7 +2646,7 @@ function prog(){
   };
   setDL(true);
   try{
-    await fetch(URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    await sendToGAS(payload);
     recordLog();
     localStorage.setItem(PRE+'lastLog', dateStr()); scheduleViaSW();
     success(rest?'Rest Day Logged!':'Session Logged!',
@@ -2577,7 +2654,14 @@ function prog(){
       rest?[['Member',member],['Type','Rest Day']]:[['Member',member],['Minutes',payload.minutes+' min'],['Book',(book||'').slice(0,22)]]);
     resetDaily();
   }catch(err2){
-    err.textContent='Connection failed. Check internet and try again.';err.classList.add('show');
+    // Queue locally — will sync when connection returns
+    queueLog(payload);
+    recordLog();
+    localStorage.setItem(PRE+'lastLog', dateStr()); scheduleViaSW();
+    success(rest?'Rest Day Logged! (offline)':'Session Logged! (offline)',
+      'Saved locally. Will sync to sheet when connection returns.',
+      rest?[['Member',member],['Type','Rest Day']]:[['Member',member],['Minutes',payload.minutes+' min'],['Book',(book||'').slice(0,22)]]);
+    resetDaily();
   }finally{setDL(false);}
 });
 
@@ -2625,8 +2709,7 @@ function setupWeekly(){
   var fmt=function(d){return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
   setWL(true);
   try{
-    await fetch(URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({action:'logWeekly',member:member,date:dateStr(),weekNum:wk,
+    var wPayload={action:'logWeekly',member:member,date:dateStr(),weekNum:wk,
         weekRange:fmt(s)+' to '+fmt(en),
         topBook:document.getElementById('w-book').value||'',
         insight:insight,commitment:commit,
@@ -2634,10 +2717,20 @@ function setupWeekly(){
         feeling:document.getElementById('w-feeling').value||'',
         daysRead:document.getElementById('w-days').textContent,
         totalMins:document.getElementById('w-mins').textContent,
-        totalPages:document.getElementById('w-pages').textContent})});
+        totalPages:document.getElementById('w-pages').textContent};
+    await sendToGAS(wPayload);
     success('Week Reflected!','Week '+wk+' submitted. See you next Sunday!',[['Week',wk],['Feeling',document.getElementById('w-feeling').value||'-']]);
     document.getElementById('weeklyForm').reset();
-  }catch(err2){err.textContent='Connection failed.';err.classList.add('show');}
+  }catch(err2){
+    queueLog({action:'logWeekly',member:member,date:dateStr(),weekNum:wk,
+      weekRange:fmt(s)+' to '+fmt(en),
+      topBook:document.getElementById('w-book').value||'',
+      insight:insight,commitment:commit,
+      reflection:document.getElementById('w-reflect').value.trim(),
+      feeling:document.getElementById('w-feeling').value||''});
+    success('Week Reflected! (offline)','Saved locally. Will sync when connection returns.',[['Week',wk]]);
+    document.getElementById('weeklyForm').reset();
+  }
   finally{setWL(false);}
 }); })();
 
