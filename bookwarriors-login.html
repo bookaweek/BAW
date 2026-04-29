@@ -1539,8 +1539,7 @@ window.onload = function() {
       // Force update check on every load — clears stale cache
       navigator.serviceWorker.register('sw.js', { scope: './', updateViaCache: 'none' })
         .then(function(reg) {
-          reg.update(); // always check for SW update
-          // If a new SW is waiting, activate it immediately
+          reg.update();
           if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
           reg.addEventListener('updatefound', function() {
             var newSW = reg.installing;
@@ -1553,6 +1552,11 @@ window.onload = function() {
               });
             }
           });
+          // Register periodic background sync to keep SW alive
+          if ('periodicSync' in reg) {
+            reg.periodicSync.register('baw-reminder', { minInterval: 60 * 60 * 1000 })
+              .catch(function() {}); // permission may not be granted — silent fail
+          }
         })
         .catch(function(e) { console.log('SW:', e.message); });
 
@@ -1677,139 +1681,222 @@ function showInstallGuide(platform) {
 
 
 // ── NOTIFICATIONS ──
+// ══════════════════════════════════════════════════════════════
+// NOTIFICATION SYSTEM — SW-DRIVEN, WORKS WHEN APP IS CLOSED
+// Architecture:
+//  • Notifications fired by Service Worker (survives app close)
+//  • SW uses a stored schedule + periodic sync / message-based wake
+//  • 3 daily reminder windows: 8am, 2pm, 8pm WAT
+//  • Smart: skips if member already logged today
+//  • Escalating urgency if streak is at risk
+//  • Falls back to page-based notification if SW unavailable
+// ══════════════════════════════════════════════════════════════
+
+var NOTIF_TIMES = [8, 14, 20]; // hours WAT to fire reminders
+
+// ── ENABLE NOTIFICATIONS ──────────────────────────────────
 function enableNotifs() {
-  document.getElementById('notif-bar').style.display = 'none';
+  var bar = document.getElementById('notif-bar');
+  if (bar) bar.style.display = 'none';
+
   if (!('Notification' in window)) {
-    toast('Your browser does not support notifications. Try Chrome or Samsung Internet.');
+    toast('Try Chrome or Samsung Internet for notifications.');
     return;
   }
   if (Notification.permission === 'denied') {
-    toast('Notifications are blocked. Go to browser Settings > Site Settings > Notifications and allow BookAWeek.');
+    toast('Notifications blocked. Go to Chrome Settings → Site Settings → Notifications → Allow BookAWeek.');
     return;
   }
+
   Notification.requestPermission().then(function(p) {
-    if (p === 'granted') {
-      localStorage.setItem(PRE+'notifs','1');
-      toast('Daily reminders enabled! You will be reminded every day.');
-      // Fire a test notification immediately so they see it works
-      setTimeout(function(){
-        try {
-          var n = new Notification('BookAWeek', {
-            body: 'Reminders are ON. We will keep your streak alive.',
-            icon: 'icon-192.png',
-            badge: 'icon-72.png',
-            tag: 'baw-welcome'
-          });
-          n.onclick = function(){ window.focus(); n.close(); };
-        } catch(e){}
-      }, 500);
-    } else {
-      toast('Notifications blocked. You can enable them in your browser settings.');
+    if (p !== 'granted') {
+      toast('Notifications not enabled. You can turn them on in browser settings.');
+      return;
     }
+    localStorage.setItem(PRE+'notifs', '1');
+    localStorage.setItem(PRE+'notif_member', member || '');
+
+    // Tell SW to take over scheduling
+    scheduleViaSW();
+
+    // Fire welcome notification immediately via SW (survives close)
+    fireViaSW('welcome', {
+      title: 'BookAWeek Reminders ON 🔔',
+      body: 'We will remind you every day so your streak never breaks. Read. Reflect. Execute.',
+      tag: 'baw-welcome'
+    });
+
+    showNotifBanner();
+    toast('Daily reminders enabled! We will keep your streak alive 🔥');
   });
 }
-function dismissNotif() {
-  // Only hide for this session — will show again next login
-  document.getElementById('notif-bar').style.display = 'none';
+
+// ── FIRE NOTIFICATION THROUGH SW ─────────────────────────
+function fireViaSW(type, data) {
+  if (!('serviceWorker' in navigator)) { fireDirectNotif(data); return; }
+  navigator.serviceWorker.ready.then(function(reg) {
+    if (!reg.active) { fireDirectNotif(data); return; }
+    reg.active.postMessage({
+      type: 'SHOW_NOTIF',
+      payload: {
+        title:   data.title  || 'BookAWeek',
+        body:    data.body   || 'Time to log your reading session!',
+        tag:     data.tag    || 'baw-reminder',
+        icon:    'icon-192.png',
+        badge:   'icon-72.png',
+        data:    { url: 'bookwarriors-login.html', member: member || '' }
+      }
+    });
+  }).catch(function() { fireDirectNotif(data); });
 }
+
+// ── SCHEDULE REMINDERS VIA SW ─────────────────────────────
+function scheduleViaSW() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.ready.then(function(reg) {
+    if (!reg.active) return;
+    reg.active.postMessage({
+      type: 'SCHEDULE',
+      payload: {
+        member:    member || '',
+        streak:    getStreak(),
+        lastLog:   localStorage.getItem(PRE+'lastLog') || '',
+        times:     NOTIF_TIMES,
+        enabled:   true
+      }
+    });
+  }).catch(function(){});
+}
+
+// ── DIRECT NOTIFICATION (fallback when SW not ready) ─────
+function fireDirectNotif(data) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    var n = new Notification(data.title || 'BookAWeek', {
+      body:    data.body  || 'Time to log your reading session!',
+      icon:    'icon-192.png',
+      badge:   'icon-72.png',
+      tag:     data.tag   || 'baw-reminder',
+      renotify: true
+    });
+    n.onclick = function() { window.focus(); n.close(); };
+  } catch(e) {}
+}
+
+// ── PAGE-VISIBLE REMINDER (fires when app is OPEN) ───────
+// SW handles when closed. This catches the case where SW
+// hasn't fired yet and app happens to be open.
+function fireReminder() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!localStorage.getItem(PRE+'notifs')) return;
+
+  var last = parseInt(localStorage.getItem(PRE+'last_notif') || 0);
+  var now  = Date.now();
+  if (last && (now - last) < 4 * 3600000) return; // max once per 4h from page
+
+  var h = new Date().getHours();
+  var inWindow = NOTIF_TIMES.some(function(t) { return Math.abs(h - t) <= 1; });
+  if (!inWindow) return;
+
+  var streak  = getStreak();
+  var msgs = streak >= 3
+    ? ['🔥 ' + streak + '-day streak! Keep it alive — log today\'s session.',
+       'Your ' + streak + '-day streak is on the line. Open your book now.',
+       streak + ' days and counting. Don\'t break the chain today.']
+    : ['Have you logged your reading today, BookWarrior?',
+       'The covenant calls. Open your book. Log your session.',
+       'We Read. We Reflect. We Execute. Your session is waiting.',
+       'Every day you log is a brick in the life you are building.'];
+
+  var body = msgs[Math.floor(Math.random() * msgs.length)];
+
+  // Prefer SW notification (stays even if tab closes)
+  fireViaSW('reminder', { body: body, tag: 'baw-daily' });
+  localStorage.setItem(PRE+'last_notif', now);
+}
+
+// ── DISMISS ───────────────────────────────────────────────
+function dismissNotif() {
+  var bar = document.getElementById('notif-bar');
+  if (bar) bar.style.display = 'none';
+  localStorage.setItem(PRE+'notif_dismissed', Date.now());
+}
+
+// ── SHOW BANNER ───────────────────────────────────────────
 function showNotifBanner() {
   var bar = document.getElementById('notif-bar');
-  if (!bar) return;
+  if (!bar || !('Notification' in window)) return;
 
-  // Clear previous content
+  // Don't re-show dismiss within 24h
+  var dismissed = parseInt(localStorage.getItem(PRE+'notif_dismissed') || 0);
+  if (dismissed && (Date.now() - dismissed) < 24 * 3600000 && Notification.permission === 'default') return;
+
   while (bar.firstChild) bar.removeChild(bar.firstChild);
-
-  if (!('Notification' in window)) {
-    bar.style.display = 'none';
-    return;
-  }
-
   var wrap = document.createElement('div');
-  wrap.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;';
+  wrap.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;';
 
   var closeBtn = document.createElement('button');
-  closeBtn.style.cssText = 'margin-left:auto;background:none;border:none;color:rgba(255,255,255,.4);font-size:20px;cursor:pointer;flex-shrink:0;padding:0 4px;';
+  closeBtn.style.cssText = 'margin-left:auto;background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;cursor:pointer;flex-shrink:0;padding:4px;line-height:1;-webkit-tap-highlight-color:transparent;';
   closeBtn.innerHTML = '&#x2715;';
-  closeBtn.onclick = function() { bar.style.display = 'none'; };
+  closeBtn.onclick = function() { dismissNotif(); };
 
   if (Notification.permission === 'granted') {
-    localStorage.setItem(PRE+'notifs','1');
-    wrap.style.background = 'rgba(13,122,110,.15)';
-    wrap.style.border      = '1px solid rgba(13,122,110,.4)';
-    var icon = document.createElement('div');
-    icon.style.fontSize = '20px';
-    icon.innerHTML = '&#x1F514;';
-    var txt = document.createElement('div');
-    txt.style.cssText = 'font-size:13px;font-weight:600;color:rgba(255,255,255,.8);';
-    txt.innerHTML = 'Daily reminders are <span style="color:#4ADE80">ON</span>';
-    wrap.appendChild(icon);
-    wrap.appendChild(txt);
+    localStorage.setItem(PRE+'notifs', '1');
+    scheduleViaSW(); // always re-schedule on login
+    wrap.style.cssText += 'background:rgba(13,122,110,.15);border:1px solid rgba(13,122,110,.4);';
+    wrap.innerHTML = '<div style="font-size:20px;">&#x1F514;</div>' +
+      '<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#fff;">Daily reminders are <span style="color:#4ADE80">ON</span></div>' +
+      '<div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:2px;">You\'ll be reminded at 8am, 2pm and 8pm if you haven\'t logged</div></div>';
     wrap.appendChild(closeBtn);
     bar.appendChild(wrap);
     bar.style.display = 'block';
-    setTimeout(function(){ bar.style.display = 'none'; }, 4000);
-    fireReminder();
+    setTimeout(function() { bar.style.display = 'none'; }, 5000);
+    fireReminder(); // check if we should fire now
     return;
   }
 
   if (Notification.permission === 'denied') {
-    wrap.style.background = 'rgba(192,57,43,.12)';
-    wrap.style.border      = '1px solid rgba(192,57,43,.35)';
-    wrap.style.alignItems  = 'flex-start';
-    var icon2 = document.createElement('div');
-    icon2.style.cssText = 'font-size:18px;flex-shrink:0;';
-    icon2.innerHTML = '&#x26D4;';
-    var txt2wrap = document.createElement('div');
-    txt2wrap.style.flex = '1';
-    var txt2title = document.createElement('div');
-    txt2title.style.cssText = 'font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;';
-    txt2title.textContent = 'Notifications blocked';
-    var txt2sub = document.createElement('div');
-    txt2sub.style.cssText = 'font-size:11px;color:rgba(255,255,255,.55);line-height:1.4;';
-    txt2sub.textContent = 'Go to Chrome Settings > Site Settings > Notifications > find BookAWeek > Allow';
-    txt2wrap.appendChild(txt2title);
-    txt2wrap.appendChild(txt2sub);
-    wrap.appendChild(icon2);
-    wrap.appendChild(txt2wrap);
+    wrap.style.cssText += 'background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);align-items:flex-start;';
+    wrap.innerHTML = '<div style="font-size:18px;flex-shrink:0;">&#x26D4;</div>' +
+      '<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">Notifications blocked</div>' +
+      '<div style="font-size:11px;color:rgba(255,255,255,.5);line-height:1.5;">Chrome: tap ⋮ → Settings → Site Settings → Notifications → BookAWeek → Allow<br>Samsung: Settings → Apps → Chrome → Permissions → Notifications → Allow</div></div>';
     wrap.appendChild(closeBtn);
     bar.appendChild(wrap);
     bar.style.display = 'block';
     return;
   }
 
-  // Default: not yet asked — show enable button
+  // Default state — not yet asked
+  wrap.style.cssText += 'background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);';
+  wrap.innerHTML = '<div style="font-size:20px;">&#x1F514;</div>' +
+    '<div style="flex:1;">' +
+      '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;">Never miss a day</div>' +
+      '<div style="font-size:11px;color:rgba(255,255,255,.5);">Get reminded at 8am, 2pm & 8pm so your streak never breaks</div>' +
+    '</div>' +
+    '<button onclick="enableNotifs()" style="flex-shrink:0;height:34px;padding:0 14px;background:var(--gold);color:var(--navy);border:none;border-radius:10px;font-family:DM Sans,sans-serif;font-size:12px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">Enable</button>';
+  wrap.appendChild(closeBtn);
+  bar.appendChild(wrap);
   bar.style.display = 'block';
 }
 
-
-function fireReminder() {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  // Auto-enable if permission was granted (e.g. via browser settings)
-  if (!localStorage.getItem(PRE+'notifs')) {
-    localStorage.setItem(PRE+'notifs','1');
-  }
-  var last = parseInt(localStorage.getItem(PRE+'last_notif')||0);
-  var firstTime = last === 0;
-  // Normal throttle: once per 20hrs between 7am-10pm
-  // First time: fire immediately regardless of time
-  if (!firstTime) {
-    if ((Date.now()-last) < 20*3600000) return;
-    var h = new Date().getHours();
-    if (h < 7 || h > 22) return;
-  }
-  var msgs = [
-    'Have you logged your reading session today, BookWarrior?',
-    'The covenant calls. Open your book. Log your session.',
-    'We Read. We Reflect. We Execute. Your session is waiting.',
-    'Every day you log is a brick in the life you are building.'
-  ];
-  var n = new Notification('BookAWeek', {
-    body: msgs[Math.floor(Math.random()*msgs.length)],
-    icon: 'icon-192.png', badge:'icon-72.png',
-    tag:'baw', renotify:true
+// ── LISTEN FOR SW MESSAGES ────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    if (!e.data) return;
+    if (e.data.type === 'RELOAD') window.location.reload();
+    if (e.data.type === 'CHECK_LOGGED') {
+      // SW asking if member logged today — respond
+      var lastLog = localStorage.getItem(PRE+'lastLog') || '';
+      var today   = new Date().toISOString().slice(0, 10);
+      var logged  = (lastLog === today);
+      var streak  = getStreak();
+      if (e.source) {
+        e.source.postMessage({ type: 'LOG_STATUS', logged: logged, streak: streak, member: member || '' });
+      } else if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'LOG_STATUS', logged: logged, streak: streak, member: member || '' });
+      }
+    }
   });
-  n.onclick = function(){ window.focus(); n.close(); };
-  localStorage.setItem(PRE+'last_notif', Date.now());
 }
 
 // ── PINS ──
@@ -2065,6 +2152,10 @@ function login(name) {
   loadLib(); setupWeekly(); setMode('daily');
   renderStreak();
   showNotifBanner();
+  // Refresh SW reminder schedule on every login
+  if (localStorage.getItem(PRE+'notifs') === '1') {
+    setTimeout(scheduleViaSW, 1000); // after SW is ready
+  }
 }
 
 // ── MODE ──
@@ -2480,6 +2571,7 @@ function prog(){
   try{
     await fetch(URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
     recordLog();
+    localStorage.setItem(PRE+'lastLog', dateStr()); scheduleViaSW();
     success(rest?'Rest Day Logged!':'Session Logged!',
       rest?'Recovery is part of the system.':payload.minutes+' minutes logged. Every session builds the edge.',
       rest?[['Member',member],['Type','Rest Day']]:[['Member',member],['Minutes',payload.minutes+' min'],['Book',(book||'').slice(0,22)]]);
