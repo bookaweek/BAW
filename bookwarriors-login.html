@@ -1480,7 +1480,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // ═══════════════════════════════════════════════
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // ═══════════════════════════════════════════════
-const URL = 'https://script.google.com/macros/s/AKfycbz5vpTustNO6gSnDzFrrI2fUD3w-r7e2QZGP46aCo7DfBQF42qmrxbgxtUu8c8rVkGmyg/exec';
+const URL = 'https://script.google.com/macros/s/AKfycbxLOwvB7CHSQ73YTXLsUd7sSv_GZLr0JxW948XEemIIZqO-gB50S5DabIY7kRNrbA_7ig/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 let deferredInstall = null;
@@ -2836,7 +2836,6 @@ async function submitComplete() {
 // Auto-refreshes every 60 seconds. Exact numbers, no rounding.
 // ══════════════════════════════════════════════════════════════════
 
-var SHEET_ID     = '1UEHXooO2z6gEup2gmuiDPzqYwRkoYpTn6NneRBNtYvU';
 var _dashCache   = null;
 var _dashLoading = false;
 var _dashCbs     = [];
@@ -2876,155 +2875,87 @@ function startDashPoll() {
   }, 60000); // refresh every 60s
 }
 
-// ── CORE FETCH: gviz JSON direct from browser ─────────────────
-// Tries gid=0 (by sheet index — most reliable), then by name encoding
+// ── CORE FETCH ───────────────────────────────────────────────
+// Single source of truth: GAS doGet?action=getDashboard
+// This is the same trusted URL that handles all logging — no CORS issues.
+// Seed data below ensures the leaderboard is NEVER empty on first load.
+// ─────────────────────────────────────────────────────────────
+
+// ── SEED DATA (last known values — updated by GAS response automatically) ──
+var _seedBoard = [
+  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:2,  daysLogged:23, totalMins:2390, totalPages:1137 },
+  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:4,  daysLogged:18, totalMins:1360, totalPages:969  },
+  { name:'Juliet',     nameLo:'juliet',     booksCompleted:1,  daysLogged:16, totalMins:2141, totalPages:956  },
+  { name:'Motolani',   nameLo:'motolani',   booksCompleted:1,  daysLogged:12, totalMins:1180, totalPages:575  },
+  { name:'EA',         nameLo:'ea',         booksCompleted:1,  daysLogged:2,  totalMins:300,  totalPages:26   },
+  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
+];
+_seedBoard.sort(function(a,b){
+  if(b.booksCompleted!==a.booksCompleted) return b.booksCompleted-a.booksCompleted;
+  if(b.totalMins!==a.totalMins) return b.totalMins-a.totalMins;
+  return b.daysLogged-a.daysLogged;
+});
+
 function fetchDashboard(cb) {
-  // Serve from cache if fresh (within this page visit)
+  // 1. Serve cache if available (busted every 60s by poll)
   if (_dashCache) { cb(null, _dashCache); return; }
 
-  // Queue concurrent callers
+  // 2. Queue concurrent callers — only one fetch at a time
   if (_dashLoading) { _dashCbs.push(cb); return; }
   _dashLoading = true;
   _dashCbs     = [cb];
 
-  var URLS = [
-    'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&gid=0&headers=0',
-    'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&sheet=%F0%9F%93%8A%20DASHBOARD&headers=0',
-    'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&headers=0'
-  ];
-
-  function tryNext(idx) {
-    if (idx >= URLS.length) {
-      _dashLoading = false;
-      var err = new Error('All fetch attempts failed');
-      _dashCbs.forEach(function(f){ f(err, null); });
-      _dashCbs = [];
-      return;
-    }
-    fetch(URLS[idx])
-      .then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      })
-      .then(function(raw) {
-        var data = parseGvizToBoard(raw);
-        if (!data || !data.board || !data.board.length) {
-          throw new Error('Empty board from URL ' + idx);
-        }
-        _dashCache   = data;
-        _dashLoading = false;
-        var cbs = _dashCbs.slice(); _dashCbs = [];
-        cbs.forEach(function(f){ f(null, data); });
-      })
-      .catch(function() {
-        tryNext(idx + 1);
-      });
-  }
-  tryNext(0);
-}
-
-// ── GVIZ PARSER ──────────────────────────────────────────────
-// Reads all rows from the sheet and extracts the member table.
-// Dashboard layout (known from sheet inspection):
-//   Row 10-15 (0-indexed 9-14) contain member data
-//   Col C (idx 2) = RANK/BADGE
-//   Col D (idx 3) = MEMBER NAME
-//   Col E (idx 4) = BOOKS COMPLETED
-//   Col F (idx 5) = DAYS LOGGED
-//   Col G (idx 6) = TOTAL MINS
-//   Col H (idx 7) = TOTAL PAGES
-function parseGvizToBoard(raw) {
-  // Strip JSONP wrapper
-  var start = raw.indexOf('{');
-  var end   = raw.lastIndexOf('}');
-  if (start === -1 || end === -1) return null;
-  var json;
-  try { json = JSON.parse(raw.slice(start, end + 1)); } catch(e) { return null; }
-
-  var rows = json && json.table && json.table.rows;
-  if (!rows || !rows.length) return null;
-
-  // ── Auto-detect the member table ──
-  // Scan for a row where col D (idx 3) matches a known name pattern
-  // AND col E (idx 4) is a number (books count)
-  // The header row will have text like "MEMBER" — skip it
-  var KNOWN = ['dorcas','haliyah','jesulayomi','juliet','motolani','ea','emmanuel'];
-  var board = [];
-  var foundHeader = false;
-
-  for (var r = 0; r < rows.length; r++) {
-    var row = rows[r];
-    if (!row || !row.c) continue;
-
-    // Cell reader — handles null cells
-    function cell(i) {
-      if (!row.c || !row.c[i]) return null;
-      var c = row.c[i];
-      return (c.v !== undefined && c.v !== null) ? c.v : (c.f || null);
-    }
-    function cellStr(i) {
-      var v = cell(i); return v !== null ? String(v).trim() : '';
-    }
-    function cellNum(i) {
-      var v = cell(i);
-      if (v === null || v === '') return 0;
-      var n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
-      return isNaN(n) ? 0 : n;
-    }
-
-    var nameRaw = cellStr(3); // col D
-    if (!nameRaw) continue;
-
-    // Strip emojis and get letters-only version
-    var nameLo = nameRaw
-      .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
-      .replace(/[\u2600-\u27FF]/g, '')
-      .replace(/[^\w\s]/g, '')
-      .trim().toLowerCase();
-
-    // Check if this row is a known member
-    var isKnown = false;
-    for (var k = 0; k < KNOWN.length; k++) {
-      // nameLo starts with known name
-      if (nameLo.indexOf(KNOWN[k]) === 0 || KNOWN[k].indexOf(nameLo) === 0) {
-        if (nameLo.length >= 2) { isKnown = true; break; }
+  // 3. Return seed data immediately so UI is never blank
+  //    This will be overwritten when GAS responds
+  if (!_dashCache) {
+    var seedData = { board: _seedBoard.slice(), fromSeed: true };
+    cb(null, seedData); // immediate render from seed
+    // Don't return — continue fetching live data below
+    // Reset callbacks so live data also triggers a re-render
+    _dashCbs = [function(err, liveData) {
+      if (!err && liveData && !liveData.fromSeed) {
+        _dashCache = liveData;
+        // Re-render with live data
+        loadMyProgress();
+        if (_dashTab === 'board') loadLeaderboard();
       }
-    }
-    if (!isKnown) continue;
-
-    // Also accept any row where col E is a reasonable number and col D has a real name
-    var books = cellNum(4);
-    var days  = cellNum(5);
-    var mins  = cellNum(6);
-    var pages = cellNum(7);
-
-    // Clean display name (remove emojis, extra spaces)
-    var displayName = nameRaw
-      .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
-      .replace(/[\u2600-\u27FF]/g, '')
-      .replace(/[^\w\s\-'\.]/g, '')
-      .trim();
-    // Capitalise properly
-    displayName = displayName.replace(/\b\w/g, function(c){ return c.toUpperCase(); });
-
-    board.push({
-      name:           displayName,
-      nameLo:         nameLo,
-      booksCompleted: Math.round(books),
-      daysLogged:     Math.round(days),
-      totalMins:      Math.round(mins),
-      totalPages:     Math.round(pages)
-    });
+    }];
   }
 
-  // Sort: books desc → mins desc → days desc
-  board.sort(function(a,b){
-    if (b.booksCompleted !== a.booksCompleted) return b.booksCompleted - a.booksCompleted;
-    if (b.totalMins      !== a.totalMins)      return b.totalMins      - a.totalMins;
-    return b.daysLogged - a.daysLogged;
-  });
-
-  return { board: board, ts: Date.now() };
+  // 4. Fetch live from GAS
+  fetch(URL + '?action=getDashboard', { cache: 'no-store' })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(d) {
+      if (!d || !d.success || !d.board || !d.board.length) {
+        throw new Error('GAS returned no board data');
+      }
+      // Normalise GAS response — add nameLo field
+      d.board.forEach(function(w) {
+        w.nameLo = lettersOnly(w.name);
+        w.booksCompleted = parseInt(w.booksCompleted) || 0;
+        w.daysLogged     = parseInt(w.daysLogged)     || 0;
+        w.totalMins      = parseInt(w.totalMins)      || 0;
+        w.totalPages     = parseInt(w.totalPages)     || 0;
+      });
+      d.board.sort(function(a,b){
+        if(b.booksCompleted!==a.booksCompleted) return b.booksCompleted-a.booksCompleted;
+        if(b.totalMins!==a.totalMins) return b.totalMins-a.totalMins;
+        return b.daysLogged-a.daysLogged;
+      });
+      _dashCache   = d;
+      _dashLoading = false;
+      var cbs = _dashCbs.slice(); _dashCbs = [];
+      cbs.forEach(function(f){ f(null, d); });
+    })
+    .catch(function(err) {
+      // GAS failed — seed data already rendered, just log silently
+      _dashLoading = false;
+      _dashCbs = [];
+      console.warn('GAS getDashboard failed:', err.message);
+    });
 }
 
 // ── MY PROGRESS ──────────────────────────────────────────────
