@@ -2519,501 +2519,67 @@ async function submitComplete() {
 }
 
 
-// ══════════════════════════════════════════════
-// DASHBOARD & LEADERBOARD
-// ══════════════════════════════════════════════
+// ─── DATA ENGINE (FINAL - NO GVIZ, NO GAS) ───
 
-var _dashLoaded = false;
-var _dashTab    = 'progress';
-
-function setDashTab(tab) {
-  _dashTab = tab;
-  document.getElementById('dtab-progress').classList.toggle('active', tab==='progress');
-  document.getElementById('dtab-board').classList.toggle('active', tab==='board');
-  document.getElementById('dash-progress').style.display = tab==='progress' ? 'block' : 'none';
-  document.getElementById('dash-board').style.display    = tab==='board'    ? 'block' : 'none';
-  if (tab === 'board' && !_dashLoaded) loadLeaderboard();
-}
-
-function loadDashboard() {
-  _dashLoaded = false;
-  _sheetCache = null; // Always fetch fresh data when tab is opened
-  setDashTab(_dashTab);
-  loadMyProgress();
-  if (_dashTab === 'board') loadLeaderboard();
-}
-
-// ─── MY PROGRESS ───────────────────────────────
 var SHEET_ID = '1UEHXooO2z6gEup2gmuiDPzqYwRkoYpTn6NneRBNtYvU';
-// Try the Dashboard sheet - use sheet name encoded properly
-// Also try without sheet param as fallback (reads first sheet)
-var GVIZ    = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&sheet=Dashboard&headers=0';
-var GVIZ_FB = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&headers=0';
+var API_URL  = 'https://opensheet.elk.sh/' + SHEET_ID + '/Dashboard';
 
-// Parse the Google Visualization JSONP response
-function parseGviz(raw) {
-  // Strip wrapper: google.visualization.Query.setResponse({...})
-  var start = raw.indexOf('{');
-  var end   = raw.lastIndexOf('}');
-  if (start === -1 || end === -1) return null;
-  try { return JSON.parse(raw.slice(start, end+1)); } catch(e) { return null; }
-}
-
-// Get cell value safely from gviz row
-function cellVal(row, colIdx) {
-  if (!row || !row.c || !row.c[colIdx] || row.c[colIdx].v === null) return 0;
-  return row.c[colIdx].v;
-}
-function cellStr(row, colIdx) {
-  if (!row || !row.c || !row.c[colIdx] || row.c[colIdx].v === null) return '';
-  return String(row.c[colIdx].v).trim();
-}
-
-// Shared data cache — fetch once, use for both progress and leaderboard
+// Shared cache
 var _sheetCache = null;
 var _sheetFetching = false;
 var _sheetCallbacks = [];
 
 function fetchSheetData(cb) {
   if (_sheetCache) { cb(null, _sheetCache); return; }
+
   _sheetCallbacks.push(cb);
   if (_sheetFetching) return;
   _sheetFetching = true;
 
-  function tryFetch(url, fallbackUrl) {
-    fetch(url)
-      .then(function(r){ return r.text(); })
-      .then(function(raw){
-        var parsed = parseGviz(raw);
-        if (parsed && parsed.table && parsed.table.rows) {
-          parsed._board = extractLeaderboard(parsed.table.rows);
-        }
-        // If board is empty and we have a fallback, try it
-        if (fallbackUrl && (!parsed || !parsed._board || parsed._board.length === 0)) {
-          tryFetch(fallbackUrl, null);
-          return;
-        }
-        _sheetCache    = parsed;
-        _sheetFetching = false;
-        _sheetCallbacks.forEach(function(fn){ fn(null, parsed); });
-        _sheetCallbacks = [];
-      })
-      .catch(function(err){
-        if (fallbackUrl) { tryFetch(fallbackUrl, null); return; }
-        _sheetFetching = false;
-        _sheetCallbacks.forEach(function(fn){ fn(err, null); });
-        _sheetCallbacks = [];
-      });
-  }
+  fetch(API_URL)
+    .then(function(res){ return res.json(); })
+    .then(function(rows){
 
-  tryFetch(GVIZ, GVIZ_FB);
-}
-
-// Dynamically find and parse leaderboard — never hardcodes row/col indices
-function extractLeaderboard(rows) {
-  var headerRow = -1, nameCol = -1, booksCol = -1;
-  var daysCol = -1, minsCol = -1, pagesCol = -1, badgeCol = -1;
-
-  // Step 1: scan every row for the header row containing 'MEMBER'
-  for (var r = 0; r < rows.length; r++) {
-    if (!rows[r] || !rows[r].c) continue;
-    for (var c = 0; c < rows[r].c.length; c++) {
-      var v = (cellStr(rows[r], c) || '').toUpperCase();
-      if (v === 'MEMBER') {
-        headerRow = r;
-        nameCol   = c;
-        // Now find sibling columns in the same row
-        for (var cc = 0; cc < rows[r].c.length; cc++) {
-          var h = (cellStr(rows[r], cc) || '').toUpperCase().replace(/\s/g,'');
-          if (h === 'BOOKS')                                    booksCol = cc;
-          else if (h === 'DAYSLOGGED')                         daysCol  = cc;
-          else if (h.indexOf('MINUTES') !== -1 || h === 'TOTALMINUTESREAD') minsCol  = cc;
-          else if (h.indexOf('PAGES')   !== -1 || h === 'TOTALPAGESREAD')   pagesCol = cc;
-          else if (h === 'BADGE' || h === '%')                 badgeCol = cc > badgeCol ? cc : badgeCol;
-        }
-        break;
+      if (!rows || rows.length === 0) {
+        throw new Error("No data");
       }
-    }
-    if (headerRow >= 0) break;
-  }
 
-  if (headerRow < 0 || nameCol < 0) return [];
+      // 🔥 Convert rows → leaderboard format
+      var board = rows.map(function(r){
 
-  // Step 2: read ALL data rows after header — no hardcoded limit
-  var board = [];
-  for (var dr = headerRow + 1; dr < rows.length; dr++) {
-    if (!rows[dr] || !rows[dr].c) continue;
-    var rawName = cellStr(rows[dr], nameCol);
-    if (!rawName) continue;
-    var name = safeLetters(rawName);
-    if (!name) continue;
-    // Skip totals/summary rows
-    if (rawName.toUpperCase().replace(/[^A-Z]/g,'') === rawName.replace(/[^A-Z]/g,'') && rawName.replace(/[^A-Z]/g,'').length > 5) continue;
-    // Use original display name
-    var displayName = rawName.replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/[\u2600-\u27FF]/g,'').trim();
-    // Fallback to safeLetters if displayName is empty
-    if (!displayName) displayName = name;
-    var booksVal = cellVal(rows[dr], booksCol);
-    var daysVal  = cellVal(rows[dr], daysCol);
-    var minsVal  = cellVal(rows[dr], minsCol);
-    var pagesVal = cellVal(rows[dr], pagesCol);
-    var badgeVal = cellStr(rows[dr], badgeCol) || '';
-    board.push({
-      name:           displayName,
-      nameKey:        name,   // letters-only key for matching
-      booksCompleted: parseInt(booksVal)  || 0,
-      daysLogged:     parseInt(daysVal)   || 0,
-      totalMins:      parseInt(minsVal)   || 0,
-      totalPages:     parseInt(pagesVal)  || 0,
-      badge:          badgeVal,
-      streak:         0
-    });
-  }
-  return board;
-}
+        var rawName = (r.Member || r.MEMBER || r.Name || '').trim();
+        if (!rawName) return null;
 
-// Normalise a name: strip emojis, accents → plain ASCII, trim
-// ── NAME NORMALISATION — bulletproof, no regex that can crash ──
-// Known name map: sheet name variants → app name
-var NAME_MAP = {
-  'jesulayomi':  'jesulayomi',
-  'jesulayomi':  'jesulayomi',
-  'jésùlayomi': 'jesulayomi',
-  'haliyah':     'haliyah',
-  'dorcas':      'dorcas',
-  'juliet':      'juliet',
-  'motolani':    'motolani',
-  'ea':          'ea'
-};
+        return {
+          name: rawName,
+          nameKey: safeLetters(rawName),
 
-function safeLetters(s) {
-  if (!s) return '';
-  var result = '';
-  try {
-    // char by char — zero regex, zero crash risk
-    for (var i = 0; i < s.length; i++) {
-      var code = s.charCodeAt(i);
-      // Basic ASCII letters only
-      if (code >= 65 && code <= 90)  { result += String.fromCharCode(code + 32); continue; }
-      if (code >= 97 && code <= 122) { result += s[i]; continue; }
-      // Common accented vowels — hard-coded map
-      var ACCENT = {
-        0xE9:'e', 0xE8:'e', 0xEA:'e', 0xEB:'e',  // é è ê ë
-        0xE0:'a', 0xE2:'a', 0xE4:'a', 0xE1:'a',  // à â ä á
-        0xF9:'u', 0xFA:'u', 0xFB:'u', 0xFC:'u',  // ù ú û ü
-        0xF2:'o', 0xF3:'o', 0xF4:'o', 0xF6:'o',  // ò ó ô ö
-        0xEC:'i', 0xED:'i', 0xEE:'i', 0xEF:'i',  // ì í î ï
-        0xE7:'c',                                  // ç
-        0xC9:'e', 0xC8:'e',                        // É È (caps)
-        0xD9:'u', 0xDA:'u',                        // Ù Ú
-        0xD2:'o', 0xD3:'o',                        // Ò Ó
-        // Special cases from Jésùlayòmi
-        0x1EB9:'e',  // ẹ (e with dot below)
-        0x1ECB:'i',  // ị
-        0x1ECD:'o',  // ọ
-        0x1EE5:'u',  // ụ
+          booksCompleted: parseInt(r.Books || r.BOOKS || 0) || 0,
+          daysLogged:     parseInt(r['Days Logged'] || r.DAYSLOGGED || r.Days || 0) || 0,
+          totalMins:      parseInt(r['Total Minutes Read'] || r.TOTALMINUTESREAD || r.Minutes || 0) || 0,
+          totalPages:     parseInt(r['Total Pages Read'] || r.TOTALPAGESREAD || r.Pages || 0) || 0,
+
+          badge: r.Badge || r.BADGE || '',
+          streak: 0
+        };
+
+      }).filter(function(r){ return r !== null; });
+
+      var parsed = {
+        table: { rows: rows }, // keeps compatibility with your UI checks
+        _board: board
       };
-      if (ACCENT[code]) { result += ACCENT[code]; continue; }
-      // For everything else (emoji, symbols) — skip
-    }
-  } catch(e) { result = ''; }
-  return result;
-}
 
-function nameMatch(sheetName, appName) {
-  try {
-    var a = safeLetters(String(sheetName || ''));
-    var b = safeLetters(String(appName  || ''));
-    if (!a || !b) return false;
-    // Check NAME_MAP first
-    var mapped = NAME_MAP[a] || a;
-    var appLow = NAME_MAP[b] || b;
-    if (mapped === appLow) return true;
-    // Prefix match (handles "Jesulayomi" vs "Jesulayomi ")
-    return mapped.indexOf(appLow) === 0 || appLow.indexOf(mapped) === 0;
-  } catch(e) { return false; }
-}
+      _sheetCache = parsed;
+      _sheetFetching = false;
 
-function loadMyProgress() {
-  var loading = document.getElementById('dash-loading');
-  var ring    = document.getElementById('dash-ring-wrap');
-  var cards   = document.getElementById('dash-cards');
-  var calWrap = document.getElementById('dash-cal-wrap');
+      _sheetCallbacks.forEach(function(fn){ fn(null, parsed); });
+      _sheetCallbacks = [];
 
-  loading.style.display = 'flex';
-  loading.innerHTML     = '<div class="spin"></div><div>Loading your stats...</div>';
-  ring.style.display    = 'none';
-  cards.style.display   = 'none';
-  calWrap.style.display = 'none';
-
-  fetchSheetData(function(err, data) {
-    if (err || !data || !data.table || !data.table.rows) {
-      loading.innerHTML = '<div style="padding:30px 0;text-align:center;color:rgba(255,255,255,.4);">Could not load stats.<br>Make sure the spreadsheet is set to Anyone with link can view.</div>';
-      return;
-    }
-
-    var board = data._board || [];
-    loading.style.display = 'none';
-
-    // Find this member in the pre-parsed leaderboard
-    var myEntry = null;
-    var memberKey = safeLetters(member);
-    for (var bi = 0; bi < board.length; bi++) {
-      var entryKey = board[bi].nameKey || safeLetters(board[bi].name);
-      if (entryKey === memberKey || entryKey.indexOf(memberKey) === 0 || memberKey.indexOf(entryKey) === 0) {
-        myEntry = board[bi]; break;
-      }
-    }
-
-    if (!myEntry) {
-      renderProgressFromLocal();
-      return;
-    }
-
-    renderProgressUI({
-      success:        true,
-      booksCompleted: myEntry.booksCompleted,
-      totalMins:      myEntry.totalMins,
-      totalPages:     myEntry.totalPages,
-      daysLogged:     myEntry.daysLogged,
-      badge:          myEntry.badge,
-      logDates:       [],
-      restDates:      []
+    })
+    .catch(function(err){
+      _sheetFetching = false;
+      _sheetCallbacks.forEach(function(fn){ fn(err, null); });
+      _sheetCallbacks = [];
     });
-  });
 }
-
-function renderProgressUI(d) {
-  // Streak card
-  var streak = getStreak();
-  document.getElementById('dc-streak').innerHTML = streak + '<span>days</span>';
-
-  // Stats from GAS
-  document.getElementById('dc-mins').innerHTML  = fmtNum(d.totalMins  || 0) + '<span>min</span>';
-  document.getElementById('dc-pages').innerHTML = fmtNum(d.totalPages || 0) + '<span>pgs</span>';
-  document.getElementById('dc-days').innerHTML  = (d.daysLogged || 0) + '<span>days</span>';
-
-  // Books ring
-  var done  = d.booksCompleted || 0;
-  var total = 24;
-  var pct   = Math.min(done / total, 1);
-  document.getElementById('dash-books-done').textContent = done;
-  document.getElementById('ring-pct').textContent = Math.round(pct*100) + '%';
-  document.getElementById('dash-books-remaining').textContent =
-    done >= total ? 'Full season complete! You are a BookWarrior Legend.' :
-    (total - done) + ' books remaining to complete the season';
-  // Animate ring
-  var circ = 238.76;
-  document.getElementById('ring-arc').style.strokeDashoffset = (circ - pct*circ).toFixed(2);
-
-  document.getElementById('dash-ring-wrap').style.display = 'flex';
-  document.getElementById('dash-cards').style.display     = 'grid';
-
-  // Calendar
-  buildCalendar(d.logDates || [], d.restDates || []);
-  document.getElementById('dash-cal-wrap').style.display = 'block';
-}
-
-function renderProgressFromLocal() {
-  // Use localStorage data when GAS is unavailable
-  var streak = getStreak();
-  var best   = getBest();
-  document.getElementById('dc-streak').innerHTML = streak + '<span>days</span>';
-  document.getElementById('dc-mins').innerHTML   = '?<span>min</span>';
-  document.getElementById('dc-pages').innerHTML  = '?<span>pgs</span>';
-  document.getElementById('dc-days').innerHTML   = '?<span>days</span>';
-
-  var done = lib.filter(function(b){ return b.s==='Completed'; }).length;
-  document.getElementById('dash-books-done').textContent = done;
-  var pct = Math.min(done/24,1);
-  document.getElementById('ring-pct').textContent = Math.round(pct*100)+'%';
-  document.getElementById('ring-arc').style.strokeDashoffset = (238.76 - pct*238.76).toFixed(2);
-  document.getElementById('dash-books-remaining').textContent = (24-done) + ' books to complete the season';
-
-  document.getElementById('dash-ring-wrap').style.display = 'flex';
-  document.getElementById('dash-cards').style.display     = 'grid';
-  buildCalendar([], []);
-  document.getElementById('dash-cal-wrap').style.display = 'block';
-}
-
-function buildCalendar(logDates, restDates) {
-  var cal     = document.getElementById('dash-cal');
-  cal.innerHTML = '';
-  var start   = new Date(2026,2,16); // Mar 16
-  var today   = new Date();
-  today.setHours(0,0,0,0);
-  var end     = new Date(Math.min(today.getTime(), new Date(2026,8,15).getTime()));
-  var logSet  = {};
-  var restSet = {};
-  (logDates  || []).forEach(function(d){ logSet[d]  = true; });
-  (restDates || []).forEach(function(d){ restSet[d] = true; });
-
-  for (var d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
-    var ds  = fmtDate(d);
-    var div = document.createElement('div');
-    div.className = 'cal-day';
-    div.title     = ds;
-    var isToday   = ds === fmtDate(today);
-    if (isToday)       div.classList.add('today');
-    else if (logSet[ds])  div.classList.add('logged');
-    else if (restSet[ds]) div.classList.add('rest');
-    // else: missed — default grey
-    cal.appendChild(div);
-  }
-}
-
-// ─── LEADERBOARD ──────────────────────────────
-function loadLeaderboard() {
-  var loading = document.getElementById('lb-loading');
-  var podium  = document.getElementById('lb-podium');
-  var list    = document.getElementById('lb-list');
-
-  loading.style.display = 'flex';
-  loading.innerHTML     = '<div class="spin"></div><div>Loading leaderboard...</div>';
-  podium.style.display  = 'none';
-  list.style.display    = 'none';
-
-  fetchSheetData(function(err, data) {
-    if (err || !data || !data.table || !data.table.rows) {
-      loading.innerHTML = '<div style="padding:30px 0;text-align:center;color:rgba(255,255,255,.4);">Could not load leaderboard.<br>Check your connection.</div>';
-      return;
-    }
-
-    var board = (data._board || []).slice(); // use pre-parsed data
-
-    // Inject local streak for current member
-    var memberKey2 = safeLetters(member);
-    board.forEach(function(w) {
-      var wKey = w.nameKey || safeLetters(w.name);
-      if (wKey === memberKey2 || wKey.indexOf(memberKey2) === 0 || memberKey2.indexOf(wKey) === 0) {
-        w.streak = getStreak();
-      }
-    });
-
-    // Sort: books desc → mins desc → days desc
-    board.sort(function(a,b){
-      if (b.booksCompleted !== a.booksCompleted) return b.booksCompleted - a.booksCompleted;
-      if (b.totalMins      !== a.totalMins)      return b.totalMins      - a.totalMins;
-      return b.daysLogged - a.daysLogged;
-    });
-
-    loading.style.display = 'none';
-    renderLeaderboard(board);
-    _dashLoaded = true;
-  });
-}
-
-function renderLeaderboard(board) {
-  var podium = document.getElementById('lb-podium');
-  var list   = document.getElementById('lb-list');
-  podium.innerHTML = '';
-  list.innerHTML   = '';
-
-  if (!board || board.length === 0) {
-    list.innerHTML = '<div class="lb-row"><div style="color:rgba(255,255,255,.3);padding:20px;text-align:center;width:100%;">No warriors yet. Start logging!</div></div>';
-    list.style.display = 'block';
-    return;
-  }
-
-  // Medals for top 3
-  var medals = ['&#x1F947;','&#x1F948;','&#x1F949;'];
-  var podClasses = ['lb-pod lb-pod-1','lb-pod lb-pod-2','lb-pod lb-pod-3'];
-  // Podium order: 2nd, 1st, 3rd
-  var podOrder = [1,0,2];
-  podOrder.forEach(function(idx) {
-    if (idx >= board.length) return;
-    var w   = board[idx];
-    var pod = document.createElement('div');
-    pod.className = podClasses[idx];
-
-    var rankNum = document.createElement('div');
-    rankNum.className = 'lb-rank-num';
-    rankNum.textContent = '#' + (idx+1);
-
-    var medal = document.createElement('div');
-    medal.className   = 'lb-medal';
-    medal.innerHTML   = medals[idx];
-
-    var init = document.createElement('div');
-    init.style.cssText = 'width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;margin-bottom:6px;';
-    init.textContent = getInitials(w.name);
-
-    var name = document.createElement('div');
-    name.className   = 'lb-pod-name';
-    name.textContent = w.name.split(' ')[0];
-
-    var score = document.createElement('div');
-    score.className = 'lb-pod-score';
-    score.textContent = w.booksCompleted + ' books';
-
-    if (idx+1 < board.length) pod.appendChild(rankNum);
-    pod.appendChild(medal);
-    pod.appendChild(init);
-    pod.appendChild(name);
-    pod.appendChild(score);
-    podium.appendChild(pod);
-  });
-
-  if (board.length > 0) podium.style.display = 'flex';
-
-  // List: all warriors
-  var badgeCls = ['gold','silver','bronze'];
-  board.forEach(function(w, i) {
-    var row = document.createElement('div');
-    row.className = 'lb-row' + (nameMatch(w.name, member) ? ' me' : '');
-
-    var pos = document.createElement('div');
-    pos.className   = 'lb-pos';
-    pos.textContent = '#'+(i+1);
-
-    var av = document.createElement('div');
-    av.className   = 'lb-avatar';
-    av.textContent = getInitials(w.name);
-
-    var info = document.createElement('div');
-    info.className = 'lb-info';
-
-    var nm = document.createElement('div');
-    nm.className   = 'lb-name';
-    nm.textContent = w.name + (w.name===member?' (You)':'');
-
-    var det = document.createElement('div');
-    det.className   = 'lb-detail';
-    det.textContent = w.booksCompleted + ' books  ·  ' + w.totalMins + ' min  ·  ' + w.totalPages + ' pages';
-
-    info.appendChild(nm);
-    info.appendChild(det);
-
-    var badge = document.createElement('div');
-    badge.className = 'lb-badge ' + (i < 3 ? badgeCls[i] : 'regular');
-    badge.innerHTML = (w.streak > 0 ? '&#x1F525; '+w.streak : w.booksCompleted + ' books');
-
-    row.appendChild(pos);
-    row.appendChild(av);
-    row.appendChild(info);
-    row.appendChild(badge);
-    list.appendChild(row);
-  });
-
-  list.style.display = 'block';
-  _dashLoaded = true;
-}
-
-// ─── UTILS ─────────────────────────────────────
-function fmtNum(n) {
-  // Exact number — no rounding or abbreviation
-  return String(parseInt(n) || 0);
-}
-function fmtDate(d) {
-  return d.getFullYear() + '-' +
-    String(d.getMonth()+1).padStart(2,'0') + '-' +
-    String(d.getDate()).padStart(2,'0');
-}
-function getInitials(name) {
-  if (!name) return '?';
-  return name.split(' ').map(function(w){ return w[0]; }).join('').toUpperCase().slice(0,2);
-}
-
-</script>
-</body>
-</html>
