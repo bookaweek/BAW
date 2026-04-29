@@ -1483,9 +1483,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <script>
 // ═══════════════════════════════════════════════
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
-// BUILD: 2026-04-29-v9 (force cache bust)
+// BUILD: 2026-04-30-v10 (critical bug fixes: name casing, weekly stats, addBook queue)
 // ═══════════════════════════════════════════════
-const URL = 'https://script.google.com/macros/s/AKfycbyW1UUTWzQolv3L3RB4MOCBKk_TwEZo6uDrOdpR3nvJXvoJ7I5cPUPMkRQZ9zpKClXf7A/exec';
+const URL = 'https://script.google.com/macros/s/AKfycbzBbVPZrVX5jRDb_dRsgQObJazGNpJS10_WBLGpGxa4YNFvBtrrfNNaarRyui9X_Oa3Tg/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 let deferredInstall = null;
@@ -1564,7 +1564,7 @@ window.onload = function() {
       if (window.caches) {
         caches.keys().then(function(keys) {
           keys.forEach(function(key) {
-            if (key !== 'bookaweek-v9') caches.delete(key);
+            if (key !== 'bookaweek-v10') caches.delete(key);
           });
         });
       }
@@ -1977,7 +1977,15 @@ function proceedWithName() {
     document.getElementById('nameHint').style.color = 'rgba(192,57,43,.9)';
     return;
   }
-  cand = name;
+  // FIX: Resolve canonical casing from recent list before setting cand.
+  // If user typed "dorcas" but sheet is "Dorcas", lookup would fail silently.
+  // We check the recent list (which stores properly-cased names) and use that.
+  var canonical = name;
+  var recent = getRecentMembers();
+  for (var ri = 0; ri < recent.length; ri++) {
+    if (normName(recent[ri]) === normName(name)) { canonical = recent[ri]; break; }
+  }
+  cand = canonical;
   if (isRegistered(name)) {
     // Returning member — go to PIN entry
     document.getElementById('pinName').textContent = name.split(' ')[0];
@@ -2535,9 +2543,10 @@ async function submitBook(){
   var goal=document.getElementById('b-goal').value.trim();
   lib.push({t:title,a:author,s:status,category:cat,goal:goal}); saveLib();
   setBL(true);
+  var bookPayload = {action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat};
   try{
-    await fetch(URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat})});
+    // FIX: Use sendToGAS() so offline queue is used on failure
+    await sendToGAS(bookPayload);
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
     document.getElementById('b-goal').value='';
@@ -2545,7 +2554,17 @@ async function submitBook(){
     renderLib(); dropBooks();
     success('Book Added!','<em>'+esc(title)+'</em> added to your library.',[
       ['Book',title],['Status',status],['Category',cat]]);
-  }catch(e){ err.textContent='Saved locally. Will sync when reconnected.'; err.classList.add('show'); }
+  }catch(e){
+    // Queue for sync when connection returns
+    queueLog(bookPayload);
+    document.getElementById('b-title').value='';
+    document.getElementById('b-author').value='';
+    document.getElementById('b-goal').value='';
+    closeAddBook();
+    renderLib(); dropBooks();
+    success('Book Added! (offline)','<em>'+esc(title)+'</em> saved locally. Will sync when reconnected.',[
+      ['Book',title],['Status',status],['Category',cat]]);
+  }
   finally{setBL(false);}
 }
 
@@ -2574,6 +2593,10 @@ function prog(){
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
 function sendToGAS(payload) {
+  // FIX: Always trim member name to prevent sheet lookup misses
+  if (payload && payload.member) {
+    payload.member = String(payload.member).trim();
+  }
   return fetch(URL, {
     method:  'POST',
     mode:    'no-cors',
@@ -2599,6 +2622,8 @@ function flushQueue() {
   var pending = queue.slice();
   localStorage.removeItem(key);
   pending.forEach(function(payload) {
+    // FIX: Trim member name in queued payloads (may have been stored with wrong casing)
+    if (payload && payload.member) payload.member = String(payload.member).trim();
     sendToGAS(payload).catch(function() {
       // Re-queue if still offline
       queueLog(payload);
@@ -2679,16 +2704,24 @@ function setupWeekly(){
   }
   if(sun||force){
     ['w-days','w-mins','w-pages'].forEach(function(id){document.getElementById(id).textContent='...';});
-    fetch(URL+'?action=getWeekStats&member='+encodeURIComponent(member))
+    var weekMember = String(member||'').trim();
+    fetch(URL+'?action=getWeekStats&member='+encodeURIComponent(weekMember))
       .then(function(r){return r.json();})
       .then(function(d){
         if(d&&d.success){
-          document.getElementById('w-days').textContent=d.daysRead||0;
-          document.getElementById('w-mins').textContent=d.totalMins||0;
-          document.getElementById('w-pages').textContent=d.totalPages||0;
+          // FIX: Store as data attributes too so submit always reads correct values
+          var wd = document.getElementById('w-days');
+          var wm = document.getElementById('w-mins');
+          var wp = document.getElementById('w-pages');
+          if(wd){ wd.textContent=parseInt(d.daysRead)||0;  wd.dataset.loaded='1'; }
+          if(wm){ wm.textContent=parseInt(d.totalMins)||0;  wm.dataset.loaded='1'; }
+          if(wp){ wp.textContent=parseInt(d.totalPages)||0; wp.dataset.loaded='1'; }
         }
       }).catch(function(){
-        ['w-days','w-mins','w-pages'].forEach(function(id){document.getElementById(id).textContent='?';});
+        ['w-days','w-mins','w-pages'].forEach(function(id){
+          var el=document.getElementById(id);
+          if(el){el.textContent='0';el.dataset.loaded='0';}
+        });
       });
   }
 }
@@ -2715,9 +2748,9 @@ function setupWeekly(){
         insight:insight,commitment:commit,
         reflection:document.getElementById('w-reflect').value.trim(),
         feeling:document.getElementById('w-feeling').value||'',
-        daysRead:document.getElementById('w-days').textContent,
-        totalMins:document.getElementById('w-mins').textContent,
-        totalPages:document.getElementById('w-pages').textContent};
+        daysRead: parseInt(document.getElementById('w-days').textContent) || 0,
+        totalMins: parseInt(document.getElementById('w-mins').textContent) || 0,
+        totalPages: parseInt(document.getElementById('w-pages').textContent) || 0};
     await sendToGAS(wPayload);
     success('Week Reflected!','Week '+wk+' submitted. See you next Sunday!',[['Week',wk],['Feeling',document.getElementById('w-feeling').value||'-']]);
     document.getElementById('weeklyForm').reset();
