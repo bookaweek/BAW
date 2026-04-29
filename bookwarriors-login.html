@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BOOKAWEEK">
 <meta name="theme-color" content="#0A2A66">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>BOOKAWEEK</title>
@@ -1480,6 +1483,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <script>
 // ═══════════════════════════════════════════════
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
+// BUILD: 2026-04-29-v9 (force cache bust)
 // ═══════════════════════════════════════════════
 const URL = 'https://script.google.com/macros/s/AKfycbyW1UUTWzQolv3L3RB4MOCBKk_TwEZo6uDrOdpR3nvJXvoJ7I5cPUPMkRQZ9zpKClXf7A/exec';
 const PRE = 'baw_';
@@ -1530,12 +1534,39 @@ window.onload = function() {
   }
   // Register SW
   if ('serviceWorker' in navigator) {
-    // Only register SW on the actual GitHub Pages domain
     var onGitHubPages = location.hostname.includes('github.io') || location.hostname.includes('bookaweek');
     if (onGitHubPages) {
-      navigator.serviceWorker.register('sw.js', {scope:'./'})
-        .then(function(){ console.log('SW registered'); })
-        .catch(function(e){ console.log('SW skipped:', e.message); });
+      // Force update check on every load — clears stale cache
+      navigator.serviceWorker.register('sw.js', { scope: './', updateViaCache: 'none' })
+        .then(function(reg) {
+          reg.update(); // always check for SW update
+          // If a new SW is waiting, activate it immediately
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          reg.addEventListener('updatefound', function() {
+            var newSW = reg.installing;
+            if (newSW) {
+              newSW.addEventListener('statechange', function() {
+                if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                  newSW.postMessage({ type: 'SKIP_WAITING' });
+                  window.location.reload();
+                }
+              });
+            }
+          });
+        })
+        .catch(function(e) { console.log('SW:', e.message); });
+
+      // Clear ALL caches on load to prevent stale HTML serving
+      if (window.caches) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(key) { caches.delete(key); });
+        });
+      }
+    } else {
+      // Dev / preview — unregister any SW so it never interferes
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(r) { r.unregister(); });
+      });
     }
   }
 };
