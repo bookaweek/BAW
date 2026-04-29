@@ -1480,7 +1480,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // ═══════════════════════════════════════════════
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // ═══════════════════════════════════════════════
-const URL = 'https://script.google.com/macros/s/AKfycbxLOwvB7CHSQ73YTXLsUd7sSv_GZLr0JxW948XEemIIZqO-gB50S5DabIY7kRNrbA_7ig/exec';
+const URL = 'https://script.google.com/macros/s/AKfycbzBbVPZrVX5jRDb_dRsgQObJazGNpJS10_WBLGpGxa4YNFvBtrrfNNaarRyui9X_Oa3Tg/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 let deferredInstall = null;
@@ -2830,20 +2830,41 @@ async function submitComplete() {
 }
 
 
-// ══════════════════════════════════════════════════════════════════
-// DASHBOARD & LEADERBOARD
-// SOURCE: Google Sheets gviz — direct browser fetch, zero GAS dependency
-// Auto-refreshes every 60 seconds. Exact numbers, no rounding.
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// DASHBOARD & LEADERBOARD — BULLETPROOF EDITION
+// ══════════════════════════════════════════════════════════════
+// HOW IT WORKS:
+//   1. Seed data renders INSTANTLY — always visible, no loading state
+//   2. GAS fetch runs in background, updates if it succeeds
+//   3. Auto-refreshes every 90 seconds
+//   4. Zero dependencies on gviz, publish-to-web, or sheet permissions
+// ══════════════════════════════════════════════════════════════
 
-var _dashCache   = null;
-var _dashLoading = false;
-var _dashCbs     = [];
-var _pollTimer   = null;
-var _dashTab     = 'progress';
-var _dashLoaded  = false;
+var _dashTab  = 'progress';
+var _pollTimer = null;
 
-// ── TAB SWITCHER ──────────────────────────────────────────────
+// ── SEED DATA — exact values from Dashboard tab ──
+// These render immediately. GAS overwrites silently in background.
+var _board = [
+  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:4,  daysLogged:18, totalMins:1360, totalPages:969  },
+  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:2,  daysLogged:23, totalMins:2390, totalPages:1137 },
+  { name:'Juliet',     nameLo:'juliet',     booksCompleted:1,  daysLogged:16, totalMins:2141, totalPages:956  },
+  { name:'Motolani',   nameLo:'motolani',   booksCompleted:1,  daysLogged:12, totalMins:1180, totalPages:575  },
+  { name:'EA',         nameLo:'ea',         booksCompleted:1,  daysLogged:2,  totalMins:300,  totalPages:26   },
+  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
+];
+
+function sortBoard(b) {
+  b.sort(function(a,b){
+    if(b.booksCompleted!==a.booksCompleted) return b.booksCompleted-a.booksCompleted;
+    if(b.totalMins!==a.totalMins)           return b.totalMins-a.totalMins;
+    return b.daysLogged-a.daysLogged;
+  });
+  return b;
+}
+sortBoard(_board);
+
+// ── TAB SWITCHER ──
 function setDashTab(tab) {
   _dashTab = tab;
   var tp = document.getElementById('dtab-progress');
@@ -2854,324 +2875,184 @@ function setDashTab(tab) {
   if(tb) tb.classList.toggle('active', tab==='board');
   if(dp) dp.style.display = tab==='progress' ? 'block' : 'none';
   if(db) db.style.display = tab==='board'    ? 'block' : 'none';
-  if(tab === 'board') loadLeaderboard();
 }
 
+// ── MAIN ENTRY ──
 function loadDashboard() {
-  _dashCache  = null; // force fresh on every visit
-  _dashLoaded = false;
   setDashTab(_dashTab);
-  loadMyProgress();
-  startDashPoll();
+  renderMyProgress();        // instant — no fetch needed
+  renderLeaderboard(_board); // instant — seed data
+  fetchLiveBoard();          // background — updates silently
+  startPoll();
 }
 
-// ── POLLING ───────────────────────────────────────────────────
-function startDashPoll() {
-  if (_pollTimer) clearInterval(_pollTimer);
-  _pollTimer = setInterval(function() {
-    _dashCache = null; // bust cache
-    loadMyProgress();
-    if (_dashTab === 'board') loadLeaderboard();
-  }, 60000); // refresh every 60s
+// ── BACKGROUND FETCH FROM GAS ──
+function fetchLiveBoard() {
+  fetch(URL + '?action=getDashboard', { cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d || !d.success || !d.board || !d.board.length) return;
+      var fresh = d.board.map(function(w){
+        return {
+          name:           String(w.name||'').trim(),
+          nameLo:         lettersOnly(w.name),
+          booksCompleted: parseInt(w.booksCompleted)||0,
+          daysLogged:     parseInt(w.daysLogged)||0,
+          totalMins:      parseInt(w.totalMins)||0,
+          totalPages:     parseInt(w.totalPages)||0
+        };
+      }).filter(function(w){ return w.name.length > 0; });
+      if(!fresh.length) return;
+      _board = sortBoard(fresh);
+      renderMyProgress();
+      renderLeaderboard(_board);
+    })
+    .catch(function(e){ console.warn('Dashboard fetch:', e.message); });
 }
 
-// ── CORE FETCH ───────────────────────────────────────────────
-// Single source of truth: GAS doGet?action=getDashboard
-// This is the same trusted URL that handles all logging — no CORS issues.
-// Seed data below ensures the leaderboard is NEVER empty on first load.
-// ─────────────────────────────────────────────────────────────
+// ── AUTO-POLL ──
+function startPoll() {
+  if(_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(fetchLiveBoard, 90000);
+}
 
-// ── SEED DATA (last known values — updated by GAS response automatically) ──
-var _seedBoard = [
-  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:2,  daysLogged:23, totalMins:2390, totalPages:1137 },
-  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:4,  daysLogged:18, totalMins:1360, totalPages:969  },
-  { name:'Juliet',     nameLo:'juliet',     booksCompleted:1,  daysLogged:16, totalMins:2141, totalPages:956  },
-  { name:'Motolani',   nameLo:'motolani',   booksCompleted:1,  daysLogged:12, totalMins:1180, totalPages:575  },
-  { name:'EA',         nameLo:'ea',         booksCompleted:1,  daysLogged:2,  totalMins:300,  totalPages:26   },
-  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
-];
-_seedBoard.sort(function(a,b){
-  if(b.booksCompleted!==a.booksCompleted) return b.booksCompleted-a.booksCompleted;
-  if(b.totalMins!==a.totalMins) return b.totalMins-a.totalMins;
-  return b.daysLogged-a.daysLogged;
-});
-
-function fetchDashboard(cb) {
-  // 1. Serve cache if available (busted every 60s by poll)
-  if (_dashCache) { cb(null, _dashCache); return; }
-
-  // 2. Queue concurrent callers — only one fetch at a time
-  if (_dashLoading) { _dashCbs.push(cb); return; }
-  _dashLoading = true;
-  _dashCbs     = [cb];
-
-  // 3. Return seed data immediately so UI is never blank
-  //    This will be overwritten when GAS responds
-  if (!_dashCache) {
-    var seedData = { board: _seedBoard.slice(), fromSeed: true };
-    cb(null, seedData); // immediate render from seed
-    // Don't return — continue fetching live data below
-    // Reset callbacks so live data also triggers a re-render
-    _dashCbs = [function(err, liveData) {
-      if (!err && liveData && !liveData.fromSeed) {
-        _dashCache = liveData;
-        // Re-render with live data
-        loadMyProgress();
-        if (_dashTab === 'board') loadLeaderboard();
-      }
-    }];
+// ── MY PROGRESS ──
+function renderMyProgress() {
+  var myLo = lettersOnly(member);
+  var me = null;
+  for(var i=0;i<_board.length;i++){
+    var w = _board[i];
+    if(w.nameLo===myLo || w.nameLo.indexOf(myLo)===0 || myLo.indexOf(w.nameLo)===0){
+      me = w; break;
+    }
   }
 
-  // 4. Fetch live from GAS
-  fetch(URL + '?action=getDashboard', { cache: 'no-store' })
-    .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function(d) {
-      if (!d || !d.success || !d.board || !d.board.length) {
-        throw new Error('GAS returned no board data');
-      }
-      // Normalise GAS response — add nameLo field
-      d.board.forEach(function(w) {
-        w.nameLo = lettersOnly(w.name);
-        w.booksCompleted = parseInt(w.booksCompleted) || 0;
-        w.daysLogged     = parseInt(w.daysLogged)     || 0;
-        w.totalMins      = parseInt(w.totalMins)      || 0;
-        w.totalPages     = parseInt(w.totalPages)     || 0;
-      });
-      d.board.sort(function(a,b){
-        if(b.booksCompleted!==a.booksCompleted) return b.booksCompleted-a.booksCompleted;
-        if(b.totalMins!==a.totalMins) return b.totalMins-a.totalMins;
-        return b.daysLogged-a.daysLogged;
-      });
-      _dashCache   = d;
-      _dashLoading = false;
-      var cbs = _dashCbs.slice(); _dashCbs = [];
-      cbs.forEach(function(f){ f(null, d); });
-    })
-    .catch(function(err) {
-      // GAS failed — seed data already rendered, just log silently
-      _dashLoading = false;
-      _dashCbs = [];
-      console.warn('GAS getDashboard failed:', err.message);
-    });
-}
+  var done  = me ? me.booksCompleted : lib.filter(function(b){return b.s==='Completed';}).length;
+  var mins  = me ? me.totalMins  : 0;
+  var pages = me ? me.totalPages : 0;
+  var days  = me ? me.daysLogged : 0;
+  var pct   = Math.min(done/24, 1);
 
-// ── MY PROGRESS ──────────────────────────────────────────────
-function loadMyProgress() {
-  var loading = document.getElementById('dash-loading');
-  var ring    = document.getElementById('dash-ring-wrap');
-  var cards   = document.getElementById('dash-cards');
-  var calWrap = document.getElementById('dash-cal-wrap');
-  if (!loading) return;
-  loading.style.display = 'flex';
-  loading.innerHTML = '<div class="spin"></div><div>Loading your stats...</div>';
-  if(ring)    ring.style.display    = 'none';
-  if(cards)   cards.style.display   = 'none';
-  if(calWrap) calWrap.style.display = 'none';
-
-  fetchDashboard(function(err, data) {
-    if (!loading) return;
-    loading.style.display = 'none';
-
-    if (err || !data || !data.board || !data.board.length) {
-      renderProgressFromLocal();
-      return;
-    }
-
-    var myEntry = null;
-    var myLo    = lettersOnly(member);
-    for (var i = 0; i < data.board.length; i++) {
-      if (data.board[i].nameLo === myLo ||
-          data.board[i].nameLo.indexOf(myLo) === 0 ||
-          myLo.indexOf(data.board[i].nameLo) === 0) {
-        myEntry = data.board[i]; break;
-      }
-    }
-
-    if (!myEntry) { renderProgressFromLocal(); return; }
-    renderProgressUI(myEntry);
-  });
-}
-
-function renderProgressUI(d) {
   var e;
-  e = document.getElementById('dc-streak'); if(e) e.innerHTML = getStreak() + '<span>days</span>';
-  e = document.getElementById('dc-mins');   if(e) e.innerHTML = exactNum(d.totalMins)  + '<span>min</span>';
-  e = document.getElementById('dc-pages');  if(e) e.innerHTML = exactNum(d.totalPages) + '<span>pgs</span>';
-  e = document.getElementById('dc-days');   if(e) e.innerHTML = exactNum(d.daysLogged) + '<span>days</span>';
+  e=document.getElementById('dc-streak'); if(e) e.innerHTML=getStreak()+'<span>days</span>';
+  e=document.getElementById('dc-mins');   if(e) e.innerHTML=exactNum(mins)+'<span>min</span>';
+  e=document.getElementById('dc-pages');  if(e) e.innerHTML=exactNum(pages)+'<span>pgs</span>';
+  e=document.getElementById('dc-days');   if(e) e.innerHTML=exactNum(days)+'<span>days</span>';
+  e=document.getElementById('dash-books-done');      if(e) e.textContent=done;
+  e=document.getElementById('ring-pct');             if(e) e.textContent=Math.round(pct*100)+'%';
+  e=document.getElementById('ring-arc');             if(e) e.style.strokeDashoffset=(238.76-pct*238.76).toFixed(2);
+  e=document.getElementById('dash-books-remaining'); if(e) e.textContent=
+    done>=24?'Full season complete! You are a BookWarrior Legend.':(24-done)+' books remaining to complete the season';
 
-  var done = d.booksCompleted || 0;
-  var pct  = Math.min(done / 24, 1);
-  e = document.getElementById('dash-books-done');      if(e) e.textContent = done;
-  e = document.getElementById('ring-pct');             if(e) e.textContent = Math.round(pct * 100) + '%';
-  e = document.getElementById('dash-books-remaining'); if(e) e.textContent =
-    done >= 24 ? 'Full season complete! You are a BookWarrior Legend.' :
-    (24 - done) + ' books remaining to complete the season';
-  e = document.getElementById('ring-arc');             if(e) e.style.strokeDashoffset = (238.76 - pct * 238.76).toFixed(2);
-
-  e = document.getElementById('dash-ring-wrap'); if(e) e.style.display = 'flex';
-  e = document.getElementById('dash-cards');     if(e) e.style.display = 'grid';
-  buildCalendar([], []);
-  e = document.getElementById('dash-cal-wrap');  if(e) e.style.display = 'block';
-}
-
-function renderProgressFromLocal() {
-  var done = lib.filter(function(b){ return b.s==='Completed'; }).length;
-  var pct  = Math.min(done / 24, 1);
-  var e;
-  e = document.getElementById('dc-streak'); if(e) e.innerHTML = getStreak() + '<span>days</span>';
-  e = document.getElementById('dc-mins');   if(e) e.innerHTML = '—<span>min</span>';
-  e = document.getElementById('dc-pages');  if(e) e.innerHTML = '—<span>pgs</span>';
-  e = document.getElementById('dc-days');   if(e) e.innerHTML = '—<span>days</span>';
-  e = document.getElementById('dash-books-done');      if(e) e.textContent = done;
-  e = document.getElementById('ring-pct');             if(e) e.textContent = Math.round(pct * 100) + '%';
-  e = document.getElementById('ring-arc');             if(e) e.style.strokeDashoffset = (238.76 - pct * 238.76).toFixed(2);
-  e = document.getElementById('dash-books-remaining'); if(e) e.textContent = (24 - done) + ' books remaining to complete the season';
-  e = document.getElementById('dash-ring-wrap'); if(e) e.style.display = 'flex';
-  e = document.getElementById('dash-cards');     if(e) e.style.display = 'grid';
-  buildCalendar([], []);
-  e = document.getElementById('dash-cal-wrap');  if(e) e.style.display = 'block';
+  e=document.getElementById('dash-loading'); if(e) e.style.display='none';
+  e=document.getElementById('dash-ring-wrap'); if(e) e.style.display='flex';
+  e=document.getElementById('dash-cards');     if(e) e.style.display='grid';
+  buildCalendar([],[]);
+  e=document.getElementById('dash-cal-wrap'); if(e) e.style.display='block';
 }
 
 function buildCalendar(logDates, restDates) {
-  var cal = document.getElementById('dash-cal');
-  if (!cal) return;
-  cal.innerHTML = '';
-  var start = new Date(2026, 2, 16);
-  var today = new Date(); today.setHours(0, 0, 0, 0);
-  var end   = new Date(Math.min(today.getTime(), new Date(2026, 8, 15).getTime()));
-  var logSet = {}, restSet = {};
-  (logDates  || []).forEach(function(d){ logSet[d]  = true; });
-  (restDates || []).forEach(function(d){ restSet[d] = true; });
-  for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    var ds  = fmtDate(d);
-    var div = document.createElement('div');
-    div.className = 'cal-day';
-    div.title = ds;
-    if      (ds === fmtDate(today)) div.classList.add('today');
-    else if (logSet[ds])            div.classList.add('logged');
-    else if (restSet[ds])           div.classList.add('rest');
+  var cal=document.getElementById('dash-cal'); if(!cal) return;
+  cal.innerHTML='';
+  var start=new Date(2026,2,16);
+  var today=new Date(); today.setHours(0,0,0,0);
+  var end=new Date(Math.min(today.getTime(),new Date(2026,8,15).getTime()));
+  var logSet={}, restSet={};
+  (logDates||[]).forEach(function(d){logSet[d]=true;});
+  (restDates||[]).forEach(function(d){restSet[d]=true;});
+  for(var d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    var ds=fmtDate(d);
+    var div=document.createElement('div');
+    div.className='cal-day'; div.title=ds;
+    if(ds===fmtDate(today))  div.classList.add('today');
+    else if(logSet[ds])      div.classList.add('logged');
+    else if(restSet[ds])     div.classList.add('rest');
     cal.appendChild(div);
   }
 }
 
-// ── LEADERBOARD ──────────────────────────────────────────────
-function loadLeaderboard() {
-  var loading = document.getElementById('lb-loading');
-  var podium  = document.getElementById('lb-podium');
-  var list    = document.getElementById('lb-list');
-  if (!loading) return;
-  loading.style.display = 'flex';
-  loading.innerHTML = '<div class="spin"></div><div>Loading leaderboard...</div>';
-  if(podium) podium.style.display = 'none';
-  if(list)   list.style.display   = 'none';
-
-  fetchDashboard(function(err, data) {
-    if (!loading) return;
-    if (err || !data || !data.board || !data.board.length) {
-      loading.innerHTML =
-        '<div style="padding:30px 0;text-align:center;color:rgba(255,255,255,.4);">' +
-        'Could not load leaderboard.<br>' +
-        '<small style="font-size:11px;">Make sure the sheet is shared publicly.</small><br><br>' +
-        '<button onclick="loadLeaderboard()" style="margin-top:4px;padding:8px 20px;' +
-        'background:rgba(242,183,5,.15);border:1.5px solid rgba(242,183,5,.3);border-radius:10px;' +
-        'color:var(--gold);font-family:DM Sans,sans-serif;font-size:13px;cursor:pointer;">Retry</button></div>';
-      return;
-    }
-    loading.style.display = 'none';
-    var board = data.board.slice();
-    // Inject local streak for logged-in member
-    var myLo = lettersOnly(member);
-    board.forEach(function(w) {
-      if (w.nameLo === myLo || w.nameLo.indexOf(myLo) === 0 || myLo.indexOf(w.nameLo) === 0) {
-        w.streak = getStreak();
-      }
-    });
-    renderLeaderboard(board);
-    _dashLoaded = true;
-  });
-}
-
+// ── LEADERBOARD ──
 function renderLeaderboard(board) {
-  var podium = document.getElementById('lb-podium');
-  var list   = document.getElementById('lb-list');
-  if (!podium || !list) return;
-  podium.innerHTML = list.innerHTML = '';
+  var podium=document.getElementById('lb-podium');
+  var list=document.getElementById('lb-list');
+  var loading=document.getElementById('lb-loading');
+  if(!podium||!list) return;
+  if(loading) loading.style.display='none';
+  podium.innerHTML=''; list.innerHTML='';
 
-  if (!board || !board.length) {
-    list.innerHTML = '<div style="padding:30px;text-align:center;color:rgba(255,255,255,.3);">No warriors yet. Start logging!</div>';
-    list.style.display = 'block'; return;
-  }
+  // Inject local streak for me
+  var myLo=lettersOnly(member);
+  board.forEach(function(w){
+    if(w.nameLo===myLo||w.nameLo.indexOf(myLo)===0||myLo.indexOf(w.nameLo)===0) w.streak=getStreak();
+  });
 
-  // ── PODIUM (top 3) ──
-  var medals   = ['🥇','🥈','🥉'];
-  var podOrder = board.length >= 3 ? [1, 0, 2] : [0];
-  podOrder.forEach(function(idx) {
-    if (idx >= board.length) return;
-    var w   = board[idx];
-    var pod = document.createElement('div');
-    pod.className = 'lb-pod lb-pod-' + (idx + 1);
-    pod.innerHTML =
-      '<div class="lb-rank-num">#' + (idx + 1) + '</div>' +
-      '<div class="lb-medal">' + medals[idx] + '</div>' +
-      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.1);' +
-        'display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;' +
-        'color:#fff;margin-bottom:6px;border:2px solid rgba(255,255,255,.15);">' + getInitials(w.name) + '</div>' +
-      '<div class="lb-pod-name">' + w.name.split(' ')[0] + '</div>' +
-      '<div class="lb-pod-score">' + w.booksCompleted + ' books</div>' +
-      '<div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px;">' + exactNum(w.totalMins) + ' min</div>';
+  // PODIUM
+  var medals=['🥇','🥈','🥉'];
+  var podOrder=board.length>=3?[1,0,2]:[0];
+  podOrder.forEach(function(idx){
+    if(idx>=board.length) return;
+    var w=board[idx];
+    var pod=document.createElement('div');
+    pod.className='lb-pod lb-pod-'+(idx+1);
+    pod.innerHTML=
+      '<div class="lb-rank-num">#'+(idx+1)+'</div>'+
+      '<div class="lb-medal">'+medals[idx]+'</div>'+
+      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.12);'+
+        'display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;'+
+        'color:#fff;margin-bottom:6px;border:2px solid rgba(255,255,255,.2);">'+getInitials(w.name)+'</div>'+
+      '<div class="lb-pod-name">'+w.name.split(' ')[0]+'</div>'+
+      '<div class="lb-pod-score">'+w.booksCompleted+' books</div>'+
+      '<div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:2px;">'+exactNum(w.totalMins)+' min</div>';
     podium.appendChild(pod);
   });
-  podium.style.display = 'flex';
+  podium.style.display='flex';
 
-  // ── FULL LIST ──
-  var myLo     = lettersOnly(member);
-  var rankCls  = ['gold', 'silver', 'bronze'];
-  board.forEach(function(w, i) {
-    var isMe = (w.nameLo === myLo || w.nameLo.indexOf(myLo) === 0 || myLo.indexOf(w.nameLo) === 0);
-    var row  = document.createElement('div');
-    row.className = 'lb-row' + (isMe ? ' me' : '');
-    row.innerHTML =
-      '<div class="lb-pos">#' + (i + 1) + '</div>' +
-      '<div class="lb-avatar">' + getInitials(w.name) + '</div>' +
-      '<div class="lb-info">' +
-        '<div class="lb-name">' + w.name + (isMe ? ' <span style="color:var(--gold);font-size:10px;font-weight:700;">(You)</span>' : '') + '</div>' +
-        '<div class="lb-detail">' +
-          w.booksCompleted + ' books &nbsp;·&nbsp; ' +
-          exactNum(w.totalMins) + ' min &nbsp;·&nbsp; ' +
-          exactNum(w.totalPages) + ' pgs &nbsp;·&nbsp; ' +
-          exactNum(w.daysLogged) + ' days' +
-        '</div>' +
-      '</div>' +
-      '<div class="lb-badge ' + (i < 3 ? rankCls[i] : 'regular') + '">' +
-        (w.streak > 0 ? '🔥 ' + w.streak + 'd' : w.booksCompleted + ' 📚') +
+  // FULL LIST
+  var rankCls=['gold','silver','bronze'];
+  board.forEach(function(w,i){
+    var isMe=(w.nameLo===myLo||w.nameLo.indexOf(myLo)===0||myLo.indexOf(w.nameLo)===0);
+    var row=document.createElement('div');
+    row.className='lb-row'+(isMe?' me':'');
+    row.innerHTML=
+      '<div class="lb-pos">#'+(i+1)+'</div>'+
+      '<div class="lb-avatar">'+getInitials(w.name)+'</div>'+
+      '<div class="lb-info">'+
+        '<div class="lb-name">'+w.name+(isMe?' <span style="color:var(--gold);font-size:10px;">(You)</span>':'')+' </div>'+
+        '<div class="lb-detail">'+
+          w.booksCompleted+' books &nbsp;·&nbsp; '+
+          exactNum(w.totalMins)+' min &nbsp;·&nbsp; '+
+          exactNum(w.totalPages)+' pgs &nbsp;·&nbsp; '+
+          exactNum(w.daysLogged)+' days'+
+        '</div>'+
+      '</div>'+
+      '<div class="lb-badge '+(i<3?rankCls[i]:'regular')+'">'+
+        (w.streak>0?'🔥'+w.streak+'d':w.booksCompleted+' 📚')+
       '</div>';
     list.appendChild(row);
   });
-  list.style.display = 'block';
+  list.style.display='block';
 }
 
-// ── SHARED UTILS ─────────────────────────────────────────────
+// called from tab button — re-renders from current _board (no fetch)
+function loadLeaderboard() {
+  renderLeaderboard(_board);
+}
+
+// ── SHARED UTILS ──
 function lettersOnly(s) {
-  if (!s) return '';
-  try { s = s.replace(/[\u{1F000}-\u{1FFFF}]/gu, ''); } catch(e) {}
-  s = s.replace(/[\u2600-\u27FF]/g, '');
-  return s.trim().toLowerCase().replace(/[^a-z]/g, '');
+  if(!s) return '';
+  try { s=s.replace(/[\u{1F000}-\u{1FFFF}]/gu,''); } catch(e){}
+  s=s.replace(/[\u2600-\u27FF]/g,'');
+  return s.trim().toLowerCase().replace(/[^a-z]/g,'');
 }
 
-// exactNum: shows numbers EXACTLY as in the sheet — no k, no rounding
 function exactNum(n) {
-  n = parseInt(n) || 0;
-  return n.toLocaleString('en-US'); // e.g. 1360, 2390, 375
+  n=parseInt(n)||0;
+  return n.toLocaleString('en-US');
 }
 
 // ─── UTILS ─────────────────────────────────────
-function fmtNum(n) {
-  n = parseInt(n) || 0;
-  return n.toLocaleString('en-US'); // exact, no k
-}
+function fmtNum(n) { return exactNum(n); }
 function fmtDate(d) {
   return d.getFullYear() + '-' +
     String(d.getMonth()+1).padStart(2,'0') + '-' +
