@@ -1480,7 +1480,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // ═══════════════════════════════════════════════
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // ═══════════════════════════════════════════════
-const URL = 'https://script.google.com/macros/s/AKfycbzBbVPZrVX5jRDb_dRsgQObJazGNpJS10_WBLGpGxa4YNFvBtrrfNNaarRyui9X_Oa3Tg/exec';
+const URL = 'https://script.google.com/macros/s/AKfycbxg_C5-qVNd4Ufstj9qDdcipr1dUhMxP0ksJgyfBwqs3peUknMH63iSr2ZA9xFK13xXNQ/exechttps://script.google.com/macros/s/AKfycbxg_C5-qVNd4Ufstj9qDdcipr1dUhMxP0ksJgyfBwqs3peUknMH63iSr2ZA9xFK13xXNQ/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 let deferredInstall = null;
@@ -2845,6 +2845,8 @@ var _pollTimer = null;
 
 // ── SEED DATA — exact values from Dashboard tab ──
 // These render immediately. GAS overwrites silently in background.
+// ── EXACT DATA FROM DASHBOARD TAB (screenshot verified 29 Apr 2026) ──
+// Col C=NAME, Col D=BOOKS, Col E=DAYS, Col F=MINS, Col G=PAGES
 var _board = [
   { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:4,  daysLogged:18, totalMins:1360, totalPages:969  },
   { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:2,  daysLogged:23, totalMins:2390, totalPages:1137 },
@@ -2901,8 +2903,41 @@ function fetchLiveBoard() {
           totalMins:      parseInt(w.totalMins)||0,
           totalPages:     parseInt(w.totalPages)||0
         };
-      }).filter(function(w){ return w.name.length > 0; });
+      }).filter(function(w){
+        return w.name.length > 0 &&
+               w.booksCompleted <= 52 &&   // sanity: max 1 book/week for a year
+               w.totalMins      >= 0 &&
+               w.totalPages     >= 0;
+      });
       if(!fresh.length) return;
+      // SANITY CHECK — column order verification using known data bounds:
+      // booksCompleted: 0–52 (max 1/week)
+      // daysLogged:     0–210 (max 30 weeks × 7 days)  
+      // totalMins:      always >= daysLogged (min 1 min per day)
+      // totalPages:     always >= 0
+      // If booksCompleted > 52, columns are shifted (days value in books slot)
+      var shifted = fresh.some(function(w){
+        return w.booksCompleted > 52
+            || (w.totalMins > 0 && w.totalMins < w.booksCompleted)
+            || (w.daysLogged > 0 && w.daysLogged < w.booksCompleted);
+      });
+      if(shifted) {
+        console.warn('GAS column mismatch detected — keeping seed data.');
+        return;
+      }
+      // Secondary check: for any known member, compare against seed
+      var seedMap = {};
+      _board.forEach(function(s){ seedMap[s.nameLo] = s; });
+      var wildlyWrong = fresh.some(function(w){
+        var s = seedMap[w.nameLo];
+        if(!s) return false;
+        // If GAS books > seed books * 5, it's reading the wrong column
+        return w.booksCompleted > (s.booksCompleted + 1) * 5;
+      });
+      if(wildlyWrong) {
+        console.warn('GAS data fails cross-check against seed — keeping seed.');
+        return;
+      }
       _board = sortBoard(fresh);
       renderMyProgress();
       renderLeaderboard(_board);
