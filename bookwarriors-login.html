@@ -836,29 +836,30 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 }
 
 
-/* ── SHARE SYSTEM ─────────────────────────────────────────────────── */
-.share-section{margin-top:24px;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px}
-.share-preview-wrap{position:relative;width:320px;height:320px;border-radius:20px;overflow:hidden;background:#0d0d1a;box-shadow:0 20px 60px rgba(0,0,0,.6);cursor:pointer;flex-shrink:0}
-.share-preview-wrap:active{transform:scale(.98)}
-.share-canvas{width:320px!important;height:320px!important;border-radius:20px;display:block}
-.share-tap-hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(255,255,255,.4);pointer-events:none;white-space:nowrap;letter-spacing:.04em}
-.share-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%;margin-top:4px}
-.share-btn{display:flex;align-items:center;gap:6px;padding:10px 16px;border-radius:12px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .18s;color:#fff;flex:1;min-width:100px;max-width:140px;justify-content:center}
-.share-btn:active{transform:scale(.94)}
-.share-btn.native{background:linear-gradient(135deg,var(--gold),#e5a800);color:#000}
-.share-btn.download{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15)}
-.share-btn.copy{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
-.share-btn.wa{background:#25D366}
-.share-btn.ig{background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)}
-.share-label{font-size:11px;color:rgba(255,255,255,.35);letter-spacing:.04em;text-transform:uppercase;margin-top:2px}
-/* Avatar upload zone */
-.avatar-upload-zone{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,255,255,.05);border:1.5px dashed rgba(242,183,5,.35);border-radius:12px;cursor:pointer;width:100%;transition:background .2s}
-.avatar-upload-zone:hover{background:rgba(242,183,5,.08)}
-.avatar-thumb{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);display:none}
-.avatar-initials{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#e5a800);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#000;flex-shrink:0}
-.avatar-upload-text{font-size:12px;color:rgba(255,255,255,.55);line-height:1.4}
-.avatar-upload-text strong{color:rgba(255,255,255,.85);display:block}
-#avatarFileInput{display:none}
+/* ══ SHARE SYSTEM ══ */
+.share-sheet{position:fixed;inset:0;z-index:900;display:none;align-items:flex-end;justify-content:center;}
+.share-sheet.show{display:flex;animation:fadeIn .2s ease;}
+.share-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);}
+.share-panel{position:relative;width:100%;max-width:420px;background:#fff;border-radius:28px 28px 0 0;padding:0 0 32px;overflow:hidden;animation:slideUp .3s cubic-bezier(.34,1.2,.64,1);}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.share-handle{width:36px;height:4px;background:rgba(0,0,0,.12);border-radius:2px;margin:12px auto 0;}
+.share-preview-wrap{padding:16px 20px 0;}
+.share-canvas-wrap{border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(11,31,59,.18);position:relative;}
+.share-canvas-wrap canvas{display:block;width:100%;height:auto;}
+.share-photo-hint{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.55);border-radius:8px;padding:4px 8px;font-size:10px;color:#fff;display:none;}
+.share-photo-hint.show{display:block;}
+.share-actions{padding:16px 20px 0;display:flex;flex-direction:column;gap:10px;}
+.share-btn-primary{width:100%;height:52px;background:linear-gradient(135deg,#0B1F3B,#1547B0);border:none;border-radius:16px;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent;transition:opacity .15s;}
+.share-btn-primary:active{opacity:.85;}
+.share-btn-secondary{width:100%;height:44px;background:transparent;border:1.5px solid rgba(11,31,59,.15);border-radius:14px;color:#0B1F3B;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;-webkit-tap-highlight-color:transparent;transition:background .15s;}
+.share-btn-secondary:active{background:rgba(11,31,59,.05);}
+.share-photo-row{display:flex;align-items:center;gap:10px;padding:0 20px;margin-top:4px;}
+.share-photo-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(11,31,59,.1);flex-shrink:0;background:#f0f0f0;}
+.share-photo-info{flex:1;min-width:0;}
+.share-photo-name{font-size:13px;font-weight:700;color:#0B1F3B;}
+.share-photo-sub{font-size:11px;color:rgba(11,31,59,.45);}
+.share-photo-change{font-size:12px;font-weight:700;color:#1547B0;cursor:pointer;text-decoration:underline;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+
 </style>
 </head>
 <body>
@@ -1501,45 +1502,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <div class="s-title" id="sTitle">Session <span>Logged!</span></div>
   <div class="s-msg" id="sMsg"></div>
   <div class="s-stats" id="sStats"></div>
-
-  <!-- SHARE SYSTEM -->
-  <div class="share-section" id="shareSection">
-    <div class="share-label">Share your win 🔥</div>
-
-    <!-- Avatar upload -->
-    <label class="avatar-upload-zone" for="avatarFileInput" id="avatarUploadZone">
-      <img class="avatar-thumb" id="avatarThumb" src="" alt="">
-      <div class="avatar-initials" id="avatarInitials">?</div>
-      <div class="avatar-upload-text">
-        <strong id="avatarUploadLabel">Add your photo</strong>
-        Tap to personalise your share card
-      </div>
-    </label>
-    <input type="file" id="avatarFileInput" accept="image/*">
-
-    <!-- Canvas preview -->
-    <div class="share-preview-wrap" onclick="downloadShareCard()">
-      <canvas class="share-canvas" id="shareCanvas" width="1080" height="1080"></canvas>
-      <div class="share-tap-hint">tap to save image</div>
-    </div>
-
-    <!-- Share buttons -->
-    <div class="share-btns">
-      <button class="share-btn native" onclick="nativeShare()" id="btnNativeShare">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16c-.8 0-1.5.3-2 .8l-7.3-4.2c0-.2.1-.4.1-.6s0-.4-.1-.6L16 7.2c.5.5 1.2.8 2 .8 1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3c0 .2 0 .4.1.6L7.8 9.8C7.3 9.3 6.6 9 5.8 9 4.1 9 2.8 10.3 2.8 12S4.1 15 5.8 15c.8 0 1.5-.3 2-.8l7.3 4.2c0 .2-.1.4-.1.6 0 1.7 1.3 3 3 3s3-1.3 3-3-1.3-3-3-3z"/></svg>
-        Share
-      </button>
-      <button class="share-btn download" onclick="downloadShareCard()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-        Save
-      </button>
-      <button class="share-btn wa" onclick="shareWhatsApp()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.7.1-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.2-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.3.2-.5 0-.2-.6-1.5-.8-2.1-.2-.5-.4-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.3s1 2.7 1.2 2.9c.2.2 2 3 4.8 4.2.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 1.9-1.3.2-.6.2-1.2.1-1.3-.1-.1-.3-.2-.6-.3z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.9.5 3.7 1.4 5.3L2 22l4.9-1.3C8.4 21.5 10.2 22 12 22c5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18c-1.7 0-3.4-.5-4.8-1.3l-.3-.2-3.3.9.9-3.2-.2-.4C3.5 15.3 3 13.7 3 12 3 7 7 3 12 3s9 4 9 9-4 9-9 9z"/></svg>
-        WhatsApp
-      </button>
-    </div>
-  </div>
-
+  <button onclick="openShare()" style="width:100%;max-width:300px;height:52px;background:linear-gradient(135deg,var(--gold),#F5C842);border:none;border-radius:14px;color:var(--navy);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent;letter-spacing:.02em;">
+    <span style="font-size:18px;">&#x2197;</span> Share My Progress
+  </button>
   <button class="again-btn" onclick="closeSuccess()">Continue</button>
 </div>
 
@@ -2232,8 +2197,7 @@ function login(name) {
   renderStreak();
   showNotifBanner();
   flushOnLogin();
-  startRealtimeEngine();
-  loadSavedAvatar(); // restore member photo for share cards // Layer 1+5: keepalive + background sync start immediately
+  startRealtimeEngine(); // Layer 1+5: keepalive + background sync start immediately
   // Refresh SW reminder schedule on every login
   if (localStorage.getItem(PRE+'notifs') === '1') {
     // Wait for SW controller to be available
@@ -2609,8 +2573,7 @@ async function submitBook(){
     closeAddBook();
     renderLib(); dropBooks();
     success('Book Added!','<em>'+esc(title)+'</em> added to your library.',[
-      ['Book',title],['Status',status],['Category',cat]],
-      {type:'add',book:title,streak:getStreak(),booksTotal:lib.length});
+      ['Book',title],['Status',status],['Category',cat]]);
   }catch(e){ err.textContent='Saved locally. Will sync when reconnected.'; err.classList.add('show'); }
   finally{setBL(false);}
 }
@@ -2719,8 +2682,7 @@ function flushOnLogin() {
     triggerPostSubmitFetch(); // Layer 3: confirm from sheet in 2s
     success(rest?'Rest Day Logged!':'Session Logged!',
       rest?'Recovery is part of the system.':payload.minutes+' minutes logged. Every session builds the edge.',
-      rest?[['Member',member],['Type','Rest Day']]:[['Member',member],['Minutes',payload.minutes+' min'],['Book',(book||'').slice(0,22)]],
-      {type:'daily',isRest:rest,book:bookClean,minutes:payload.minutes,pages:payload.pages,rating:stars,streak:getStreak(),booksTotal:lib.filter(function(b){return b.s==='Completed';}).length});
+      rest?[['Member',member],['Type','Rest Day']]:[['Member',member],['Minutes',payload.minutes+' min'],['Book',(book||'').slice(0,22)]]);
     resetDaily();
   }catch(err2){
     // Queue locally — will sync when connection returns
@@ -2790,12 +2752,7 @@ function setupWeekly(){
         totalPages:document.getElementById('w-pages').textContent};
     await sendToGAS(wPayload);
     triggerPostSubmitFetch(); // Layer 3: refresh stats after weekly log
-    success('Week Reflected!','Week '+wk+' submitted. See you next Sunday!',[['Week',wk],['Feeling',document.getElementById('w-feeling').value||'-']],
-      {type:'weekly',weekNum:wk,weekRange:fmt(s)+' to '+fmt(en),
-       daysRead:parseInt(document.getElementById('w-days').textContent)||0,
-       totalMins:parseInt(document.getElementById('w-mins').textContent)||0,
-       totalPages:parseInt(document.getElementById('w-pages').textContent)||0,
-       feeling:document.getElementById('w-feeling').value||'',streak:getStreak()});
+    success('Week Reflected!','Week '+wk+' submitted. See you next Sunday!',[['Week',wk],['Feeling',document.getElementById('w-feeling').value||'-']]);
     document.getElementById('weeklyForm').reset();
   }catch(err2){
     queueLog({action:'logWeekly',member:member,date:dateStr(),weekNum:wk,
@@ -2811,17 +2768,22 @@ function setupWeekly(){
 }); })();
 
 // ── SUCCESS ──
-function success(title,msg,stats,shareData){
+// _lastLogData is used by the share card
+var _lastLogData = {};
+
+function success(title,msg,stats){
+  _lastLogData = { title:title, msg:msg, stats:stats, member:member, ts:new Date() };
   document.getElementById('sTitle').innerHTML=title;
   document.getElementById('sMsg').innerHTML=msg;
-  document.getElementById('sStats').innerHTML=(stats||[]).map(function(r){
+  document.getElementById('sStats').innerHTML=stats.map(function(r){
     return '<div class="s-row"><span class="s-lbl">'+r[0]+'</span><span class="s-val">'+esc(String(r[1]))+'</span></div>';
   }).join('');
   document.getElementById('successOverlay').classList.add('show');
-  // Render share card with the provided data
-  setTimeout(function(){ prepareShareCard(shareData || {}); }, 80);
 }
-function closeSuccess(){ document.getElementById('successOverlay').classList.remove('show'); }
+function closeSuccess(){
+  document.getElementById('successOverlay').classList.remove('show');
+  document.getElementById('shareSheet').classList.remove('show');
+}
 
 // ── LOADING ──
 function setDL(on){document.getElementById('dailySubmit').disabled=on;document.getElementById('dSpin').style.display=on?'block':'none';document.getElementById('dIcon').style.display=on?'none':'block';document.getElementById('dTxt').textContent=on?'Sending...':'Log My Session';}
@@ -3100,10 +3062,7 @@ async function submitComplete() {
     success(
       '&#x1F4DA; Book Completed!',
       '<em>' + esc(b.t) + '</em> logged as completed. Every book is a new version of you.',
-      [['Book', b.t.slice(0,24)], ['Rating', rating + ' stars'], ['Pages', pages || 'Not entered']],
-      {type:'book', book:b.t, rating:rating, pages:pages,
-       booksTotal:lib.filter(function(x){return x.s==='Completed';}).length,
-       streak:getStreak()}
+      [['Book', b.t.slice(0,24)], ['Rating', rating + ' stars'], ['Pages', pages || 'Not entered']]
     );
     // Bonus streak milestone for book count
     var completedCount = lib.filter(function(x){ return x.s === 'Completed'; }).length;
@@ -3583,451 +3542,452 @@ function getInitials(name) {
 }
 
 
+
+
 // ══════════════════════════════════════════════════════════════════════
-// SHARE ENGINE — Beats Duolingo Edition
-// Generates a personalised 1080×1080 canvas card and shares it.
+// BOOKAWEEK SHARE SYSTEM
+// - Canvas-rendered share card (1080×1080) — Instagram/WhatsApp ready
+// - Profile photo stored once in localStorage as base64
+// - Direct native share on mobile (WhatsApp, Instagram, X, etc.)
+// - Download fallback for desktop / platforms that don't support share API
 // ══════════════════════════════════════════════════════════════════════
 
-var _shareData     = {};    // { type, book, minutes, pages, streak, rating, weekNum, booksTotal }
-var _avatarDataURL = null;  // member's photo (persisted in localStorage)
-var _avatarImg     = null;  // HTMLImageElement, ready for canvas draw
+var PHOTO_KEY = 'baw_profile_photo';
+var _shareBlob = null; // cached blob from last render
 
-// Restore saved avatar on login
-function loadSavedAvatar() {
-  var saved = localStorage.getItem(PRE + 'avatar');
-  if (saved) _setAvatarFromDataURL(saved);
+// ── OPEN SHARE SHEET ──────────────────────────────────────────
+function openShare() {
+  var sheet = document.getElementById('shareSheet');
+  sheet.classList.add('show');
+  // Check if we have a saved photo
+  var photo = localStorage.getItem(PHOTO_KEY);
+  if (!photo) {
+    // First time — prompt to add photo
+    setTimeout(function() { promptPhoto(); }, 200);
+  } else {
+    renderShareCard(photo);
+  }
 }
 
-// ── AVATAR UPLOAD ──
-document.addEventListener('DOMContentLoaded', function() {
-  var inp = document.getElementById('avatarFileInput');
-  if (inp) inp.addEventListener('change', function(e) {
-    var file = e.target.files && e.target.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      _setAvatarFromDataURL(ev.target.result);
-      localStorage.setItem(PRE + 'avatar', ev.target.result); // persist
-      renderShareCard(); // live update
-    };
-    reader.readAsDataURL(file);
-  });
-});
+function closeShare() {
+  document.getElementById('shareSheet').classList.remove('show');
+}
 
-function _setAvatarFromDataURL(dataURL) {
-  _avatarDataURL = dataURL;
-  var thumb = document.getElementById('avatarThumb');
-  var init  = document.getElementById('avatarInitials');
-  var label = document.getElementById('avatarUploadLabel');
-  if (thumb) { thumb.src = dataURL; thumb.style.display = 'block'; }
-  if (init)  { init.style.display = 'none'; }
-  if (label) { label.textContent = 'Change photo'; }
-  var img = new window.Image();
-  img.onload = function() {
-    _avatarImg = img;
-    renderShareCard();
+// ── PHOTO MANAGEMENT ──────────────────────────────────────────
+function promptPhoto() {
+  // Show a lightweight overlay asking to add photo
+  var panel = document.getElementById('shareSheet');
+  var existing = panel.querySelector('.photo-prompt-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.className = 'photo-prompt-overlay';
+  overlay.style.cssText = [
+    'position:absolute','top:0','left:0','right:0','bottom:0',
+    'background:#fff','border-radius:28px 28px 0 0','z-index:10',
+    'display:flex','flex-direction:column','align-items:center',
+    'justify-content:center','padding:32px 24px','text-align:center'
+  ].join(';');
+  overlay.innerHTML = [
+    '<div style="font-size:56px;margin-bottom:16px;">📸</div>',
+    '<div style="font-family:\'Playfair Display\',serif;font-size:22px;font-weight:900;color:#0B1F3B;margin-bottom:8px;">Add Your Photo Once</div>',
+    '<div style="font-size:14px;color:rgba(11,31,59,.5);line-height:1.6;max-width:260px;margin-bottom:28px;">',
+      'Your photo will appear on every share card automatically. You only add it once.',
+    '</div>',
+    '<button onclick="triggerPhotoInput()" style="width:100%;max-width:260px;height:52px;background:linear-gradient(135deg,#0B1F3B,#1547B0);border:none;border-radius:16px;color:#fff;font-family:\'DM Sans\',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;">',
+      '📷 Choose Photo from Phone',
+    '</button>',
+    '<button onclick="skipPhoto()" style="background:none;border:none;color:rgba(11,31,59,.4);font-family:\'DM Sans\',sans-serif;font-size:13px;cursor:pointer;text-decoration:underline;">',
+      'Skip — use initials instead',
+    '</button>'
+  ].join('');
+  panel.querySelector('.share-panel').appendChild(overlay);
+}
+
+function triggerPhotoInput() {
+  document.getElementById('photoInput').click();
+}
+
+function changeProfilePhoto() {
+  document.getElementById('photoInput').click();
+}
+
+function skipPhoto() {
+  // Remove prompt overlay and render with no photo (initials only)
+  var overlay = document.querySelector('.photo-prompt-overlay');
+  if (overlay) overlay.remove();
+  renderShareCard(null);
+}
+
+function handlePhotoUpload(event) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result;
+    localStorage.setItem(PHOTO_KEY, b64);
+    // Remove prompt overlay if present
+    var overlay = document.querySelector('.photo-prompt-overlay');
+    if (overlay) overlay.remove();
+    renderShareCard(b64);
   };
-  img.src = dataURL;
+  reader.readAsDataURL(file);
+  // Reset input so same file can be re-selected
+  event.target.value = '';
 }
 
-// ── CALLED FROM success() — sets share data & renders card ──
-function prepareShareCard(data) {
-  // data: { type:'daily'|'weekly'|'book', book, minutes, pages, streak,
-  //          rating, weekNum, weekRange, booksTotal, feeling }
-  _shareData = data || {};
-  loadSavedAvatar();
-
-  // Set avatar initials
-  var init = document.getElementById('avatarInitials');
-  if (init && member) init.textContent = getInitials(member);
-
-  // Show/hide native share button based on browser support
-  var nbtn = document.getElementById('btnNativeShare');
-  if (nbtn) nbtn.style.display = navigator.share ? 'flex' : 'none';
-
-  renderShareCard();
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// CANVAS RENDERER — 1080×1080 share card
-// ══════════════════════════════════════════════════════════════════════
-function renderShareCard() {
+// ── CANVAS CARD RENDERER ──────────────────────────────────────
+// Produces a 1080×1080 px card — perfect for Instagram/WhatsApp
+function renderShareCard(photoDataUrl) {
   var canvas = document.getElementById('shareCanvas');
-  if (!canvas) return;
   var ctx    = canvas.getContext('2d');
   var W = 1080, H = 1080;
-  canvas.width  = W;
-  canvas.height = H;
+  canvas.width = W; canvas.height = H;
 
-  var type     = _shareData.type || 'daily';
-  var isRest   = _shareData.isRest;
-  var isWeekly = type === 'weekly';
-  var isBook   = type === 'book';
+  // ── DATA ──────────────────────────────────────────────────
+  var d       = _lastLogData || {};
+  var name    = String(d.member || member || 'BookWarrior');
+  var stats   = d.stats || [];
+  var title   = String(d.title || 'Session Logged!').replace(/!$/, '');
+  var streak  = getStreak();
+  var today   = new Date();
+  var dateStr = today.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
 
-  // ── BACKGROUND ──
+  // ── BACKGROUND — deep navy gradient ──────────────────────
   var bg = ctx.createLinearGradient(0, 0, W, H);
-  if (isBook) {
-    bg.addColorStop(0, '#0a0014');
-    bg.addColorStop(0.5, '#1a003a');
-    bg.addColorStop(1, '#0d0a00');
-  } else if (isWeekly) {
-    bg.addColorStop(0, '#001a0a');
-    bg.addColorStop(0.5, '#002a14');
-    bg.addColorStop(1, '#0a0d00');
-  } else if (isRest) {
-    bg.addColorStop(0, '#00101a');
-    bg.addColorStop(0.5, '#001a2a');
-    bg.addColorStop(1, '#0a0010');
-  } else {
-    bg.addColorStop(0, '#050010');
-    bg.addColorStop(0.5, '#0d0020');
-    bg.addColorStop(1, '#100500');
-  }
+  bg.addColorStop(0, '#0A1628');
+  bg.addColorStop(0.5, '#0B1F3B');
+  bg.addColorStop(1, '#0D2548');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Grain texture
-  _drawGrain(ctx, W, H);
+  // ── DECORATIVE CIRCLES ───────────────────────────────────
+  function circle(x, y, r, color, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.restore();
+  }
+  circle(W*0.85, H*0.12, 280, '#C9A227', 0.06);
+  circle(W*0.12, H*0.88, 220, '#1547B0', 0.08);
+  circle(W*0.5,  H*0.5,  400, '#C9A227', 0.025);
 
-  // Gold accent glow (top-right)
-  var grd = ctx.createRadialGradient(W * .85, H * .12, 0, W * .85, H * .12, 360);
-  grd.addColorStop(0, 'rgba(242,183,5,.18)');
-  grd.addColorStop(1, 'rgba(242,183,5,0)');
-  ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, W, H);
+  // ── GOLD TOP BAR ─────────────────────────────────────────
+  ctx.fillStyle = '#C9A227';
+  ctx.fillRect(0, 0, W, 8);
 
-  // Second accent (bottom-left)
-  var grd2 = ctx.createRadialGradient(W * .15, H * .88, 0, W * .15, H * .88, 300);
-  grd2.addColorStop(0, 'rgba(242,183,5,.10)');
-  grd2.addColorStop(1, 'rgba(242,183,5,0)');
-  ctx.fillStyle = grd2;
-  ctx.fillRect(0, 0, W, H);
+  // ── LOGO TEXT (top left) ─────────────────────────────────
+  ctx.save();
+  ctx.font = '700 38px Georgia, serif';
+  ctx.fillStyle = '#C9A227';
+  ctx.fillText('BOOKAWEEK', 72, 88);
+  ctx.font = '400 22px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText('Read. Reflect. Execute.', 72, 120);
+  ctx.restore();
 
-  // ── TOP BAR — BOOKAWEEK brand ──
-  ctx.fillStyle = 'rgba(242,183,5,.08)';
-  _roundRect(ctx, 60, 54, W - 120, 100, 20);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(242,183,5,.22)';
-  ctx.lineWidth   = 1.5;
-  _roundRect(ctx, 60, 54, W - 120, 100, 20);
-  ctx.stroke();
-
-  ctx.font      = '600 28px "Playfair Display", serif';
-  ctx.fillStyle = '#F2B705';
-  ctx.textAlign = 'left';
-  ctx.fillText('📚 BOOKAWEEK', 100, 116);
-
-  ctx.font      = '500 22px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,.38)';
-  ctx.textAlign = 'right';
-  ctx.fillText('24 Books · 1 Year', W - 100, 116);
-
-  // ── AVATAR ──
-  var avatarY = 190, avatarR = 90;
-  var ax = W / 2, ay = avatarY + avatarR;
-
-  // Glow ring
-  var aGlow = ctx.createRadialGradient(ax, ay, 0, ax, ay, avatarR + 40);
-  aGlow.addColorStop(0, 'rgba(242,183,5,.25)');
-  aGlow.addColorStop(1, 'rgba(242,183,5,0)');
-  ctx.fillStyle = aGlow;
-  ctx.beginPath(); ctx.arc(ax, ay, avatarR + 40, 0, Math.PI * 2); ctx.fill();
-
-  // Avatar circle clip
+  // ── PROFILE PHOTO or INITIALS ────────────────────────────
+  var photoX = W - 72 - 88, photoY = 48, photoR = 56;
   ctx.save();
   ctx.beginPath();
-  ctx.arc(ax, ay, avatarR, 0, Math.PI * 2);
+  ctx.arc(photoX + photoR, photoY + photoR, photoR, 0, Math.PI*2);
+  ctx.closePath();
   ctx.clip();
 
-  if (_avatarImg) {
-    // Draw photo — centre-crop
-    var iw = _avatarImg.naturalWidth, ih = _avatarImg.naturalHeight;
-    var scale = Math.max(avatarR * 2 / iw, avatarR * 2 / ih);
-    var dw = iw * scale, dh = ih * scale;
-    ctx.drawImage(_avatarImg, ax - dw / 2, ay - dh / 2, dw, dh);
+  if (photoDataUrl) {
+    // Draw photo (handle async with Image)
+    ctx.restore();
+    var img = new Image();
+    img.onload = function() {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(photoX + photoR, photoY + photoR, photoR, 0, Math.PI*2);
+      ctx.closePath();
+      ctx.clip();
+      // Cover-fit the image in the circle
+      var iw = img.width, ih = img.height;
+      var scale = Math.max((photoR*2)/iw, (photoR*2)/ih);
+      var sw = iw*scale, sh = ih*scale;
+      ctx.drawImage(img, photoX+(photoR - sw/2), photoY+(photoR - sh/2), sw, sh);
+      ctx.restore();
+      // Gold ring
+      ctx.save();
+      ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(photoX+photoR, photoY+photoR, photoR+2, 0, Math.PI*2);
+      ctx.stroke(); ctx.restore();
+      // Update thumb
+      updatePhotoThumb(photoDataUrl, name);
+      // Finish rest of card
+      finishCard(ctx, W, H, name, title, stats, streak, dateStr);
+      updateShareBlob(canvas);
+    };
+    img.onerror = function() {
+      drawInitialsCircle(ctx, photoX, photoY, photoR, name);
+      finishCard(ctx, W, H, name, title, stats, streak, dateStr);
+      updateShareBlob(canvas);
+    };
+    img.src = photoDataUrl;
+    return; // rest of card drawn in img.onload
   } else {
-    // Initials fallback
-    var iBg = ctx.createLinearGradient(ax - avatarR, ay - avatarR, ax + avatarR, ay + avatarR);
-    iBg.addColorStop(0, '#F2B705'); iBg.addColorStop(1, '#e5a800');
-    ctx.fillStyle = iBg;
-    ctx.fillRect(ax - avatarR, ay - avatarR, avatarR * 2, avatarR * 2);
-    ctx.fillStyle = '#000';
-    ctx.font = '900 ' + (avatarR * .85) + 'px sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(getInitials(member || '?'), ax, ay);
-    ctx.textBaseline = 'alphabetic';
+    // Draw initials circle
+    ctx.fillStyle = 'rgba(201,162,39,0.2)'; ctx.fill();
+    ctx.restore();
+    drawInitialsCircle(ctx, photoX, photoY, photoR, name);
+    updatePhotoThumb(null, name);
   }
+
+  // Gold ring
+  ctx.save();
+  ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(photoX+photoR, photoY+photoR, photoR+2, 0, Math.PI*2);
+  ctx.stroke(); ctx.restore();
+
+  finishCard(ctx, W, H, name, title, stats, streak, dateStr);
+  updateShareBlob(canvas);
+}
+
+function drawInitialsCircle(ctx, x, y, r, name) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x+r, y+r, r, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(201,162,39,0.15)'; ctx.fill();
+  ctx.font = 'bold ' + Math.round(r*0.8) + 'px Georgia, serif';
+  ctx.fillStyle = '#C9A227';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(getInitials(name), x+r, y+r);
+  ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+}
+
+function finishCard(ctx, W, H, name, title, stats, streak, dateStr) {
+  // ── DIVIDER ────────────────────────────────────────────
+  ctx.save();
+  ctx.strokeStyle = 'rgba(201,162,39,0.25)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(72, 175); ctx.lineTo(W-72, 175);
+  ctx.stroke(); ctx.restore();
+
+  // ── MEMBER NAME ────────────────────────────────────────
+  ctx.save();
+  ctx.font = '900 72px Georgia, serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(name, 72, 280);
+
+  // ── TITLE ──────────────────────────────────────────────
+  ctx.font = '400 32px Georgia, serif';
+  ctx.fillStyle = '#C9A227';
+  ctx.fillText(title, 72, 334);
   ctx.restore();
 
-  // Gold ring border
-  ctx.strokeStyle = '#F2B705';
-  ctx.lineWidth   = 5;
-  ctx.beginPath(); ctx.arc(ax, ay, avatarR + 3, 0, Math.PI * 2); ctx.stroke();
+  // ── STREAK BADGE (if > 0) ──────────────────────────────
+  if (streak > 0) {
+    ctx.save();
+    var bx = 72, by = 366, bw = 200, bh = 58;
+    var bg2 = ctx.createLinearGradient(bx, by, bx+bw, by+bh);
+    bg2.addColorStop(0, '#C9A227'); bg2.addColorStop(1, '#F5C842');
+    ctx.fillStyle = bg2;
+    roundRect(ctx, bx, by, bw, bh, 29);
+    ctx.fillStyle = '#0B1F3B';
+    ctx.font = '800 26px DM Sans, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🔥 ' + streak + '-Day Streak', bx + bw/2, by + bh/2);
+    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
 
-  // ── MEMBER NAME ──
-  ctx.textAlign = 'center';
-  ctx.font      = '700 54px "Playfair Display", serif';
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(member || 'BookWarrior', W / 2, avatarY + avatarR * 2 + 56);
+  // ── STATS CARDS ────────────────────────────────────────
+  var statsY = 470;
+  var cols   = Math.min(stats.length, 3);
+  var cardW  = cols > 0 ? Math.floor((W - 144 - (cols-1)*20) / cols) : 0;
+  var cardH  = 200;
 
-  // ── TYPE BADGE ──
-  var badgeText = isBook ? '📖 Book Complete!' : isWeekly ? '📆 Week Reflected' : isRest ? '😴 Rest Day Logged' : '⚡ Session Logged';
-  var badgeColor = isBook ? ['#7c3aed','#4c1d95'] : isWeekly ? ['#059669','#064e3b'] : isRest ? ['#0369a1','#0c4a6e'] : ['#F2B705','#b45309'];
-  var bw = 380, bh = 52, bx = (W - bw) / 2, by = avatarY + avatarR * 2 + 78;
-  var bGrad = ctx.createLinearGradient(bx, by, bx + bw, by);
-  bGrad.addColorStop(0, badgeColor[0]); bGrad.addColorStop(1, badgeColor[1]);
-  ctx.fillStyle = bGrad;
-  _roundRect(ctx, bx, by, bw, bh, 26); ctx.fill();
-  ctx.font      = '700 24px sans-serif';
-  ctx.fillStyle = isBook || isWeekly || isRest ? '#fff' : '#000';
-  ctx.fillText(badgeText, W / 2, by + bh * .67);
-
-  // ── STAT CARDS ──
-  var statsY  = by + bh + 48;
-  var stats   = _buildStats();
-  var cols    = Math.min(stats.length, 3);
-  var cardW   = 268, cardH = 170, gap = 26;
-  var totalW  = cols * cardW + (cols - 1) * gap;
-  var startX  = (W - totalW) / 2;
-
-  // If 4 stats: 2 rows of 2
-  var rows = stats.length > 3 ? [stats.slice(0,2), stats.slice(2,4)] : [stats];
-
-  rows.forEach(function(row, ri) {
-    var rCols = row.length;
-    var rTotalW = rCols * cardW + (rCols - 1) * gap;
-    var rStartX = (W - rTotalW) / 2;
-    var ry = statsY + ri * (cardH + 20);
-    row.forEach(function(s, ci) {
-      var cx = rStartX + ci * (cardW + gap);
-      _drawStatCard(ctx, cx, ry, cardW, cardH, s);
-    });
+  stats.slice(0, 3).forEach(function(row, idx) {
+    var cx = 72 + idx * (cardW + 20);
+    ctx.save();
+    // Card background
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    roundRect(ctx, cx, statsY, cardW, cardH, 20);
+    // Gold left border
+    ctx.fillStyle = '#C9A227';
+    roundRect(ctx, cx, statsY, 5, cardH, 3);
+    // Label
+    ctx.font = '600 22px DM Sans, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(row[0]).toUpperCase(), cx + cardW/2, statsY + 58);
+    // Value
+    ctx.font = '900 54px Georgia, serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(String(row[1]), cx + cardW/2, statsY + 138);
+    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
   });
 
-  // ── MOTIVATIONAL QUOTE ──
-  var qY = statsY + (rows.length * (cardH + 20)) + 20;
-  var quotes = _getQuote();
-  ctx.font      = 'italic 400 28px "Playfair Display", serif';
-  ctx.fillStyle = 'rgba(242,183,5,.65)';
-  ctx.textAlign = 'center';
-  _wrapText(ctx, '"' + quotes + '"', W / 2, qY, W - 200, 40);
+  // ── BOTTOM SECTION ─────────────────────────────────────
+  var bottomY = 730;
 
-  // ── BOTTOM WATERMARK ──
-  ctx.font      = '500 20px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,.2)';
-  ctx.textAlign = 'center';
-  ctx.fillText('bookaweek.app  ·  Join the movement', W / 2, H - 52);
-  ctx.fillStyle = 'rgba(242,183,5,.35)';
-  ctx.fillRect((W - 100) / 2, H - 38, 100, 1.5);
-}
-
-function _drawStatCard(ctx, x, y, w, h, stat) {
-  // Glass card
-  var cBg = ctx.createLinearGradient(x, y, x + w, y + h);
-  cBg.addColorStop(0, 'rgba(255,255,255,.07)');
-  cBg.addColorStop(1, 'rgba(255,255,255,.03)');
-  ctx.fillStyle = cBg;
-  _roundRect(ctx, x, y, w, h, 18); ctx.fill();
-  ctx.strokeStyle = 'rgba(242,183,5,.18)';
-  ctx.lineWidth   = 1;
-  _roundRect(ctx, x, y, w, h, 18); ctx.stroke();
-
-  // Icon
-  ctx.font      = '52px serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(stat.icon, x + w / 2, y + 64);
-
-  // Value
-  ctx.font      = '900 44px sans-serif';
-  ctx.fillStyle = '#F2B705';
-  ctx.fillText(stat.value, x + w / 2, y + 110);
-
-  // Label
-  ctx.font      = '400 20px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,.45)';
-  ctx.fillText(stat.label, x + w / 2, y + 140);
-}
-
-function _buildStats() {
-  var d = _shareData;
-  var type = d.type || 'daily';
-  if (type === 'book') {
-    return [
-      { icon:'📖', value: _shortTitle(d.book), label:'Completed' },
-      { icon:'⭐', value: d.rating ? (d.rating + '/5') : '—', label:'Your Rating' },
-      { icon:'📚', value: (d.booksTotal || 1) + '/24', label:'Books Done' },
-      { icon:'🔥', value: (d.streak || getStreak()) + 'd', label:'Streak' }
-    ];
-  }
-  if (type === 'weekly') {
-    return [
-      { icon:'📅', value: 'Week ' + (d.weekNum || '—'), label:'Completed' },
-      { icon:'📖', value: (d.daysRead || 0) + ' days', label:'Read This Week' },
-      { icon:'⏱', value: _fmtMins(d.totalMins), label:'Minutes' },
-      { icon:'📃', value: _fmtNum(d.totalPages), label:'Pages' }
-    ];
-  }
-  if (d.isRest) {
-    return [
-      { icon:'😴', value: 'Rest', label:'Recovery Day' },
-      { icon:'🔥', value: (d.streak || getStreak()) + 'd', label:'Streak' },
-      { icon:'📚', value: (d.booksTotal || '—') + '', label:'Books Done' }
-    ];
-  }
-  // Daily reading
-  return [
-    { icon:'⏱', value: _fmtMins(d.minutes), label:'Minutes' },
-    { icon:'📃', value: _fmtNum(d.pages), label:'Pages' },
-    { icon:'⭐', value: d.rating ? (d.rating + '/5') : '—', label:'Rating' },
-    { icon:'🔥', value: (d.streak || getStreak()) + 'd', label:'Streak' }
+  // Motivational quote line
+  var quotes = [
+    '"The man who reads is the man who leads."',
+    '"Every page turned is a mind upgraded."',
+    '"Read. Reflect. Execute. Repeat."',
+    '"BookWarriors don\'t just read — they become."',
+    '"Knowledge compounds. Keep logging."'
   ];
-}
-
-function _fmtMins(m) { m = parseInt(m)||0; return m >= 60 ? (m/60).toFixed(1) + 'h' : m + 'm'; }
-function _fmtNum(n)  { return (parseInt(n)||0).toLocaleString('en-US'); }
-function _shortTitle(t) {
-  if (!t) return '—';
-  t = String(t);
-  return t.length > 14 ? t.slice(0,13) + '…' : t;
-}
-
-var _QUOTES = [
-  'Leaders are readers.',
-  'One book at a time.',
-  'Read. Reflect. Rise.',
-  'Every page is a step.',
-  'Knowledge is the edge.',
-  'Discipline = Freedom.',
-  'Be the 1%. Read daily.',
-  'Small reps. Big results.',
-  'Your mind is the weapon.',
-  'Iron sharpens iron.',
-  'Earn your rest.',
-  'Rest. Rise. Repeat.'
-];
-
-function _getQuote() {
-  var d = _shareData;
-  if (d.isRest)        return 'Earn your rest.';
-  if (d.type==='book') return 'Another book down. The gap widens.';
-  if (d.type==='weekly') return 'Every week you show up, the compound effect grows.';
-  return _QUOTES[Math.floor(Math.random() * _QUOTES.length)];
-}
-
-function _drawGrain(ctx, W, H) {
+  var q = quotes[Math.floor(Math.random() * quotes.length)];
   ctx.save();
-  ctx.globalAlpha = 0.028;
-  for (var i = 0; i < 4000; i++) {
-    var gx = Math.random() * W, gy = Math.random() * H, gs = Math.random() * 1.5;
-    ctx.fillStyle = 'rgba(255,255,255,' + (Math.random() * .8 + .2) + ')';
-    ctx.fillRect(gx, gy, gs, gs);
-  }
+  ctx.font = 'italic 28px Georgia, serif';
+  ctx.fillStyle = 'rgba(201,162,39,0.7)';
+  ctx.textAlign = 'center';
+  wrapText(ctx, q, W/2, bottomY, W - 144, 40);
+  ctx.textAlign = 'start';
+  ctx.restore();
+
+  // ── DATE ───────────────────────────────────────────────
+  ctx.save();
+  ctx.font = '500 24px DM Sans, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.textAlign = 'center';
+  ctx.fillText(dateStr, W/2, 870);
+  ctx.textAlign = 'start';
+  ctx.restore();
+
+  // ── BOTTOM BAR ─────────────────────────────────────────
+  ctx.fillStyle = '#C9A227';
+  ctx.fillRect(0, H-8, W, 8);
+
+  // ── WATERMARK ──────────────────────────────────────────
+  ctx.save();
+  ctx.font = '700 26px Georgia, serif';
+  ctx.fillStyle = 'rgba(201,162,39,0.5)';
+  ctx.textAlign = 'center';
+  ctx.fillText('bookaweekchallenge.vercel.app', W/2, H-30);
+  ctx.textAlign = 'start';
   ctx.restore();
 }
 
-function _roundRect(ctx, x, y, w, h, r) {
+// ── HELPERS ──────────────────────────────────────────────────
+function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y, x+w, y+r, r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x, y+h, x, y+h-r, r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
+  ctx.closePath(); ctx.fill();
 }
 
-function _wrapText(ctx, text, x, y, maxW, lineH) {
+function wrapText(ctx, text, x, y, maxW, lineH) {
   var words = text.split(' '), line = '';
-  for (var i = 0; i < words.length; i++) {
-    var test = line + words[i] + ' ';
-    if (ctx.measureText(test).width > maxW && i > 0) {
-      ctx.fillText(line.trim(), x, y);
-      line = words[i] + ' ';
-      y += lineH;
+  for (var n=0; n<words.length; n++) {
+    var test = line + words[n] + ' ';
+    if (ctx.measureText(test).width > maxW && n > 0) {
+      ctx.fillText(line.trim(), x, y); line = words[n] + ' '; y += lineH;
     } else { line = test; }
   }
   ctx.fillText(line.trim(), x, y);
 }
 
-// ── SHARE ACTIONS ──
-function _getCanvasBlob(cb) {
-  var canvas = document.getElementById('shareCanvas');
-  if (!canvas) return;
-  // Scale the preview canvas (320×320) to full res (1080×1080) for saving
-  renderShareCard(); // ensure full res is rendered
-  canvas.toBlob(cb, 'image/png');
+function updatePhotoThumb(photoUrl, name) {
+  var thumb = document.getElementById('sharePhotoThumb');
+  var nameEl = document.getElementById('sharePhotoName');
+  var row   = document.getElementById('sharePhotoRow');
+  if (thumb && nameEl && row) {
+    row.style.display = 'flex';
+    if (photoUrl) {
+      thumb.src = photoUrl;
+      thumb.style.display = 'block';
+    } else {
+      thumb.style.display = 'none';
+    }
+    nameEl.textContent = name;
+  }
 }
 
-function downloadShareCard() {
-  var canvas = document.getElementById('shareCanvas');
-  if (!canvas) return;
-  renderShareCard();
-  var link     = document.createElement('a');
-  link.download = 'bookaweek-' + (member||'warrior').toLowerCase().replace(/\s/g,'-') + '-' + dateStr() + '.png';
-  link.href    = canvas.toDataURL('image/png');
-  link.click();
-}
-
-function nativeShare() {
-  if (!navigator.share) { downloadShareCard(); return; }
-  var canvas = document.getElementById('shareCanvas');
-  if (!canvas) return;
-  renderShareCard();
+function updateShareBlob(canvas) {
   canvas.toBlob(function(blob) {
-    var file = new File([blob], 'bookaweek-' + (member||'warrior') + '.png', { type: 'image/png' });
+    _shareBlob = blob;
+  }, 'image/png');
+}
+
+// ── NATIVE SHARE ─────────────────────────────────────────────
+function doNativeShare() {
+  if (!_shareBlob) {
+    // Blob not ready yet — generate and retry
+    var canvas = document.getElementById('shareCanvas');
+    canvas.toBlob(function(blob) {
+      _shareBlob = blob;
+      doNativeShare();
+    }, 'image/png');
+    return;
+  }
+  var name    = String((_lastLogData||{}).member || member || 'BookWarrior');
+  var streak  = getStreak();
+  var caption = '📚 Just logged my reading session on BOOKAWEEK!' +
+    (streak > 0 ? ' ' + streak + '-day streak! 🔥' : '') +
+    '\n\nRead. Reflect. Execute.\n#BookAWeek #BookWarrior #ReadingChallenge';
+
+  var file = new File([_shareBlob], 'bookaweek-' + name.toLowerCase() + '.png', { type:'image/png' });
+
+  if (navigator.share && navigator.canShare && navigator.canShare({ files:[file] })) {
     navigator.share({
-      title:  'BookWarriors 📚',
-      text:   _shareText(),
+      title:  'BOOKAWEEK — ' + name + ' logged a session!',
+      text:   caption,
       files:  [file]
     }).catch(function(e) {
       if (e.name !== 'AbortError') downloadShareCard();
     });
-  }, 'image/png');
+  } else if (navigator.share) {
+    // Share without file (text only)
+    navigator.share({ title:'BOOKAWEEK', text: caption })
+      .then(function() { downloadShareCard(); }) // also save image
+      .catch(function(e) { if (e.name !== 'AbortError') downloadShareCard(); });
+  } else {
+    // Desktop fallback
+    downloadShareCard();
+  }
 }
 
-function shareWhatsApp() {
+// ── DOWNLOAD FALLBACK ─────────────────────────────────────────
+function downloadShareCard() {
   var canvas = document.getElementById('shareCanvas');
-  if (!canvas) return;
-  // Download first (WhatsApp web can't receive files via JS share on all devices)
-  renderShareCard();
-  var link     = document.createElement('a');
-  link.download = 'bookaweek.png';
-  link.href    = canvas.toDataURL('image/png');
+  var name   = String((_lastLogData||{}).member || member || 'BookWarrior').toLowerCase().replace(/\s+/g,'-');
+  var link   = document.createElement('a');
+  link.download = 'bookaweek-' + name + '-' + new Date().toISOString().slice(0,10) + '.png';
+  link.href = canvas.toDataURL('image/png');
   link.click();
-  // Then open WhatsApp with the text (user attaches saved image)
-  var msg = encodeURIComponent(_shareText());
-  setTimeout(function() {
-    window.open('https://wa.me/?text=' + msg, '_blank');
-  }, 800);
 }
-
-function _shareText() {
-  var d    = _shareData;
-  var streak = d.streak || getStreak();
-  if (d.type === 'book') return (member||'I') + ' just finished "' + (d.book||'a book') + '" 📖 That\'s ' + (d.booksTotal||1) + '/24 books this year! Streak: ' + streak + ' days 🔥 #BookWarriors #BookAWeek';
-  if (d.type === 'weekly') return (member||'I') + ' reflected on Week ' + (d.weekNum||'') + ' with BookWarriors! ' + (d.daysRead||0) + ' days read · ' + (d.totalMins||0) + ' min · ' + (d.totalPages||0) + ' pages 💪 #BookWarriors';
-  if (d.isRest) return (member||'I') + ' took a strategic rest day with BookWarriors. Streak: ' + streak + 'd 😴🔥 #BookWarriors';
-  return (member||'I') + ' just logged ' + (d.minutes||0) + ' min reading "' + (d.book||'') + '" 📚 Streak: ' + streak + 'd 🔥 #BookWarriors #ReadDaily';
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// HOOK: Replace success() to also prepare share card
-// ══════════════════════════════════════════════════════════════════════
-var _originalSuccess = null;
-(function() {
-  // Wait for success() to be defined, then wrap it
-  var _check = setInterval(function() {
-    if (typeof success === 'function') {
-      clearInterval(_check);
-      // success() is already defined above; we patch it by re-assigning
-    }
-  }, 100);
-})();
-
 
 </script>
+
+<!-- SHARE SHEET -->
+<div class="share-sheet" id="shareSheet">
+  <div class="share-backdrop" onclick="closeShare()"></div>
+  <div class="share-panel">
+    <div class="share-handle"></div>
+    <div class="share-preview-wrap">
+      <div class="share-canvas-wrap">
+        <canvas id="shareCanvas" width="1080" height="1080"></canvas>
+      </div>
+    </div>
+    <div class="share-photo-row" id="sharePhotoRow" style="margin-top:14px;">
+      <img class="share-photo-avatar" id="sharePhotoThumb" src="" alt="">
+      <div class="share-photo-info">
+        <div class="share-photo-name" id="sharePhotoName"></div>
+        <div class="share-photo-sub">Your profile photo · used on every share card</div>
+      </div>
+      <span class="share-photo-change" onclick="changeProfilePhoto()">Change</span>
+    </div>
+    <div class="share-actions">
+      <button class="share-btn-primary" id="shareNativeBtn" onclick="doNativeShare()">
+        <span style="font-size:18px;">&#x2197;</span> Share to WhatsApp / Instagram / X
+      </button>
+      <button class="share-btn-secondary" onclick="downloadShareCard()">
+        <span style="font-size:15px;">&#x2B07;</span> Save Image to Phone
+      </button>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+  </div>
+</div>
+
 </body>
 </html>
