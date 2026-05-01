@@ -837,7 +837,28 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 
 /* ══ SHARE SYSTEM ══ */
-/* share-sheet CSS moved to bottom of file */
+.share-sheet{position:fixed;inset:0;z-index:900;display:none;align-items:flex-end;justify-content:center;}
+.share-sheet.show{display:flex;animation:fadeIn .2s ease;}
+.share-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);}
+.share-panel{position:relative;width:100%;max-width:420px;background:#F5F0E8;border-radius:28px 28px 0 0;padding:0 0 env(safe-area-inset-bottom,20px);overflow:hidden;animation:slideUp .3s cubic-bezier(.34,1.2,.64,1);max-height:92vh;overflow-y:auto;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.share-handle{width:36px;height:4px;background:rgba(0,0,0,.12);border-radius:2px;margin:12px auto 0;}
+.share-preview-wrap{padding:16px 20px 0;}
+.share-canvas-wrap{border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(11,31,59,.18);position:relative;}
+.share-canvas-wrap canvas{display:block;width:100%;height:auto;}
+.share-photo-hint{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.55);border-radius:8px;padding:4px 8px;font-size:10px;color:#fff;display:none;}
+.share-photo-hint.show{display:block;}
+.share-actions{padding:14px 20px 0;display:flex;flex-direction:column;gap:10px;}
+.share-btn-primary{width:100%;height:54px;background:linear-gradient(135deg,#0B1F3B,#1A3A6B);border:none;border-radius:16px;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;-webkit-tap-highlight-color:transparent;transition:opacity .15s;letter-spacing:.02em;box-shadow:0 6px 24px rgba(11,31,59,0.25);}
+.share-btn-primary:active{opacity:.85;}
+.share-btn-secondary{width:100%;height:46px;background:rgba(11,31,59,0.06);border:1.5px solid rgba(11,31,59,.15);border-radius:14px;color:#0B1F3B;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;-webkit-tap-highlight-color:transparent;transition:background .15s;}
+.share-btn-secondary:active{background:rgba(11,31,59,.05);}
+.share-photo-row{display:flex;align-items:center;gap:10px;padding:0 20px;margin-top:4px;}
+.share-photo-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(11,31,59,.1);flex-shrink:0;background:#f0f0f0;}
+.share-photo-info{flex:1;min-width:0;}
+.share-photo-name{font-size:13px;font-weight:700;color:#0B1F3B;}
+.share-photo-sub{font-size:11px;color:rgba(11,31,59,.45);}
+.share-photo-change{font-size:12px;font-weight:700;color:#1547B0;cursor:pointer;text-decoration:underline;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
 
 </style>
 </head>
@@ -1024,10 +1045,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </div>
     <div class="date-badge"><span id="dayName">Monday</span> &middot; <span id="fullDate">...</span></div>
     <div class="member-greeting">Hey, <em id="greetName">...</em> &#x1F44B;</div>
-    <div class="member-sub" id="greetSub" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      Ready to log your session?
-      <span id="syncBadge" style="display:none;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid;letter-spacing:.04em;"></span>
-    </div>
+    <div class="member-sub" id="greetSub">Ready to log your session?</div>
   </div>
 
 
@@ -2584,76 +2602,20 @@ function prog(){
 // GAS SEND + OFFLINE QUEUE
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
-async function sendToGAS(payload) {
+function sendToGAS(payload) {
+  // no-cors is required for GAS — response is opaque but request reaches GAS
+  // We add member to every payload for GAS sheet routing
   if (!payload.member) payload.member = member || '';
-  var body = JSON.stringify(payload);
-
-  // ── ATTEMPT 1: CORS mode — lets us READ the sheet's response ──
-  // GAS deployed to "Anyone" returns proper CORS headers.
-  // This is how we KNOW the data landed.
-  try {
-    var r = await fetch(URL, {
-      method:  'POST',
-      mode:    'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    body
-    });
-    if (r.ok) {
-      var json = await r.json().catch(function(){ return {}; });
-      console.log('[BAW] GAS confirmed:', payload.action, json);
-      if (json.success !== false) {
-        // Sheet confirmed receipt — show green flash
-        _showSyncBadge(true);
-        return json;
-      } else {
-        console.warn('[BAW] GAS returned error:', json.error);
-        _showSyncBadge(false, json.error);
-        throw new Error(json.error || 'GAS error');
-      }
-    }
-  } catch(corsErr) {
-    // ── ATTEMPT 2: no-cors fallback ──
-    // Data lands in sheet but response is opaque — we can't confirm.
-    if (corsErr.name !== 'TypeError') throw corsErr; // rethrow non-network errors
-    console.warn('[BAW] CORS blocked, falling back to no-cors:', corsErr.message);
-    try {
-      await fetch(URL, {
-        method:  'POST',
-        mode:    'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body:    body
-      });
-      console.log('[BAW] no-cors POST sent (opaque):', payload.action);
-      _showSyncBadge(null); // unknown — show neutral
-    } catch(e2) {
-      throw e2; // truly offline — caller will queue
-    }
-  }
-}
-
-// Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
-function _showSyncBadge(confirmed, errMsg) {
-  var el = document.getElementById('syncBadge');
-  if (!el) return;
-  if (confirmed === true) {
-    el.textContent = '✓ Synced to sheet';
-    el.style.background = 'rgba(13,122,110,.18)';
-    el.style.color = '#0D7A6E';
-    el.style.borderColor = 'rgba(13,122,110,.35)';
-  } else if (confirmed === false) {
-    el.textContent = '⚠ Sheet error';
-    el.style.background = 'rgba(192,57,43,.12)';
-    el.style.color = '#E07070';
-    el.style.borderColor = 'rgba(192,57,43,.28)';
-    if (errMsg) console.warn('[BAW] Sheet error:', errMsg);
-  } else {
-    el.textContent = '↑ Sent to sheet';
-    el.style.background = 'rgba(242,183,5,.1)';
-    el.style.color = 'var(--gold)';
-    el.style.borderColor = 'rgba(242,183,5,.3)';
-  }
-  el.style.display = 'inline-flex';
-  setTimeout(function(){ el.style.display = 'none'; }, 5000);
+  return fetch(URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify(payload)
+  }).then(function(r) {
+    // opaque response — we just trust it landed
+    console.log('[BAW] GAS POST sent:', payload.action, 'for', payload.member);
+    return r;
+  });
 }
 
 function queueLog(payload) {
@@ -2722,7 +2684,7 @@ function flushOnLogin() {
     await sendToGAS(payload);
     optimisticUpdate(payload); // Layer 2: instant UI update
     recordLog();
-    localStorage.setItem(PRE+'lastLog', dateStr()); scheduleViaSW();
+    localStorage.setItem(lastLogKey(), dateStr()); localStorage.setItem(PRE+'lastLog', dateStr()); scheduleViaSW();
     triggerPostSubmitFetch(); // Layer 3: confirm from sheet in 2s
     success(rest?'Rest Day Logged!':'Session Logged!',
       rest?'Recovery is part of the system.':payload.minutes+' minutes logged. Every session builds the edge.',
@@ -2733,16 +2695,15 @@ function flushOnLogin() {
     queueLog(payload);
     optimisticUpdate(payload); // Layer 2: instant UI update even offline
     recordLog();
-    localStorage.setItem(PRE+'lastLog', dateStr()); scheduleViaSW();
+    localStorage.setItem(lastLogKey(), dateStr()); localStorage.setItem(PRE+'lastLog', dateStr()); scheduleViaSW();
     success(rest?'Rest Day Logged! (offline)':'Session Logged! (offline)',
       'Saved locally. Will sync to sheet when connection returns.',
       rest?[['Member',member],['Type','Rest Day']]:[['Member',member],['Minutes',payload.minutes+' min'],['Book',(book||'').slice(0,22)]]);
     resetDaily();
   }finally{setDL(false);}
 });
-})();
 
-// ── WEEKLY — global scope so login() can call it ──
+// ── WEEKLY ──
 function setupWeekly(){
   var now=new Date(),sun=now.getDay()===0,force=location.search.includes('weekly=open');
   document.getElementById('weeklyLocked').style.display=(!sun&&!force)?'block':'none';
@@ -2769,6 +2730,7 @@ function setupWeekly(){
       });
   }
 }
+})();
 
 (function(){ var _wf=document.getElementById('weeklyForm'); if(_wf) _wf.addEventListener('submit',async function(e){
   e.preventDefault();
@@ -2823,11 +2785,6 @@ function success(title,msg,stats){
     return '<div class="s-row"><span class="s-lbl">'+r[0]+'</span><span class="s-val">'+esc(String(r[1]))+'</span></div>';
   }).join('');
   document.getElementById('successOverlay').classList.add('show');
-  // Pre-render share card in background so tapping Share is instant
-  setTimeout(function() {
-    var photo = localStorage.getItem(photoKey());
-    renderShareCard(photo || null);
-  }, 400);
 }
 function closeSuccess(){
   document.getElementById('successOverlay').classList.remove('show');
@@ -3601,47 +3558,18 @@ function getInitials(name) {
 // - Download fallback for desktop / platforms that don't support share API
 // ══════════════════════════════════════════════════════════════════════
 
-var PHOTO_KEY = 'baw_profile_photo'; // base key — we append member name below
+var PHOTO_KEY = 'baw_profile_photo';
 var _shareBlob = null; // cached blob from last render
-
-// Member-specific photo key (so each warrior keeps their own photo)
-function photoKey() {
-  return PHOTO_KEY + (member ? '_' + lettersOnly(member) : '');
-}
-
-// ── MISSING FUNCTIONS (called by _drawCard / renderShareCard) ──
-function updateShareBlob(canvas) {
-  try {
-    canvas.toBlob(function(blob) { _shareBlob = blob; }, 'image/png');
-  } catch(e) { _shareBlob = null; }
-}
-
-function updatePhotoThumb(dataUrl, name) {
-  var thumb   = document.getElementById('sharePhotoThumb');
-  var empty   = document.getElementById('shareAvatarEmpty');
-  var nameEl  = document.getElementById('sharePhotoName');
-  if (nameEl) nameEl.textContent = name || member || '';
-  if (!thumb) return;
-  if (dataUrl) {
-    thumb.src = dataUrl;
-    thumb.style.display = 'block';
-    if (empty) empty.style.display = 'none';
-  } else {
-    thumb.src = '';
-    thumb.style.display = 'none';
-    if (empty) empty.style.display = 'flex';
-  }
-}
 
 // ── OPEN SHARE SHEET ──────────────────────────────────────────
 function openShare() {
   var sheet = document.getElementById('shareSheet');
   sheet.classList.add('show');
-  var photo = localStorage.getItem(photoKey());
+  // Check if we have a saved photo
+  var photo = localStorage.getItem(PHOTO_KEY);
   if (!photo) {
-    // First time — prompt and render with initials
-    renderShareCard(null);
-    setTimeout(function() { promptPhoto(); }, 300);
+    // First time — prompt to add photo
+    setTimeout(function() { promptPhoto(); }, 200);
   } else {
     renderShareCard(photo);
   }
@@ -3703,7 +3631,7 @@ function handlePhotoUpload(event) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var b64 = e.target.result;
-    localStorage.setItem(photoKey(), b64);
+    localStorage.setItem(PHOTO_KEY, b64);
     // Remove prompt overlay if present
     var overlay = document.querySelector('.photo-prompt-overlay');
     if (overlay) overlay.remove();
@@ -3714,8 +3642,31 @@ function handlePhotoUpload(event) {
   event.target.value = '';
 }
 
+// ── MISSING FUNCTIONS: updateShareBlob + updatePhotoThumb ─────
+function updateShareBlob(canvas) {
+  canvas.toBlob(function(blob) {
+    _shareBlob = blob;
+  }, 'image/png');
+}
+
+function updatePhotoThumb(photoDataUrl, name) {
+  var thumb  = document.getElementById('sharePhotoThumb');
+  var nameEl = document.getElementById('sharePhotoName');
+  var row    = document.getElementById('sharePhotoRow');
+  if (!thumb || !row) return;
+  if (photoDataUrl) {
+    thumb.src = photoDataUrl;
+    thumb.style.display = 'block';
+  } else {
+    thumb.src = '';
+    thumb.style.display = 'none';
+  }
+  if (nameEl) nameEl.textContent = name || member || '';
+  row.style.display = 'flex';
+}
+
 // ── CANVAS CARD RENDERER ──────────────────────────────────────
-// Produces a 1080×1080 px card — perfect for Instagram/WhatsApp
+// Produces a 1080×1350 px card — portrait for Instagram/WhatsApp
 function renderShareCard(photoDataUrl) {
   var canvas = document.getElementById('shareCanvas');
   var ctx    = canvas.getContext('2d');
@@ -3734,556 +3685,471 @@ function renderShareCard(photoDataUrl) {
 
   if (photoDataUrl) {
     var img = new Image();
-    img.onload = function() { _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, img); };
-    img.onerror= function() { _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, null); };
+    img.onload = function() { _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, img, title, now); };
+    img.onerror= function() { _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, null, title, now); };
     img.src = photoDataUrl;
   } else {
-    _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, null);
+    _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, null, title, now);
   }
 
   updatePhotoThumb(photoDataUrl, name);
 }
 
-function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg) {
+function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg, title, now) {
+  // ════════════════════════════════════════════
+  // WORLD-CLASS VIRAL SHARE CARD
+  // 1080 × 1350 px — Portrait 4:5 (Instagram/WhatsApp perfect)
+  // Design: Bold editorial dark top + warm cream bottom
+  // Goal: 90% of viewers want to join BookWarriors
+  // ════════════════════════════════════════════
 
-  // ════════════════════════════════════════════════════════════════════
-  // BOOKAWEEK SHARE CARD — MAGAZINE COVER EDITION
-  // Full-dark premium layout. Gold metallic. Billboard-level impact.
-  // Every element engineered to make viewers ask: "How do I join?"
-  // ════════════════════════════════════════════════════════════════════
-
-  var d      = _lastLogData || {};
-  var stats2 = d.stats || stats || [];
-  var title  = String(d.title || 'Session Logged').replace(/[!]/g,'').replace(/\(offline\)/g,'').trim();
-  var isRest = title.toLowerCase().indexOf('rest') !== -1;
-  var now3   = new Date();
-
-  // ── PALETTE (premium dark) ───────────────────────────────────────────
-  var BG1    = '#04080F';   // Almost-black base
-  var BG2    = '#071526';   // Deep navy
-  var BG3    = '#0A1E3A';   // Mid navy
-  var GOLD   = '#C9A227';   // Main gold
-  var GOLD_L = '#F5C842';   // Light gold
-  var GOLD_D = '#8B6914';   // Dark gold
-  var GOLD_M = '#E0AE22';   // Mid gold
-  var WHITE  = '#FFFFFF';
-  var OFF_W  = '#F0EBE0';   // Warm white for bottom section
-  var TEAL   = '#0D9E8E';
-  var CREAM  = '#FAF6EE';
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 0 — FULL CANVAS BACKGROUND
-  // ═══════════════════════════════════════════════════════════════════
-  var bgGr = ctx.createLinearGradient(0, 0, 0, H);
-  bgGr.addColorStop(0,   BG1);
-  bgGr.addColorStop(0.3, BG2);
-  bgGr.addColorStop(0.65, BG3);
-  bgGr.addColorStop(1,   BG2);
-  ctx.fillStyle = bgGr;
+  // ── FULL BACKGROUND — rich deep navy ────────
+  var bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, '#050D1A');
+  bgGrad.addColorStop(0.55, '#091828');
+  bgGrad.addColorStop(1, '#0A1E33');
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // ── Diagonal beam (upper right warm glow) ────────────────────────
-  var beam = ctx.createRadialGradient(W*0.9, 0, 0, W*0.9, 0, W*1.1);
-  beam.addColorStop(0,   'rgba(201,162,39,0.13)');
-  beam.addColorStop(0.4, 'rgba(201,162,39,0.05)');
-  beam.addColorStop(1,   'transparent');
-  ctx.fillStyle = beam;
-  ctx.fillRect(0, 0, W, H*0.7);
-
-  // ── Lower teal glow ─────────────────────────────────────────────
-  var tealGlow = ctx.createRadialGradient(W*0.1, H*0.85, 0, W*0.1, H*0.85, W*0.6);
-  tealGlow.addColorStop(0,   'rgba(13,158,142,0.09)');
-  tealGlow.addColorStop(1,   'transparent');
-  ctx.fillStyle = tealGlow;
-  ctx.fillRect(0, H*0.5, W, H*0.5);
-
-  // ── Fine dot-grid pattern overlay ────────────────────────────────
+  // ── GRAIN TEXTURE overlay ───────────────────
   ctx.save();
-  ctx.globalAlpha = 0.04;
-  for (var dx = 30; dx < W; dx += 40) {
-    for (var dy = 30; dy < H*0.7; dy += 40) {
-      ctx.beginPath();
-      ctx.arc(dx, dy, 1.2, 0, Math.PI*2);
-      ctx.fillStyle = GOLD;
-      ctx.fill();
+  ctx.globalAlpha = 0.028;
+  for (var gx = 0; gx < W; gx += 2) {
+    for (var gy = 0; gy < H; gy += 2) {
+      ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
+      ctx.fillRect(gx, gy, 1, 1);
     }
   }
   ctx.restore();
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 1 — LEFT GOLD SPINE + TOP BORDER
-  // ═══════════════════════════════════════════════════════════════════
-  // Left spine — gradient from bright to muted
-  var spineGr = ctx.createLinearGradient(0, 0, 0, H);
-  spineGr.addColorStop(0,   GOLD_L);
-  spineGr.addColorStop(0.4, GOLD);
-  spineGr.addColorStop(1,   GOLD_D);
-  ctx.fillStyle = spineGr;
-  ctx.fillRect(0, 0, 7, H);
+  // ── LARGE RADIAL GOLD GLOW (top right) ──────
+  ctx.save();
+  var goldGlow = ctx.createRadialGradient(W * 0.85, H * 0.12, 0, W * 0.85, H * 0.12, 480);
+  goldGlow.addColorStop(0, 'rgba(201,162,39,0.18)');
+  goldGlow.addColorStop(0.5, 'rgba(201,162,39,0.06)');
+  goldGlow.addColorStop(1, 'rgba(201,162,39,0)');
+  ctx.fillStyle = goldGlow;
+  ctx.fillRect(0, 0, W, H * 0.5);
+  ctx.restore();
 
-  // Top border full width
-  var topBdr = ctx.createLinearGradient(0, 0, W, 0);
-  topBdr.addColorStop(0,   GOLD_L);
-  topBdr.addColorStop(0.5, GOLD);
-  topBdr.addColorStop(1,   'transparent');
-  ctx.fillStyle = topBdr;
+  // ── BLUE GLOW (bottom left) ──────────────────
+  ctx.save();
+  var blueGlow = ctx.createRadialGradient(W * 0.15, H * 0.78, 0, W * 0.15, H * 0.78, 380);
+  blueGlow.addColorStop(0, 'rgba(21,71,176,0.22)');
+  blueGlow.addColorStop(1, 'rgba(21,71,176,0)');
+  ctx.fillStyle = blueGlow;
+  ctx.fillRect(0, H * 0.5, W, H * 0.5);
+  ctx.restore();
+
+  // ── DECORATIVE GEOMETRIC CIRCLES ────────────
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.beginPath(); ctx.arc(W * 0.88, -60, 320, 0, Math.PI*2);
+  ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(W * 0.88, -60, 250, 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.04;
+  ctx.beginPath(); ctx.arc(-40, H * 0.82, 260, 0, Math.PI*2);
+  ctx.strokeStyle = '#1547B0'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+
+  // ── GOLD LEFT ACCENT BAR ─────────────────────
+  var barGrad = ctx.createLinearGradient(0, 0, 0, H);
+  barGrad.addColorStop(0, '#F5C842');
+  barGrad.addColorStop(0.5, '#C9A227');
+  barGrad.addColorStop(1, 'rgba(201,162,39,0.3)');
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(0, 0, 8, H);
+
+  // ── TOP GOLD LINE ────────────────────────────
+  ctx.fillStyle = '#C9A227';
   ctx.fillRect(0, 0, W, 6);
 
-  // Bottom border
-  var botBdr = ctx.createLinearGradient(0, 0, W, 0);
-  botBdr.addColorStop(0,   GOLD_L);
-  botBdr.addColorStop(0.5, GOLD);
-  botBdr.addColorStop(1,   'transparent');
-  ctx.fillStyle = botBdr;
-  ctx.fillRect(0, H-7, W, 7);
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 2 — DECORATIVE GEOMETRY
-  // ═══════════════════════════════════════════════════════════════════
-
-  // Large hollow circle — upper right (barely visible)
+  // ════════════════════════════════════════════
+  // SECTION 1 — BRAND HEADER (top 100px)
+  // ════════════════════════════════════════════
+  // Brand word mark
   ctx.save();
-  ctx.globalAlpha = 0.07;
-  ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(W*0.82, H*0.13, 260, 0, Math.PI*2); ctx.stroke();
-  ctx.globalAlpha = 0.035;
-  ctx.beginPath(); ctx.arc(W*0.82, H*0.13, 310, 0, Math.PI*2); ctx.stroke();
-  ctx.restore();
-
-  // Small accent circle — lower left
-  ctx.save();
-  ctx.globalAlpha = 0.06;
-  ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(W*0.08, H*0.78, 120, 0, Math.PI*2); ctx.stroke();
-  ctx.restore();
-
-  // Diagonal slash lines (top-right corner)
-  ctx.save();
-  ctx.globalAlpha = 0.06;
-  ctx.strokeStyle = GOLD; ctx.lineWidth = 1;
-  for (var sl = 0; sl < 7; sl++) {
-    ctx.beginPath();
-    ctx.moveTo(W*0.55 + sl*55, 0);
-    ctx.lineTo(W + sl*55 - 180, H*0.35);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 3 — TOP BRAND BAR
-  // ═══════════════════════════════════════════════════════════════════
-  var brandY = 74;
-
-  ctx.save();
-  // BOOKAWEEK logo text
-  ctx.font = '900 32px Georgia, serif';
-  ctx.fillStyle = GOLD_L;
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText('BOOK', 52, brandY);
+  ctx.font = '900 34px Georgia, serif';
+  ctx.fillStyle = '#F5C842';
+  ctx.fillText('BOOK', 52, 72);
   var bkW = ctx.measureText('BOOK').width;
+  ctx.font = '300 34px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('WARRIORS', 52 + bkW + 4, 72);
 
-  // thin gold divider between BOOK and AWEEK
-  ctx.fillStyle = GOLD_D;
-  ctx.fillRect(52 + bkW + 3, brandY - 22, 2, 26);
+  // Small divider dot
+  ctx.beginPath();
+  ctx.arc(52 + bkW + 4 + ctx.measureText('WARRIORS').width + 22, 58, 3, 0, Math.PI*2);
+  ctx.fillStyle = '#C9A227';
+  ctx.fill();
 
-  ctx.font = '300 32px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.42)';
-  ctx.fillText('AWEEK', 52 + bkW + 10, brandY);
-
-  // Season badge (right side)
+  // Date top right
   ctx.textAlign = 'right';
-  ctx.font = '700 13px sans-serif';
-  ctx.fillStyle = GOLD;
-  ctx.letterSpacing = '0.14em';
-  ctx.fillText('SEASON ONE · 2026', W - 52, brandY - 14);
-  ctx.font = '400 13px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
-  ctx.fillText(dayName + '  ·  ' + dateFmt, W - 52, brandY + 8);
+  ctx.font = '700 22px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillText(dayName, W - 52, 58);
+  ctx.font = '400 19px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillText(dateFmt, W - 52, 82);
   ctx.textAlign = 'left';
-
-  // Gold rule under brand
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(52, brandY + 14, W - 104, 1);
-  ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 4 — HERO PHOTO + NAME
-  // ═══════════════════════════════════════════════════════════════════
-  var photoR  = 130;   // radius
-  var photoCX = 52 + photoR;
-  var photoCY = brandY + 60 + photoR;
+  // ════════════════════════════════════════════
+  // SECTION 2 — HERO PHOTO + WARRIOR NAME
+  // Large cinematic identity block
+  // ════════════════════════════════════════════
+  var photoR   = 100; // radius
+  var photoCX  = 52 + photoR;
+  var photoCY  = 220 + photoR;
 
-  // Outer glow halos
-  var haloColors = [
-    [photoR + 60, 0.04],
-    [photoR + 40, 0.07],
-    [photoR + 22, 0.12],
-    [photoR + 10, 0.20],
-  ];
-  haloColors.forEach(function(h) {
+  // Outer aura rings
+  [55, 38, 20].forEach(function(extra, i) {
     ctx.save();
-    ctx.globalAlpha = h[1];
-    var hGr = ctx.createRadialGradient(photoCX, photoCY, photoR, photoCX, photoCY, h[0]);
-    hGr.addColorStop(0, GOLD);
-    hGr.addColorStop(1, 'transparent');
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, h[0], 0, Math.PI*2);
-    ctx.fillStyle = hGr; ctx.fill();
+    ctx.globalAlpha = [0.07, 0.12, 0.22][i];
+    ctx.beginPath();
+    ctx.arc(photoCX, photoCY, photoR + extra, 0, Math.PI*2);
+    ctx.fillStyle = '#C9A227';
+    ctx.fill();
     ctx.restore();
   });
 
   if (photoImg) {
-    // ── USER PHOTO ────────────────────────────────────────────────
-    // Clip and draw photo
+    // Clip photo to circle
     ctx.save();
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
-    ctx.closePath(); ctx.clip();
-    var iw = photoImg.width, ih = photoImg.height;
+    ctx.beginPath();
+    ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+    var iw = photoImg.naturalWidth || photoImg.width;
+    var ih = photoImg.naturalHeight || photoImg.height;
     var sc = Math.max((photoR*2)/iw, (photoR*2)/ih);
-    ctx.drawImage(photoImg, photoCX - iw*sc/2, photoCY - ih*sc/2, iw*sc, ih*sc);
+    ctx.drawImage(photoImg,
+      photoCX - iw*sc/2, photoCY - ih*sc/2, iw*sc, ih*sc);
     ctx.restore();
-
-    // Gold ring (double)
+    // Gold ring border
     ctx.save();
-    ctx.strokeStyle = GOLD_L; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 4, 0, Math.PI*2); ctx.stroke();
-    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 12, 0, Math.PI*2); ctx.stroke();
-    ctx.restore();
-
-  } else {
-    // ── INITIALS CIRCLE ────────────────────────────────────────────
-    ctx.save();
-    // Glassmorphism dark fill
-    var circGr = ctx.createRadialGradient(photoCX - 40, photoCY - 40, 0, photoCX, photoCY, photoR);
-    circGr.addColorStop(0, '#1A3D70');
-    circGr.addColorStop(0.6, '#0B1F3B');
-    circGr.addColorStop(1, '#06111F');
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
-    ctx.fillStyle = circGr; ctx.fill();
-
-    // Gold ring
-    ctx.strokeStyle = GOLD_L; ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(photoCX, photoCY, photoR + 4, 0, Math.PI*2);
+    ctx.strokeStyle = '#F5C842';
+    ctx.lineWidth = 6;
     ctx.stroke();
-    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 12, 0, Math.PI*2); ctx.stroke();
-
-    // Initials
-    var ini = getInitials(name);
-    ctx.font = '700 ' + (ini.length > 1 ? '80' : '100') + 'px Georgia, serif';
-    ctx.fillStyle = GOLD_L;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = GOLD; ctx.shadowBlur = 30;
-    ctx.fillText(ini, photoCX, photoCY);
-    ctx.shadowBlur = 0;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.restore();
-  }
-
-  // ── NAME BLOCK (right of photo) ────────────────────────────────
-  var nameStartX = photoCX + photoR + 48;
-  var nameStartY = photoCY - photoR + 10;
-  var nameW = W - nameStartX - 52;
-
-  ctx.save();
-
-  // "TODAY'S LOG" micro label
-  ctx.font = '800 15px sans-serif';
-  ctx.fillStyle = GOLD;
-  ctx.fillText("TODAY'S LOG", nameStartX, nameStartY + 18);
-
-  // Thin gold rule
-  ctx.fillStyle = GOLD_D;
-  ctx.globalAlpha = 0.5;
-  ctx.fillRect(nameStartX, nameStartY + 26, 160, 1);
-  ctx.globalAlpha = 1;
-
-  // FIRST NAME — massive
-  var fnLen = fname.length;
-  var fnSize = fnLen > 10 ? 70 : fnLen > 7 ? 82 : fnLen > 5 ? 94 : 106;
-  ctx.font = '900 ' + fnSize + 'px Georgia, serif';
-  ctx.fillStyle = WHITE;
-  ctx.shadowColor = 'rgba(201,162,39,0.3)';
-  ctx.shadowBlur = 35;
-  // Clip name to card width
-  var displayFirst = fname;
-  while (ctx.measureText(displayFirst).width > nameW && displayFirst.length > 4) {
-    displayFirst = displayFirst.slice(0, -1);
-  }
-  ctx.fillText(displayFirst, nameStartX, nameStartY + 36 + fnSize);
-  ctx.shadowBlur = 0;
-
-  // Last name (if exists) — lighter
-  var lname = name !== fname ? name.replace(fname,'').trim() : '';
-  if (lname) {
-    ctx.font = '300 38px Georgia, serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.32)';
-    var displayLast = lname.length > 13 ? lname.slice(0,12)+'…' : lname;
-    ctx.fillText(displayLast, nameStartX, nameStartY + 42 + fnSize + 44);
-  }
-
-  // BookWarrior + Season chip
-  var chipY = nameStartY + 50 + fnSize + (lname ? 58 : 14);
-  ctx.font = '700 15px sans-serif';
-  ctx.fillStyle = TEAL;
-  ctx.fillText('BOOKWARRIOR  ·  S1\'26', nameStartX, chipY);
-
-  ctx.restore();
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 5 — STREAK BADGE (below photo)
-  // ═══════════════════════════════════════════════════════════════════
-  var sbY = photoCY + photoR + 36;
-  var sbX = 52;
-
-  if (streak > 0) {
-    var sbW = Math.min(320, W - sbX - 52), sbH = 64;
-
-    // Shadow
-    ctx.save();
-    ctx.shadowColor = 'rgba(201,162,39,0.5)'; ctx.shadowBlur = 28;
-    // Metallic gold gradient fill
-    var strGr = ctx.createLinearGradient(sbX, sbY, sbX + sbW, sbY + sbH);
-    strGr.addColorStop(0,    '#7A5200');
-    strGr.addColorStop(0.15, GOLD_L);
-    strGr.addColorStop(0.5,  GOLD);
-    strGr.addColorStop(0.85, GOLD_M);
-    strGr.addColorStop(1,    '#9A6A00');
-    ctx.fillStyle = strGr;
-    _roundRect(ctx, sbX, sbY, sbW, sbH, 32); ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Shine overlay
-    ctx.globalAlpha = 0.18;
-    var shineGr = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbH);
-    shineGr.addColorStop(0, WHITE);
-    shineGr.addColorStop(0.5, 'transparent');
-    ctx.fillStyle = shineGr;
-    _roundRect(ctx, sbX, sbY, sbW, sbH/2, 32); ctx.fill();
-    ctx.globalAlpha = 1;
-
-    ctx.font = '800 26px sans-serif';
-    ctx.fillStyle = BG1;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    var streakEmoji = streak >= 90 ? '🏆' : streak >= 30 ? '👑' : streak >= 14 ? '⚡' : '🔥';
-    ctx.fillText(streakEmoji + '  ' + streak + ' DAY STREAK', sbX + sbW/2, sbY + sbH/2);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
-
   } else {
-    // First session badge
+    // Initials circle — premium look
     ctx.save();
-    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
-    var d1W = 220, d1H = 50;
-    ctx.beginPath(); _roundRect(ctx, sbX, sbY, d1W, d1H, 25); ctx.stroke();
-    ctx.font = '700 20px sans-serif';
-    ctx.fillStyle = GOLD;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('✨  FIRST SESSION', sbX + d1W/2, sbY + d1H/2);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    var igr = ctx.createRadialGradient(photoCX - 20, photoCY - 20, 0, photoCX, photoCY, photoR);
+    igr.addColorStop(0, '#1A3A6B');
+    igr.addColorStop(1, '#0A1828');
+    ctx.beginPath();
+    ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
+    ctx.fillStyle = igr;
+    ctx.fill();
+    ctx.strokeStyle = '#F5C842';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.font = '700 72px Georgia, serif';
+    ctx.fillStyle = '#F5C842';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(getInitials(name), photoCX, photoCY);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
     ctx.restore();
   }
 
-  // ── Book tag ───────────────────────────────────────────────────────
-  var bookStat2 = stats2.find(function(r){ return String(r[0]).toLowerCase() === 'book'; });
-  var tagY = sbY + (streak > 0 ? 82 : 68);
-
-  if (bookStat2 && !isRest) {
-    var btTxt = '📖  ' + String(bookStat2[1]).slice(0,26) + (bookStat2[1].length > 26 ? '…' : '');
-    ctx.save();
-    ctx.font = '600 16px sans-serif';
-    var btW2 = Math.min(ctx.measureText(btTxt).width + 28, W - sbX - 52);
-    // Glass pill
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1;
-    _roundRect(ctx, sbX, tagY, btW2, 44, 22); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    ctx.textBaseline = 'middle'; ctx.fillText(btTxt, sbX + 14, tagY + 22);
-    ctx.textBaseline = 'alphabetic'; ctx.restore();
-    tagY += 62;
-  }
-
-  if (isRest) {
-    ctx.save();
-    ctx.font = '700 18px sans-serif';
-    ctx.fillStyle = 'rgba(167,139,250,0.85)';
-    ctx.fillText('😴  REST & RECOVERY — DISCIPLINE INCLUDES REST', sbX, tagY + 28);
-    ctx.restore();
-    tagY += 52;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 6 — ACHIEVEMENT HEADLINE (centered below everything)
-  // ═══════════════════════════════════════════════════════════════════
-  var achY = tagY + 44;
-
-  // Achievement label
-  var achText = isRest ? 'REST DAY LOGGED' : title.toUpperCase();
+  // ── WARRIOR IDENTITY TEXT ────────────────────
+  var nameX = photoCX + photoR + 44;
+  var nameY = 240;
 
   ctx.save();
-  // Gold metallic headline text
-  var achGr = ctx.createLinearGradient(0, achY - 60, 0, achY);
-  achGr.addColorStop(0, GOLD_L);
-  achGr.addColorStop(0.5, GOLD_M);
-  achGr.addColorStop(1, GOLD_D);
-  var achSize = achText.length > 20 ? 54 : achText.length > 14 ? 62 : 72;
-  ctx.font = '900 ' + achSize + 'px Georgia, serif';
-  ctx.fillStyle = achGr;
-  ctx.textAlign = 'center';
-  ctx.shadowColor = 'rgba(201,162,39,0.35)'; ctx.shadowBlur = 22;
-  ctx.fillText(achText, W/2, achY);
+  // "WARRIOR" micro-label
+  ctx.font = '800 18px Georgia, serif';
+  ctx.fillStyle = '#F5C842';
+  ctx.letterSpacing = '0.25em';
+  ctx.fillText('BOOKWARRIOR', nameX, nameY);
+
+  // First name — massive cinematic
+  var nameFontSize = fname.length > 10 ? 72 : fname.length > 7 ? 86 : 100;
+  ctx.font = '900 ' + nameFontSize + 'px Georgia, serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowColor = 'rgba(245,200,66,0.3)';
+  ctx.shadowBlur = 40;
+  ctx.fillText(fname.toUpperCase(), nameX, nameY + 90);
   ctx.shadowBlur = 0;
 
-  // Creed line
-  ctx.font = '700 20px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.letterSpacing = '0.2em';
-  ctx.fillText('READ · REFLECT · EXECUTE', W/2, achY + 36);
-  ctx.textAlign = 'left';
+  // Last name
+  if (name !== fname) {
+    var lname = name.replace(fname, '').trim();
+    ctx.font = '300 46px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.38)';
+    ctx.fillText(lname.toUpperCase(), nameX, nameY + 145);
+  }
   ctx.restore();
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 7 — STAT BLOCKS
-  // ═══════════════════════════════════════════════════════════════════
-  var statY = achY + 72;
-  var validStats = stats2.filter(function(r){
-    var v = String(r[1]||'');
-    return v && v !== '0 min' && v !== '0' && r[0] !== 'Book';
-  });
-  if (!validStats.length) validStats = stats2.slice(0,3);
-  var nSt = Math.min(validStats.length, 3);
-  var sPad = 52, sGap = 16;
-  var sW = nSt > 0 ? Math.floor((W - sPad*2 - sGap*(nSt-1)) / nSt) : 300;
-  var sH = 210;
+  // ── STREAK BADGE — cinematic pill ────────────
+  if (streak > 0) {
+    var sBx = nameX;
+    var sBy = (name !== fname) ? nameY + 174 : nameY + 118;
+    var sBw = Math.min(340, W - nameX - 52);
+    var sBh = 58;
 
-  validStats.slice(0, nSt).forEach(function(row, i) {
-    var sx = sPad + i*(sW + sGap);
-
-    // Glassmorphism card
     ctx.save();
-    // Card background
-    var cBg = ctx.createLinearGradient(sx, statY, sx, statY + sH);
-    cBg.addColorStop(0, 'rgba(255,255,255,0.09)');
-    cBg.addColorStop(1, 'rgba(255,255,255,0.04)');
-    ctx.fillStyle = cBg;
-    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
-    _roundRect(ctx, sx, statY, sW, sH, 20); ctx.fill(); ctx.stroke();
+    // Gradient pill
+    var sg = ctx.createLinearGradient(sBx, sBy, sBx + sBw, sBy + sBh);
+    sg.addColorStop(0, '#B8860B');
+    sg.addColorStop(0.4, '#F5C842');
+    sg.addColorStop(1, '#C9A227');
+    ctx.fillStyle = sg;
+    ctx.shadowColor = 'rgba(245,200,66,0.4)';
+    ctx.shadowBlur = 20;
+    _roundRect(ctx, sBx, sBy, sBw, sBh, 29);
+    ctx.shadowBlur = 0;
+    // Text
+    ctx.font = '800 26px Georgia, serif';
+    ctx.fillStyle = '#0A1828';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\uD83D\uDD25  ' + streak + '-DAY STREAK', sBx + sBw/2, sBy + sBh/2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
 
-    // Top gold accent bar
-    var tGr = ctx.createLinearGradient(sx, statY, sx + sW, statY);
-    tGr.addColorStop(0, GOLD_L); tGr.addColorStop(1, GOLD_D);
-    ctx.fillStyle = tGr;
-    _roundRect(ctx, sx, statY, sW, 5, 3); ctx.fill();
+  // ════════════════════════════════════════════
+  // SECTION 3 — DIVIDER (angled gold line)
+  // ════════════════════════════════════════════
+  var divY = 500;
+  ctx.save();
+  // Diagonal gold stripe
+  var divGrad = ctx.createLinearGradient(0, divY, W, divY + 4);
+  divGrad.addColorStop(0, 'rgba(201,162,39,0)');
+  divGrad.addColorStop(0.2, '#C9A227');
+  divGrad.addColorStop(0.8, '#C9A227');
+  divGrad.addColorStop(1, 'rgba(201,162,39,0)');
+  ctx.strokeStyle = divGrad;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(52, divY);
+  ctx.lineTo(W - 52, divY - 30);
+  ctx.stroke();
+  ctx.restore();
 
-    // Shine
-    ctx.globalAlpha = 0.08;
-    var shGr2 = ctx.createLinearGradient(sx, statY, sx, statY + sH*0.4);
-    shGr2.addColorStop(0, WHITE); shGr2.addColorStop(1, 'transparent');
-    ctx.fillStyle = shGr2;
-    _roundRect(ctx, sx + 1, statY + 5, sW - 2, sH * 0.35, 18); ctx.fill();
-    ctx.globalAlpha = 1;
+  // ════════════════════════════════════════════
+  // SECTION 4 — SESSION STATS (3 bold cards)
+  // ════════════════════════════════════════════
+  var statsY   = 540;
+  var statsH   = 210;
+  var showStats = stats.slice(0, 3).filter(function(r){ return r && r[1] !== undefined && String(r[1]) !== '0'; });
+  if (!showStats.length) showStats = (stats||[]).slice(0, 3);
+  var numSt = Math.max(1, Math.min(3, showStats.length));
+  var gap   = 16;
+  var cardW = Math.floor((W - 104 - gap * (numSt - 1)) / numSt);
 
-    // Stat value — massive gold
-    var valStr = String(row[1]);
-    var valSize = valStr.length > 7 ? 46 : valStr.length > 5 ? 58 : valStr.length > 3 ? 72 : 88;
-    var valGr = ctx.createLinearGradient(sx, statY + sH*0.3, sx, statY + sH*0.7);
-    valGr.addColorStop(0, GOLD_L);
-    valGr.addColorStop(0.5, GOLD_M);
-    valGr.addColorStop(1, GOLD_D);
-    ctx.font = '900 ' + valSize + 'px Georgia, serif';
-    ctx.fillStyle = valGr;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(201,162,39,0.4)'; ctx.shadowBlur = 16;
-    ctx.fillText(valStr, sx + sW/2, statY + sH * 0.49);
+  showStats.slice(0, numSt).forEach(function(row, i) {
+    var cx = 52 + i * (cardW + gap);
+    var cy = statsY;
+
+    // Card background — dark glass
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 12;
+    var cGrad = ctx.createLinearGradient(cx, cy, cx + cardW, cy + statsH);
+    cGrad.addColorStop(0, 'rgba(255,255,255,0.07)');
+    cGrad.addColorStop(1, 'rgba(255,255,255,0.03)');
+    ctx.fillStyle = cGrad;
+    _roundRect(ctx, cx, cy, cardW, statsH, 22);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // Gold top accent bar
+    ctx.save();
+    ctx.fillStyle = '#C9A227';
+    _roundRect(ctx, cx, cy, cardW, 5, 3);
+    ctx.restore();
+
+    // Card border
+    ctx.save();
+    ctx.strokeStyle = 'rgba(201,162,39,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(cx, cy, cardW, statsH, 22) :
+      (function(){ ctx.moveTo(cx+22,cy); ctx.lineTo(cx+cardW-22,cy);
+        ctx.arcTo(cx+cardW,cy,cx+cardW,cy+22,22);
+        ctx.lineTo(cx+cardW,cy+statsH-22);
+        ctx.arcTo(cx+cardW,cy+statsH,cx+cardW-22,cy+statsH,22);
+        ctx.lineTo(cx+22,cy+statsH);
+        ctx.arcTo(cx,cy+statsH,cx,cy+statsH-22,22);
+        ctx.lineTo(cx,cy+22);
+        ctx.arcTo(cx,cy,cx+22,cy,22);
+        ctx.closePath(); })();
+    ctx.stroke();
+    ctx.restore();
+
+    // Stat VALUE — dominant
+    var valStr = String(row[1] || '—');
+    var vsz = valStr.length > 6 ? 52 : valStr.length > 4 ? 66 : valStr.length > 2 ? 78 : 90;
+    ctx.save();
+    ctx.font = '900 ' + vsz + 'px Georgia, serif';
+    ctx.fillStyle = '#F5C842';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(245,200,66,0.2)';
+    ctx.shadowBlur = 16;
+    ctx.fillText(valStr, cx + cardW/2, cy + statsH * 0.44);
     ctx.shadowBlur = 0;
 
-    // Label
-    ctx.font = '700 15px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.fillText(String(row[0]).toUpperCase(), sx + sW/2, statY + sH - 26);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    // Stat LABEL
+    ctx.font = '700 19px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(String(row[0] || '').toUpperCase(), cx + cardW/2, cy + statsH - 28);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
     ctx.restore();
   });
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 8 — QUOTE
-  // ═══════════════════════════════════════════════════════════════════
-  var qY = statY + sH + 50;
-  var qList = [
-    '"Not all readers are leaders — but all leaders are readers."',
-    '"The person you\'ll be in 5 years is in the books you read today."',
-    '"Reading is the gym for the mind. Show up daily."',
-    '"One book at a time. One warrior at a time."',
-    '"The edge you seek is on pages you have not yet read."',
-    '"A reader lives a thousand lives. The non-reader lives only one."',
-    '"Leaders are readers who act on what they read."'
-  ];
-  var qText = qList[now3.getDay() % qList.length];
+  // ════════════════════════════════════════════
+  // SECTION 5 — ACHIEVEMENT TITLE
+  // ════════════════════════════════════════════
+  var achY = statsY + statsH + 60;
+
   ctx.save();
-  ctx.font = 'italic 26px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
   ctx.textAlign = 'center';
-  _wrapText(ctx, qText, W/2, qY, W - 120, 40);
+  // Overline
+  ctx.font = '700 19px Georgia, serif';
+  ctx.fillStyle = '#C9A227';
+  ctx.letterSpacing = '0.2em';
+  ctx.fillText('SESSION COMPLETE', W/2, achY);
+  // Main achievement
+  var achTitle = String(stats && stats[0] && stats[0][0] === 'Type' ? (stats[0][1] || 'Session Logged') : (title || 'Session Logged')).replace(/[!]/g,'');
+  ctx.font = '900 ' + (achTitle.length > 14 ? 58 : 68) + 'px Georgia, serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowColor = 'rgba(245,200,66,0.2)';
+  ctx.shadowBlur = 24;
+  _wrapText(ctx, achTitle.toUpperCase(), W/2, achY + 76, W - 120, 76);
+  ctx.shadowBlur = 0;
   ctx.textAlign = 'left';
   ctx.restore();
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 9 — VIRAL CTA BLOCK (bottom)
-  // Design principle: Make it feel exclusive and urgent.
-  // People must feel FOMO reading this.
-  // ═══════════════════════════════════════════════════════════════════
-  var ctaH3 = 165;
-  var ctaY4 = H - ctaH3 - 8;
+  // ════════════════════════════════════════════
+  // SECTION 6 — VIRAL QUOTE (the hook)
+  // ════════════════════════════════════════════
+  var quoteY = achY + 200;
+  var quotes = [
+    'Every page you read today puts you further ahead of who you were yesterday.',
+    'The edge isn\'t given. It\'s read, reflected, and executed — daily.',
+    'While most scroll, warriors read. The gap compounds every single day.',
+    'One book a week. One warrior at a time. One life completely transformed.',
+    'You don\'t become exceptional by accident. You read. You reflect. You execute.',
+    'Your future self is built on the books you open today. Show up.'
+  ];
+  var q = quotes[now.getDay() % quotes.length];
+
+  // Quote background — subtle glass card
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  _roundRect(ctx, 52, quoteY - 16, W - 104, 180, 16);
+  // Left gold quote bar
+  ctx.fillStyle = '#C9A227';
+  ctx.fillRect(52, quoteY - 16, 5, 180);
+  ctx.restore();
 
   ctx.save();
+  ctx.font = 'italic 700 28px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  ctx.textAlign = 'left';
+  _wrapText(ctx, '\u201C' + q + '\u201D', 80, quoteY + 28, W - 160, 44);
+  ctx.restore();
 
-  // CTA background: premium dark glass with gold shimmer border
-  var ctaBg = ctx.createLinearGradient(0, ctaY4, W, ctaY4 + ctaH3);
-  ctaBg.addColorStop(0,   'rgba(201,162,39,0.14)');
-  ctaBg.addColorStop(0.5, 'rgba(10,26,60,0.85)');
-  ctaBg.addColorStop(1,   'rgba(4,8,15,0.95)');
-  ctx.fillStyle = ctaBg;
-  ctx.fillRect(0, ctaY4, W, ctaH3);
+  // ════════════════════════════════════════════
+  // SECTION 7 — CTA BLOCK (join us — viral)
+  // ════════════════════════════════════════════
+  var ctaY = H - 220;
 
-  // Gold shimmer top edge
-  var edgeGr = ctx.createLinearGradient(0, ctaY4, W, ctaY4);
-  edgeGr.addColorStop(0,    'transparent');
-  edgeGr.addColorStop(0.2,  GOLD_L);
-  edgeGr.addColorStop(0.5,  GOLD_M);
-  edgeGr.addColorStop(0.8,  GOLD_L);
-  edgeGr.addColorStop(1,    'transparent');
-  ctx.fillStyle = edgeGr;
-  ctx.fillRect(0, ctaY4, W, 2.5);
+  // CTA card — premium gold gradient
+  ctx.save();
+  var ctaGrad = ctx.createLinearGradient(0, ctaY, W, ctaY + 140);
+  ctaGrad.addColorStop(0, '#0D2040');
+  ctaGrad.addColorStop(1, '#0A1828');
+  ctx.fillStyle = ctaGrad;
+  ctx.fillRect(0, ctaY, W, 140);
+
+  // Gold top border
+  var ctaBorderGrad = ctx.createLinearGradient(0, ctaY, W, ctaY);
+  ctaBorderGrad.addColorStop(0, 'rgba(201,162,39,0)');
+  ctaBorderGrad.addColorStop(0.3, '#C9A227');
+  ctaBorderGrad.addColorStop(0.7, '#C9A227');
+  ctaBorderGrad.addColorStop(1, 'rgba(201,162,39,0)');
+  ctx.fillStyle = ctaBorderGrad;
+  ctx.fillRect(0, ctaY, W, 3);
 
   // Main CTA text
-  ctx.font = '900 34px Georgia, serif';
-  var ctaHeadGr = ctx.createLinearGradient(0, ctaY4 + 20, 0, ctaY4 + 60);
-  ctaHeadGr.addColorStop(0, GOLD_L);
-  ctaHeadGr.addColorStop(1, GOLD_M);
-  ctx.fillStyle = ctaHeadGr;
   ctx.textAlign = 'center';
-  ctx.shadowColor = 'rgba(201,162,39,0.5)'; ctx.shadowBlur = 18;
-  ctx.fillText('24 BOOKS. 6 MONTHS. 1 IDENTITY.', W/2, ctaY4 + 50);
+  ctx.font = '900 36px Georgia, serif';
+  ctx.fillStyle = '#F5C842';
+  ctx.shadowColor = 'rgba(245,200,66,0.3)';
+  ctx.shadowBlur = 16;
+  ctx.fillText('JOIN THE BOOKWARRIORS', W/2, ctaY + 52);
   ctx.shadowBlur = 0;
 
-  // Sub-line
-  ctx.font = '500 22px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillText('Season 1 is LIVE. Spots are limited.', W/2, ctaY4 + 84);
+  // Sub CTA
+  ctx.font = '400 24px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillText('24 books · 184 days · Life-changing community', W/2, ctaY + 88);
 
   // URL pill
-  ctx.font = '700 18px sans-serif';
-  ctx.fillStyle = GOLD_L;
-  ctx.fillText('→  selar.com/bookaweekchallenge', W/2, ctaY4 + 118);
-
-  // Hashtags
-  ctx.font = '600 16px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillText('#BookAWeek  ·  #BookWarrior  ·  #ReadReflectExecute', W/2, ctaY4 + 148);
+  var urlPillW = 540, urlPillH = 46, urlPillX = (W - urlPillW)/2, urlPillY = ctaY + 108;
+  ctx.shadowColor = 'rgba(201,162,39,0.25)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = 'rgba(201,162,39,0.15)';
+  _roundRect(ctx, urlPillX, urlPillY, urlPillW, urlPillH, 23);
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(201,162,39,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect ? ctx.roundRect(urlPillX, urlPillY, urlPillW, urlPillH, 23) :
+    (function(){
+      ctx.moveTo(urlPillX+23,urlPillY);
+      ctx.lineTo(urlPillX+urlPillW-23,urlPillY);
+      ctx.arcTo(urlPillX+urlPillW,urlPillY,urlPillX+urlPillW,urlPillY+23,23);
+      ctx.lineTo(urlPillX+urlPillW,urlPillY+urlPillH-23);
+      ctx.arcTo(urlPillX+urlPillW,urlPillY+urlPillH,urlPillX+urlPillW-23,urlPillY+urlPillH,23);
+      ctx.lineTo(urlPillX+23,urlPillY+urlPillH);
+      ctx.arcTo(urlPillX,urlPillY+urlPillH,urlPillX,urlPillY+urlPillH-23,23);
+      ctx.lineTo(urlPillX,urlPillY+23);
+      ctx.arcTo(urlPillX,urlPillY,urlPillX+23,urlPillY,23);
+      ctx.closePath();
+    })();
+  ctx.stroke();
+  ctx.font = '700 22px Georgia, serif';
+  ctx.fillStyle = '#C9A227';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('bookaweekchallenge.vercel.app  \u00B7  #BookWarriors', W/2, urlPillY + urlPillH/2);
+  ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   ctx.restore();
 
+  // ── BOTTOM GOLD BAR ─────────────────────────
+  var bottomBarGrad = ctx.createLinearGradient(0, H - 8, W, H);
+  bottomBarGrad.addColorStop(0, '#F5C842');
+  bottomBarGrad.addColorStop(0.5, '#C9A227');
+  bottomBarGrad.addColorStop(1, '#B8860B');
+  ctx.fillStyle = bottomBarGrad;
+  ctx.fillRect(0, H - 8, W, 8);
+
+  // ── HASHTAGS watermark ───────────────────────
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = '600 20px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillText('#BookWarrior  #ReadingChallenge  #BookAWeek  #24Books', W/2, H - 26);
+  ctx.textAlign = 'left';
+  ctx.restore();
+
+  // Done — update blob
   updateShareBlob(document.getElementById('shareCanvas'));
 }
 
@@ -4298,19 +4164,22 @@ function _roundRect(ctx, x, y, w, h, r) {
 }
 
 function _wrapText(ctx, text, x, y, maxW, lineH) {
-  // Remove surrounding quotes for wrapping, re-add after
+  var align = ctx.textAlign;
   var words = text.split(' '), line = '';
+  var lines = [];
   for (var n=0; n<words.length; n++) {
     var test = line + words[n] + ' ';
     if (ctx.measureText(test).width > maxW && n > 0) {
-      ctx.fillText(line.trim(), x, y);
+      lines.push(line.trim());
       line = words[n] + ' ';
-      y += lineH;
     } else {
       line = test;
     }
   }
-  ctx.fillText(line.trim(), x, y);
+  lines.push(line.trim());
+  lines.forEach(function(l, i) {
+    ctx.fillText(l, x, y + i * lineH);
+  });
 }
 
 // Keep old names as aliases so nothing breaks
@@ -4330,10 +4199,42 @@ function drawInitialsCircle(ctx, x, y, r, name) {
 }
 
 
+// ── PLATFORM-SPECIFIC SHARE HELPERS ──────────────────────────
+function _getShareCaption() {
+  var name   = String((_lastLogData||{}).member || member || 'BookWarrior');
+  var streak = getStreak();
+  return '📚 Just logged my reading session on BookWarriors!' +
+    (streak > 0 ? ' ' + streak + '-day streak! 🔥' : '') +
+    '\n\nRead. Reflect. Execute. Every. Single. Day.\n\nbookaweekchallenge.vercel.app\n\n#BookWarrior #BookAWeek #ReadingChallenge #24Books';
+}
+
+function shareToWhatsApp() {
+  // Save image first, then open WhatsApp
+  downloadShareCard();
+  setTimeout(function() {
+    var caption = _getShareCaption();
+    var url = 'https://wa.me/?text=' + encodeURIComponent(caption);
+    window.open(url, '_blank');
+  }, 600);
+}
+
+function shareToInstagram() {
+  // Instagram doesn't support direct URL sharing — download image and prompt
+  downloadShareCard();
+  toast('Image saved! Open Instagram → tap + → Story or Post → choose saved image');
+}
+
+function shareToX() {
+  var caption = _getShareCaption();
+  var url = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(caption);
+  window.open(url, '_blank');
+  // Also download the image
+  setTimeout(downloadShareCard, 300);
+}
+
 // ── NATIVE SHARE ─────────────────────────────────────────────
 function doNativeShare() {
   if (!_shareBlob) {
-    // Blob not ready yet — generate and retry
     var canvas = document.getElementById('shareCanvas');
     canvas.toBlob(function(blob) {
       _shareBlob = blob;
@@ -4342,315 +4243,88 @@ function doNativeShare() {
     return;
   }
   var name    = String((_lastLogData||{}).member || member || 'BookWarrior');
-  var streak  = getStreak();
-  var caption = '📚 Just logged my reading session on BOOKAWEEK!' +
-    (streak > 0 ? ' ' + streak + '-day streak! 🔥' : '') +
-    '\n\nRead. Reflect. Execute.\n#BookAWeek #BookWarrior #ReadingChallenge';
-
-  var file = new File([_shareBlob], 'bookaweek-' + name.toLowerCase() + '.png', { type:'image/png' });
+  var caption = _getShareCaption();
+  var file = new File([_shareBlob], 'bookwarriors-' + name.toLowerCase().replace(/\s+/g,'-') + '.png', { type:'image/png' });
 
   if (navigator.share && navigator.canShare && navigator.canShare({ files:[file] })) {
     navigator.share({
-      title:  'BOOKAWEEK — ' + name + ' logged a session!',
+      title:  'BookWarriors — ' + name + ' logged a session!',
       text:   caption,
       files:  [file]
     }).catch(function(e) {
       if (e.name !== 'AbortError') downloadShareCard();
     });
   } else if (navigator.share) {
-    // Share without file (text only)
-    navigator.share({ title:'BOOKAWEEK', text: caption })
-      .then(function() { downloadShareCard(); }) // also save image
+    navigator.share({ title:'BookWarriors', text: caption })
+      .then(function() { downloadShareCard(); })
       .catch(function(e) { if (e.name !== 'AbortError') downloadShareCard(); });
   } else {
-    // Desktop fallback
     downloadShareCard();
   }
 }
 
-// ── DOWNLOAD FALLBACK ─────────────────────────────────────────
 function downloadShareCard() {
   var canvas = document.getElementById('shareCanvas');
   var name   = String((_lastLogData||{}).member || member || 'BookWarrior').toLowerCase().replace(/\s+/g,'-');
   var link   = document.createElement('a');
-  link.download = 'bookaweek-' + name + '-' + new Date().toISOString().slice(0,10) + '.png';
+  link.download = 'bookwarriors-' + name + '-' + new Date().toISOString().slice(0,10) + '.png';
   link.href = canvas.toDataURL('image/png');
   link.click();
 }
 
-// ── PLATFORM-SPECIFIC SHARE ───────────────────────────────────
-function _shareCaption() {
-  var streak  = getStreak();
-  var n       = String((_lastLogData||{}).member || member || 'BookWarrior');
-  return '📚 ' + n + ' just logged a reading session on BOOKAWEEK!' +
-    (streak > 0 ? '\n\n🔥 ' + streak + '-day streak and counting.' : '') +
-    '\n\n24 books · 6 months · 1 identity shift.' +
-    '\nJoin Season 1 → selar.com/bookaweekchallenge' +
-    '\n\n#BookAWeek #BookWarrior #ReadingChallenge #ReadReflectExecute';
-}
-
-function shareToWhatsApp() {
-  // Save image first, then open WhatsApp
-  downloadShareCard();
-  setTimeout(function() {
-    var caption = encodeURIComponent(_shareCaption());
-    window.open('https://wa.me/?text=' + caption, '_blank');
-  }, 600);
-}
-
-function shareToInstagram() {
-  // Instagram doesn't support direct share via URL — save image + guide user
-  downloadShareCard();
-  setTimeout(function() {
-    toast('Image saved! Open Instagram and post from your gallery 📸');
-  }, 400);
-}
-
-function shareToTwitter() {
-  var streak = getStreak();
-  var n = String((_lastLogData||{}).member || member || 'BookWarrior');
-  var text = '📚 Just logged my reading session! ' +
-    (streak > 0 ? '🔥 ' + streak + ' day streak! ' : '') +
-    'Building the reading edge one session at a time. ' +
-    'Join me → selar.com/bookaweekchallenge ' +
-    '#BookAWeek #BookWarrior';
-  downloadShareCard();
-  setTimeout(function() {
-    window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
-  }, 600);
-}
-
 </script>
 
-<!-- SHARE SHEET — PREMIUM DARK EDITION -->
-<style>
-/* ════════════════════════════════════════════
-   SHARE SHEET — full dark, matches card aesthetic
-   ════════════════════════════════════════════ */
-.share-sheet {
-  position:fixed;inset:0;z-index:900;display:none;
-  align-items:flex-end;justify-content:center;
-}
-.share-sheet.show { display:flex;animation:fadeIn .2s ease; }
-
-.share-backdrop {
-  position:absolute;inset:0;
-  background:rgba(4,8,15,.85);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-}
-
-.share-panel {
-  position:relative;width:100%;max-width:440px;
-  background:linear-gradient(160deg,#0A1624 0%,#06100A 50%,#080D1C 100%);
-  border-radius:28px 28px 0 0;
-  border-top:1px solid rgba(201,162,39,0.25);
-  border-left:1px solid rgba(201,162,39,0.08);
-  border-right:1px solid rgba(201,162,39,0.08);
-  padding:0 0 env(safe-area-inset-bottom,28px);
-  overflow:hidden;
-  animation:slideUp .35s cubic-bezier(.34,1.1,.64,1);
-  max-height:94vh;overflow-y:auto;
-  box-shadow:0 -20px 80px rgba(4,8,15,.7), 0 0 0 1px rgba(201,162,39,0.12);
-}
-
-/* Gold shimmer at top of panel */
-.share-panel::before {
-  content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent 0%,#F5C842 40%,#C9A227 60%,transparent 100%);
-}
-
-@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-
-/* Handle */
-.sht-handle {
-  width:36px;height:4px;
-  background:rgba(201,162,39,0.25);
-  border-radius:2px;margin:14px auto 0;
-}
-
-/* Header */
-.sht-head {
-  padding:12px 22px 0;
-  display:flex;align-items:center;justify-content:space-between;
-}
-.sht-head-label {
-  font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;
-  color:rgba(201,162,39,0.5);
-}
-.sht-head-close {
-  width:32px;height:32px;border-radius:50%;
-  background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.08);
-  cursor:pointer;color:rgba(255,255,255,0.4);font-size:15px;
-  display:flex;align-items:center;justify-content:center;
-  -webkit-tap-highlight-color:transparent;transition:background .15s;
-}
-.sht-head-close:active { background:rgba(255,255,255,0.1); }
-
-/* Preview canvas */
-.sht-preview { padding:14px 18px 0;position:relative; }
-.sht-canvas-wrap {
-  border-radius:16px;overflow:hidden;position:relative;
-  box-shadow:0 12px 50px rgba(0,0,0,.6), 0 0 0 1px rgba(201,162,39,0.18);
-}
-.sht-canvas-wrap canvas { display:block;width:100%;height:auto; }
-
-/* Photo row */
-.sht-photo-row {
-  display:flex;align-items:center;gap:12px;
-  padding:14px 20px 0;
-}
-.sht-avatar {
-  width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;
-  border:2px solid rgba(201,162,39,0.6);
-  box-shadow:0 0 16px rgba(201,162,39,0.25);
-}
-.sht-avatar-empty {
-  width:42px;height:42px;border-radius:50%;flex-shrink:0;
-  background:rgba(201,162,39,0.08);
-  border:2px dashed rgba(201,162,39,0.3);
-  display:flex;align-items:center;justify-content:center;font-size:17px;
-  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s;
-}
-.sht-avatar-empty:active { background:rgba(201,162,39,0.14); }
-.sht-photo-info { flex:1;min-width:0; }
-.sht-photo-name { font-size:13px;font-weight:700;color:#fff; }
-.sht-photo-sub  { font-size:11px;color:rgba(255,255,255,0.28);margin-top:2px;line-height:1.4; }
-.sht-photo-change {
-  font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-  color:rgba(201,162,39,0.8);cursor:pointer;flex-shrink:0;
-  padding:7px 14px;
-  background:rgba(201,162,39,0.08);
-  border:1px solid rgba(201,162,39,0.2);
-  border-radius:20px;
-  -webkit-tap-highlight-color:transparent;transition:all .15s;
-}
-.sht-photo-change:active { background:rgba(201,162,39,0.16); }
-
-/* Actions area */
-.sht-actions { padding:14px 18px 0;display:flex;flex-direction:column;gap:10px; }
-
-/* Primary CTA — gold metallic */
-.sht-btn-native {
-  width:100%;height:60px;
-  background:linear-gradient(135deg,#7A5200 0%,#F5C842 40%,#C9A227 60%,#9A6A00 100%);
-  border:none;border-radius:18px;
-  color:#04080F;
-  font-family:'DM Sans',sans-serif;font-size:16px;font-weight:900;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
-  -webkit-tap-highlight-color:transparent;letter-spacing:.04em;
-  box-shadow:0 6px 32px rgba(201,162,39,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
-  transition:opacity .12s,transform .12s;
-  position:relative;overflow:hidden;
-}
-.sht-btn-native::before {
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(255,255,255,0.2) 0%,transparent 50%);
-  pointer-events:none;
-}
-.sht-btn-native:active { opacity:.88;transform:scale(.98); }
-
-/* Platform row */
-.sht-platforms { display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px; }
-.sht-plat-btn {
-  height:58px;border-radius:14px;
-  background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.08);
-  cursor:pointer;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:4px;
-  -webkit-tap-highlight-color:transparent;transition:all .15s;
-}
-.sht-plat-btn:active { background:rgba(255,255,255,0.1);transform:scale(.96); }
-.sht-plat-icon { font-size:24px;line-height:1; }
-.sht-plat-label {
-  font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-  color:rgba(255,255,255,0.3);
-}
-
-/* Save/download button */
-.sht-btn-save {
-  width:100%;height:48px;
-  background:rgba(255,255,255,0.04);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:14px;color:rgba(255,255,255,0.45);
-  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
-  -webkit-tap-highlight-color:transparent;transition:background .15s;
-}
-.sht-btn-save:active { background:rgba(255,255,255,0.08); }
-
-.sht-divider {
-  height:1px;
-  background:linear-gradient(90deg,transparent,rgba(201,162,39,0.15),transparent);
-  margin:4px 0;
-}
-.sht-spacer { height:16px; }
-</style>
-
+<!-- SHARE SHEET -->
 <div class="share-sheet" id="shareSheet">
   <div class="share-backdrop" onclick="closeShare()"></div>
   <div class="share-panel">
-    <div class="sht-handle"></div>
-
-    <div class="sht-head">
-      <div class="sht-head-label">📤 &nbsp;Share Your Progress</div>
-      <button class="sht-head-close" onclick="closeShare()">&#x2715;</button>
+    <div class="share-handle"></div>
+    <div style="text-align:center;padding:10px 20px 0;">
+      <div style="font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(11,31,59,.5);">Share Your Progress</div>
     </div>
-
-    <!-- Card preview -->
-    <div class="sht-preview">
-      <div class="sht-canvas-wrap">
+    <div class="share-preview-wrap">
+      <div class="share-canvas-wrap">
         <canvas id="shareCanvas" width="1080" height="1350"></canvas>
       </div>
     </div>
 
-    <!-- Photo row -->
-    <div class="sht-photo-row" id="sharePhotoRow">
-      <img class="sht-avatar" id="sharePhotoThumb" src="" alt="" style="display:none" onclick="changeProfilePhoto()">
-      <div class="sht-avatar-empty" id="shareAvatarEmpty" onclick="changeProfilePhoto()">📷</div>
-      <div class="sht-photo-info">
-        <div class="sht-photo-name" id="sharePhotoName"></div>
-        <div class="sht-photo-sub">Add your photo once — appears on every card automatically</div>
+    <!-- Profile photo row -->
+    <div class="share-photo-row" id="sharePhotoRow" style="margin-top:14px;display:none;">
+      <img class="share-photo-avatar" id="sharePhotoThumb" src="" alt="" style="display:none;">
+      <div class="share-photo-info">
+        <div class="share-photo-name" id="sharePhotoName" style="font-size:13px;font-weight:700;color:#0B1F3B;"></div>
+        <div class="share-photo-sub" style="font-size:11px;color:rgba(11,31,59,.45);">Your profile photo · used on every share card</div>
       </div>
-      <span class="sht-photo-change" onclick="changeProfilePhoto()">Change</span>
+      <span class="share-photo-change" onclick="changeProfilePhoto()" style="font-size:12px;font-weight:700;color:#1547B0;cursor:pointer;text-decoration:underline;flex-shrink:0;">Change</span>
     </div>
 
-    <!-- Share actions -->
-    <div class="sht-actions">
-
-      <!-- Gold CTA: native share (best on mobile) -->
-      <button class="sht-btn-native" id="shareNativeBtn" onclick="doNativeShare()">
-        <span style="font-size:22px;">&#x2197;</span>
-        Share to Any App
-      </button>
-
-      <div class="sht-divider"></div>
-
-      <!-- Platform row -->
-      <div class="sht-platforms">
-        <button class="sht-plat-btn" onclick="shareToWhatsApp()">
-          <span class="sht-plat-icon">💬</span>
-          <span class="sht-plat-label">WhatsApp</span>
+    <!-- Social platform buttons -->
+    <div style="padding:14px 20px 0;">
+      <div style="font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(11,31,59,.35);margin-bottom:10px;text-align:center;">Share Directly To</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+        <button onclick="shareToWhatsApp()" style="height:60px;border:1.5px solid rgba(37,211,102,.3);background:rgba(37,211,102,.06);border-radius:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;-webkit-tap-highlight-color:transparent;transition:all .15s;font-family:'DM Sans',sans-serif;">
+          <span style="font-size:22px;">💬</span>
+          <span style="font-size:10px;font-weight:800;color:#25D366;letter-spacing:.04em;">WHATSAPP</span>
         </button>
-        <button class="sht-plat-btn" onclick="shareToInstagram()">
-          <span class="sht-plat-icon">📸</span>
-          <span class="sht-plat-label">Instagram</span>
+        <button onclick="shareToInstagram()" style="height:60px;border:1.5px solid rgba(225,48,108,.25);background:rgba(225,48,108,.05);border-radius:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;-webkit-tap-highlight-color:transparent;transition:all .15s;font-family:'DM Sans',sans-serif;">
+          <span style="font-size:22px;">📸</span>
+          <span style="font-size:10px;font-weight:800;color:#E1306C;letter-spacing:.04em;">INSTAGRAM</span>
         </button>
-        <button class="sht-plat-btn" onclick="shareToTwitter()">
-          <span class="sht-plat-icon">&#x1D54F;</span>
-          <span class="sht-plat-label">X / Twitter</span>
+        <button onclick="shareToX()" style="height:60px;border:1.5px solid rgba(0,0,0,.15);background:rgba(0,0,0,.04);border-radius:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;-webkit-tap-highlight-color:transparent;transition:all .15s;font-family:'DM Sans',sans-serif;">
+          <span style="font-size:22px;">𝕏</span>
+          <span style="font-size:10px;font-weight:800;color:#000;letter-spacing:.04em;">X / TWITTER</span>
         </button>
       </div>
-
-      <!-- Save image -->
-      <button class="sht-btn-save" onclick="downloadShareCard()">
-        <span style="font-size:17px;">&#x2B07;</span>
-        Save Image to Gallery
-      </button>
-
     </div>
 
-    <div class="sht-spacer"></div>
+    <div class="share-actions">
+      <button class="share-btn-primary" id="shareNativeBtn" onclick="doNativeShare()">
+        <span style="font-size:18px;">&#x2197;</span> Share to Any App
+      </button>
+      <button class="share-btn-secondary" onclick="downloadShareCard()">
+        <span style="font-size:15px;">&#x2B07;</span> Save Image to Phone
+      </button>
+    </div>
     <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
   </div>
 </div>
