@@ -837,28 +837,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 
 /* ══ SHARE SYSTEM ══ */
-.share-sheet{position:fixed;inset:0;z-index:900;display:none;align-items:flex-end;justify-content:center;}
-.share-sheet.show{display:flex;animation:fadeIn .2s ease;}
-.share-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);}
-.share-panel{position:relative;width:100%;max-width:420px;background:#F5F0E8;border-radius:28px 28px 0 0;padding:0 0 env(safe-area-inset-bottom,20px);overflow:hidden;animation:slideUp .3s cubic-bezier(.34,1.2,.64,1);max-height:92vh;overflow-y:auto;}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.share-handle{width:36px;height:4px;background:rgba(0,0,0,.12);border-radius:2px;margin:12px auto 0;}
-.share-preview-wrap{padding:16px 20px 0;}
-.share-canvas-wrap{border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(11,31,59,.18);position:relative;}
-.share-canvas-wrap canvas{display:block;width:100%;height:auto;}
-.share-photo-hint{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.55);border-radius:8px;padding:4px 8px;font-size:10px;color:#fff;display:none;}
-.share-photo-hint.show{display:block;}
-.share-actions{padding:14px 20px 0;display:flex;flex-direction:column;gap:10px;}
-.share-btn-primary{width:100%;height:54px;background:linear-gradient(135deg,#0B1F3B,#1A3A6B);border:none;border-radius:16px;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;-webkit-tap-highlight-color:transparent;transition:opacity .15s;letter-spacing:.02em;box-shadow:0 6px 24px rgba(11,31,59,0.25);}
-.share-btn-primary:active{opacity:.85;}
-.share-btn-secondary{width:100%;height:46px;background:rgba(11,31,59,0.06);border:1.5px solid rgba(11,31,59,.15);border-radius:14px;color:#0B1F3B;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;-webkit-tap-highlight-color:transparent;transition:background .15s;}
-.share-btn-secondary:active{background:rgba(11,31,59,.05);}
-.share-photo-row{display:flex;align-items:center;gap:10px;padding:0 20px;margin-top:4px;}
-.share-photo-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(11,31,59,.1);flex-shrink:0;background:#f0f0f0;}
-.share-photo-info{flex:1;min-width:0;}
-.share-photo-name{font-size:13px;font-weight:700;color:#0B1F3B;}
-.share-photo-sub{font-size:11px;color:rgba(11,31,59,.45);}
-.share-photo-change{font-size:12px;font-weight:700;color:#1547B0;cursor:pointer;text-decoration:underline;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+/* share-sheet CSS moved to bottom of file */
 
 </style>
 </head>
@@ -2702,8 +2681,9 @@ function flushOnLogin() {
     resetDaily();
   }finally{setDL(false);}
 });
+})();
 
-// ── WEEKLY ──
+// ── WEEKLY — global scope so login() can call it ──
 function setupWeekly(){
   var now=new Date(),sun=now.getDay()===0,force=location.search.includes('weekly=open');
   document.getElementById('weeklyLocked').style.display=(!sun&&!force)?'block':'none';
@@ -2730,7 +2710,6 @@ function setupWeekly(){
       });
   }
 }
-})();
 
 (function(){ var _wf=document.getElementById('weeklyForm'); if(_wf) _wf.addEventListener('submit',async function(e){
   e.preventDefault();
@@ -2785,6 +2764,11 @@ function success(title,msg,stats){
     return '<div class="s-row"><span class="s-lbl">'+r[0]+'</span><span class="s-val">'+esc(String(r[1]))+'</span></div>';
   }).join('');
   document.getElementById('successOverlay').classList.add('show');
+  // Pre-render share card in background so tapping Share is instant
+  setTimeout(function() {
+    var photo = localStorage.getItem(photoKey());
+    renderShareCard(photo || null);
+  }, 400);
 }
 function closeSuccess(){
   document.getElementById('successOverlay').classList.remove('show');
@@ -3558,18 +3542,47 @@ function getInitials(name) {
 // - Download fallback for desktop / platforms that don't support share API
 // ══════════════════════════════════════════════════════════════════════
 
-var PHOTO_KEY = 'baw_profile_photo';
+var PHOTO_KEY = 'baw_profile_photo'; // base key — we append member name below
 var _shareBlob = null; // cached blob from last render
+
+// Member-specific photo key (so each warrior keeps their own photo)
+function photoKey() {
+  return PHOTO_KEY + (member ? '_' + lettersOnly(member) : '');
+}
+
+// ── MISSING FUNCTIONS (called by _drawCard / renderShareCard) ──
+function updateShareBlob(canvas) {
+  try {
+    canvas.toBlob(function(blob) { _shareBlob = blob; }, 'image/png');
+  } catch(e) { _shareBlob = null; }
+}
+
+function updatePhotoThumb(dataUrl, name) {
+  var thumb   = document.getElementById('sharePhotoThumb');
+  var empty   = document.getElementById('shareAvatarEmpty');
+  var nameEl  = document.getElementById('sharePhotoName');
+  if (nameEl) nameEl.textContent = name || member || '';
+  if (!thumb) return;
+  if (dataUrl) {
+    thumb.src = dataUrl;
+    thumb.style.display = 'block';
+    if (empty) empty.style.display = 'none';
+  } else {
+    thumb.src = '';
+    thumb.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+  }
+}
 
 // ── OPEN SHARE SHEET ──────────────────────────────────────────
 function openShare() {
   var sheet = document.getElementById('shareSheet');
   sheet.classList.add('show');
-  // Check if we have a saved photo
-  var photo = localStorage.getItem(PHOTO_KEY);
+  var photo = localStorage.getItem(photoKey());
   if (!photo) {
-    // First time — prompt to add photo
-    setTimeout(function() { promptPhoto(); }, 200);
+    // First time — prompt and render with initials
+    renderShareCard(null);
+    setTimeout(function() { promptPhoto(); }, 300);
   } else {
     renderShareCard(photo);
   }
@@ -3631,7 +3644,7 @@ function handlePhotoUpload(event) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var b64 = e.target.result;
-    localStorage.setItem(PHOTO_KEY, b64);
+    localStorage.setItem(photoKey(), b64);
     // Remove prompt overlay if present
     var overlay = document.querySelector('.photo-prompt-overlay');
     if (overlay) overlay.remove();
@@ -3674,309 +3687,367 @@ function renderShareCard(photoDataUrl) {
 
 function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg) {
 
-  // ════════════════════════════════════════════
-  // BACKGROUND — Cinematic split layout
-  // Top 55% = rich photo/texture area (dark)
-  // Bottom 45% = cream/paper texture
-  // ════════════════════════════════════════════
-  var splitY = H * 0.52;
+  // ════════════════════════════════════════════════════════════
+  // BOOKAWEEK SHARE CARD v2 — WORLD-CLASS EDITORIAL DESIGN
+  // 1080×1350 px  (4:5 — Instagram, WhatsApp, Twitter-ready)
+  // ════════════════════════════════════════════════════════════
 
-  // ── TOP HALF: Deep editorial dark ──────────
-  var topGrad = ctx.createLinearGradient(0, 0, W, splitY * 1.1);
-  topGrad.addColorStop(0,   '#060E1C');
-  topGrad.addColorStop(0.4, '#0B1F3B');
-  topGrad.addColorStop(1,   '#0D2040');
-  ctx.fillStyle = topGrad;
-  ctx.fillRect(0, 0, W, splitY + 60);
+  var d       = _lastLogData || {};
+  var stats2  = d.stats || stats || [];
+  var title   = String(d.title || 'Session Logged').replace(/[!]/g,'').replace(/\(offline\)/g,'').trim();
+  var isRest  = title.toLowerCase().indexOf('rest') !== -1;
 
-  // ── BOTTOM HALF: Warm cream paper ──────────
-  ctx.fillStyle = '#F5F0E8';
-  ctx.fillRect(0, splitY - 40, W, H - splitY + 40);
+  // ── PALETTE ──────────────────────────────────────────────────
+  var NAVY   = '#060E1C';
+  var NAVY2  = '#0B1F3B';
+  var NAVY3  = '#0F2A50';
+  var GOLD   = '#C9A227';
+  var GOLD2  = '#F5C842';
+  var GOLD3  = '#E8B800';
+  var CREAM  = '#F5F0E8';
+  var TEAL   = '#0D7A6E';
+  var WHITE  = '#FFFFFF';
 
-  // ── NOISE texture on top (simulate grain) ──
+  // ── BACKGROUND ───────────────────────────────────────────────
+  var splitY = Math.round(H * 0.56);
+
+  var bgTop = ctx.createLinearGradient(0, 0, W, splitY);
+  bgTop.addColorStop(0,   NAVY);
+  bgTop.addColorStop(0.5, NAVY2);
+  bgTop.addColorStop(1,   NAVY3);
+  ctx.fillStyle = bgTop;
+  ctx.fillRect(0, 0, W, splitY + 80);
+
+  ctx.fillStyle = CREAM;
+  ctx.fillRect(0, splitY - 50, W, H - splitY + 50);
+
+  // ── GRAIN TEXTURE ────────────────────────────────────────────
   ctx.save();
-  ctx.globalAlpha = 0.035;
-  for (var gx = 0; gx < W; gx += 3) {
-    for (var gy = 0; gy < splitY; gy += 3) {
-      var v = Math.random();
-      ctx.fillStyle = v > 0.5 ? '#fff' : '#000';
-      ctx.fillRect(gx, gy, 1.5, 1.5);
+  ctx.globalAlpha = 0.025;
+  for (var gx = 0; gx < W; gx += 2) {
+    for (var gy = 0; gy < splitY; gy += 2) {
+      if (Math.random() > 0.6) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
+        ctx.fillRect(gx, gy, 1, 1);
+      }
     }
   }
   ctx.restore();
 
-  // ── GOLD accent lines ───────────────────────
-  // Left vertical accent
-  ctx.fillStyle = '#C9A227';
-  ctx.fillRect(0, 0, 7, H);
-  // Top horizontal
-  ctx.fillRect(0, 0, W, 7);
+  // ── RADIAL GLOW ───────────────────────────────────────────────
+  var glow = ctx.createRadialGradient(W*0.78, H*0.19, 50, W*0.78, H*0.19, 460);
+  glow.addColorStop(0, 'rgba(201,162,39,0.10)');
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, splitY + 80);
 
-  // ── LARGE DECORATIVE CIRCLE (background) ────
+  var glow2 = ctx.createRadialGradient(W*0.15, H*0.44, 30, W*0.15, H*0.44, 260);
+  glow2.addColorStop(0, 'rgba(13,122,110,0.08)');
+  glow2.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow2;
+  ctx.fillRect(0, 0, W, splitY + 80);
+
+  // ── EDGE ACCENTS ──────────────────────────────────────────────
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(0, 0, 6, H);
+  ctx.fillRect(0, 0, W, 6);
+
+  // ── BACKGROUND CIRCLE ART ─────────────────────────────────────
   ctx.save();
-  ctx.globalAlpha = 0.055;
-  ctx.beginPath();
-  ctx.arc(W * 0.82, H * 0.23, 340, 0, Math.PI*2);
-  ctx.fillStyle = '#C9A227';
-  ctx.fill();
+  ctx.globalAlpha = 0.045;
+  ctx.beginPath(); ctx.arc(W*0.88, H*0.17, 310, 0, Math.PI*2);
+  ctx.fillStyle = GOLD; ctx.fill();
   ctx.restore();
 
   ctx.save();
-  ctx.globalAlpha = 0.04;
-  ctx.beginPath();
-  ctx.arc(W * 0.15, H * 0.38, 200, 0, Math.PI*2);
-  ctx.fillStyle = '#1547B0';
-  ctx.fill();
+  ctx.globalAlpha = 0.025;
+  ctx.beginPath(); ctx.arc(-30, splitY*0.72, 210, 0, Math.PI*2);
+  ctx.fillStyle = GOLD2; ctx.fill();
   ctx.restore();
 
-  // ════════════════════════════════════════════
-  // TOP SECTION — Brand + Date
-  // ════════════════════════════════════════════
+  // ── DIAGONAL LINES ────────────────────────────────────────────
   ctx.save();
-  // BOOKAWEEK brand — small caps, tight tracking
-  ctx.font = '700 28px Georgia, serif';
-  ctx.fillStyle = '#C9A227';
-  ctx.letterSpacing = '0.2em';
-  ctx.fillText('BOOK', 60, 75);
-  ctx.font = '300 28px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.fillText('AWEEK', 60 + ctx.measureText('BOOK').width + 3, 75);
+  ctx.globalAlpha = 0.03;
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 1;
+  for (var li = 0; li < 5; li++) {
+    ctx.beginPath();
+    ctx.moveTo(W*0.5 + li*120, 0);
+    ctx.lineTo(W + li*120 - 200, splitY);
+    ctx.stroke();
+  }
+  ctx.restore();
 
-  // Day + date top right
+  // ════════════════════════════════════════════════════════════
+  // TOP — Brand Mark + Date
+  // ════════════════════════════════════════════════════════════
+  ctx.save();
+  ctx.font = '800 30px Georgia, serif';
+  ctx.fillStyle = GOLD;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('BOOK', 54, 78);
+  var bw = ctx.measureText('BOOK').width;
+  ctx.font = '300 30px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('AWEEK', 54 + bw + 2, 78);
+
   ctx.textAlign = 'right';
-  ctx.font = '700 20px DM Sans, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.fillText(dayName, W - 60, 60);
-  ctx.font = '400 18px DM Sans, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
-  ctx.fillText(dateFmt, W - 60, 84);
+  ctx.font = '700 16px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.fillText(dayName, W - 54, 62);
+  ctx.font = '400 15px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillText(dateFmt, W - 54, 84);
+
   ctx.textAlign = 'left';
-  ctx.restore();
-
-  // ════════════════════════════════════════════
-  // PHOTO + NAME SECTION — Hero
-  // ════════════════════════════════════════════
-  var photoSize = 170;
-  var photoX = 60;
-  var photoY = 130;
-
-  // Photo circle with multi-ring aura
-  if (photoImg) {
-    // Outer glow rings
-    [42, 28, 14].forEach(function(expand, i) {
-      ctx.save();
-      ctx.globalAlpha = [0.08, 0.13, 0.2][i];
-      ctx.beginPath();
-      ctx.arc(photoX + photoSize/2, photoY + photoSize/2, photoSize/2 + expand, 0, Math.PI*2);
-      ctx.fillStyle = '#C9A227';
-      ctx.fill();
-      ctx.restore();
-    });
-    // Photo clipped to circle
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 0, Math.PI*2);
-    ctx.closePath();
-    ctx.clip();
-    var iw = photoImg.width, ih = photoImg.height;
-    var sc = Math.max(photoSize/iw, photoSize/ih);
-    ctx.drawImage(photoImg,
-      photoX + photoSize/2 - iw*sc/2,
-      photoY + photoSize/2 - ih*sc/2,
-      iw*sc, ih*sc);
-    ctx.restore();
-    // Gold ring
-    ctx.save();
-    ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(photoX + photoSize/2, photoY + photoSize/2, photoSize/2 + 3, 0, Math.PI*2);
-    ctx.stroke();
-    ctx.restore();
-  } else {
-    // Initials — styled
-    ctx.save();
-    var igr = ctx.createRadialGradient(
-      photoX + photoSize/2, photoY + photoSize/2, 0,
-      photoX + photoSize/2, photoY + photoSize/2, photoSize/2);
-    igr.addColorStop(0, '#1A3460');
-    igr.addColorStop(1, '#0B1F3B');
-    ctx.beginPath();
-    ctx.arc(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 0, Math.PI*2);
-    ctx.fillStyle = igr; ctx.fill();
-    ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 5;
-    ctx.stroke();
-    ctx.font = '700 64px Georgia, serif';
-    ctx.fillStyle = '#C9A227';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(getInitials(name), photoX + photoSize/2, photoY + photoSize/2);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
-  }
-
-  // NAME — large, editorial
-  var nameX = photoX + photoSize + 40;
-  var nameTopY = photoY + 30;
-
-  ctx.save();
-  // "TODAY" micro-label
-  ctx.font = '700 18px DM Sans, sans-serif';
-  ctx.fillStyle = '#C9A227';
-  ctx.letterSpacing = '0.18em';
-  ctx.fillText('TODAY\'S SESSION', nameX, nameTopY);
-
-  // First name — massive
-  ctx.font = '900 ' + (fname.length > 9 ? '74' : '90') + 'px Georgia, serif';
-  ctx.fillStyle = '#FFFFFF';
-  ctx.shadowColor = 'rgba(201,162,39,0.25)';
-  ctx.shadowBlur = 30;
-  ctx.fillText(fname, nameX, nameTopY + 85);
-  ctx.shadowBlur = 0;
-
-  // Last name / full if different
-  if (name !== fname) {
-    var lname = name.replace(fname, '').trim();
-    ctx.font = '300 44px Georgia, serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.fillText(lname, nameX, nameTopY + 135);
-  }
-  ctx.restore();
-
-  // ── STREAK BADGE ─────────────────────────────
-  if (streak > 0) {
-    var sBy = photoY + photoSize + 30;
-    var sBx = photoX;
-    var sBw = 260, sBh = 62;
-
-    ctx.save();
-    var sGrad = ctx.createLinearGradient(sBx, sBy, sBx+sBw, sBy+sBh);
-    sGrad.addColorStop(0, '#B8860B');
-    sGrad.addColorStop(0.5, '#F5C842');
-    sGrad.addColorStop(1, '#C9A227');
-    ctx.fillStyle = sGrad;
-    _roundRect(ctx, sBx, sBy, sBw, sBh, 31);
-    ctx.font = '800 26px DM Sans, sans-serif';
-    ctx.fillStyle = '#0B1F3B';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('🔥  ' + streak + ' DAY STREAK', sBx + sBw/2, sBy + sBh/2);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
-  }
-
-  // ════════════════════════════════════════════
-  // SPLIT DIVIDER — angled diagonal
-  // ════════════════════════════════════════════
-  ctx.save();
-  ctx.fillStyle = '#C9A227';
-  ctx.globalAlpha = 0.6;
-  ctx.beginPath();
-  ctx.moveTo(0, splitY - 10);
-  ctx.lineTo(W, splitY - 50);
-  ctx.lineTo(W, splitY - 44);
-  ctx.lineTo(0, splitY - 4);
-  ctx.closePath();
-  ctx.fill();
+  ctx.fillStyle = GOLD; ctx.globalAlpha = 0.4;
+  ctx.fillRect(54, 88, 200, 2);
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ════════════════════════════════════════════
-  // BOTTOM CREAM SECTION — Stats + Quote + CTA
-  // ════════════════════════════════════════════
-  var botY = splitY + 20;
+  // ════════════════════════════════════════════════════════════
+  // HERO — Photo / Avatar + Name Block
+  // ════════════════════════════════════════════════════════════
+  var photoSize = 188;
+  var photoX = 54, photoY = 118;
+  var photoCX = photoX + photoSize/2;
+  var photoCY = photoY + photoSize/2;
 
-  // ── ACHIEVEMENT TITLE ───────────────────────
+  if (photoImg) {
+    // Glow rings
+    [[60,0.06],[40,0.10],[20,0.18]].forEach(function(r) {
+      ctx.save(); ctx.globalAlpha = r[1];
+      ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2 + r[0], 0, Math.PI*2);
+      ctx.fillStyle = GOLD; ctx.fill(); ctx.restore();
+    });
+    // Clipped photo
+    ctx.save();
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2, 0, Math.PI*2);
+    ctx.closePath(); ctx.clip();
+    var iw = photoImg.width, ih = photoImg.height;
+    var sc = Math.max(photoSize/iw, photoSize/ih);
+    ctx.drawImage(photoImg, photoCX - iw*sc/2, photoCY - ih*sc/2, iw*sc, ih*sc);
+    ctx.restore();
+    // Gold ring
+    ctx.save();
+    ctx.strokeStyle = GOLD; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2 + 5, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2 + 14, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  } else {
+    // Initials circle
+    ctx.save();
+    var igr = ctx.createRadialGradient(photoCX - 20, photoCY - 20, 0, photoCX, photoCY, photoSize/2);
+    igr.addColorStop(0, '#1A3D70'); igr.addColorStop(1, NAVY);
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2, 0, Math.PI*2);
+    ctx.fillStyle = igr; ctx.fill();
+    ctx.strokeStyle = GOLD; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2 + 5, 0, Math.PI*2); ctx.stroke();
+    var ini = getInitials(name);
+    ctx.font = '700 ' + (ini.length > 1 ? '66' : '80') + 'px Georgia, serif';
+    ctx.fillStyle = GOLD;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(201,162,39,0.4)'; ctx.shadowBlur = 20;
+    ctx.fillText(ini, photoCX, photoCY);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.restore();
+  }
+
+  // ── NAME BLOCK ────────────────────────────────────────────────
+  var nameX = photoX + photoSize + 46;
+  var nameY2 = photoY + 28;
+
   ctx.save();
-  ctx.font = '800 52px Georgia, serif';
-  ctx.fillStyle = '#0B1F3B';
-  ctx.textAlign = 'center';
-  ctx.fillText(title.toUpperCase(), W/2, botY + 65);
+  ctx.font = '800 17px sans-serif';
+  ctx.fillStyle = GOLD;
+  ctx.fillText("TODAY'S SESSION", nameX, nameY2);
+
+  var fnSize = fname.length > 9 ? 76 : fname.length > 7 ? 86 : 96;
+  ctx.font = '900 ' + fnSize + 'px Georgia, serif';
+  ctx.fillStyle = WHITE;
+  ctx.shadowColor = 'rgba(201,162,39,0.2)'; ctx.shadowBlur = 25;
+  ctx.fillText(fname, nameX, nameY2 + 90);
+  ctx.shadowBlur = 0;
+
+  if (name !== fname && name.replace(fname,'').trim().length > 0) {
+    var lname = name.replace(fname,'').trim();
+    ctx.font = '300 42px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.38)';
+    ctx.fillText(lname.length > 11 ? lname.slice(0,11)+'…' : lname, nameX, nameY2 + 142);
+  }
+
+  var bwTagY = nameY2 + (name !== fname ? 175 : 148);
+  ctx.font = '700 18px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillText('BOOKWARRIOR', nameX, bwTagY);
+  var bwW = ctx.measureText('BOOKWARRIOR').width;
+  ctx.beginPath(); ctx.arc(nameX + bwW + 12, bwTagY - 5, 3, 0, Math.PI*2);
+  ctx.fillStyle = TEAL; ctx.fill();
+  ctx.fillStyle = TEAL;
+  ctx.fillText("S1'26", nameX + bwW + 20, bwTagY);
   ctx.restore();
 
-  // ── STAT BLOCKS ─────────────────────────────
-  var showStats = stats.slice(0, 3).filter(function(r){ return r[1] && r[1] !== '0 min'; });
-  if (!showStats.length) showStats = stats.slice(0, 3);
-  var numStats = Math.min(showStats.length, 3);
-  var statW    = Math.floor((W - 120 - (numStats-1)*24) / Math.max(numStats,1));
-  var statY    = botY + 110;
-  var statH    = 200;
+  // ── STREAK BADGE ──────────────────────────────────────────────
+  var sbY = photoY + photoSize + 28;
+  var sbX = photoX;
 
-  showStats.slice(0, numStats).forEach(function(row, i) {
-    var sx = 60 + i*(statW+24);
-
-    // Card — white with shadow
+  if (streak > 0) {
+    var sbW = Math.min(280, W - sbX - 50), sbH = 60;
     ctx.save();
-    ctx.shadowColor = 'rgba(11,31,59,0.10)';
-    ctx.shadowBlur  = 20;
-    ctx.shadowOffsetY = 8;
-    ctx.fillStyle = '#FFFFFF';
-    _roundRect(ctx, sx, statY, statW, statH, 20);
-    ctx.restore();
-
-    // Gold top accent on card
+    var sGr = ctx.createLinearGradient(sbX, sbY, sbX + sbW, sbY + sbH);
+    sGr.addColorStop(0, '#9A7200'); sGr.addColorStop(0.45, GOLD2); sGr.addColorStop(1, GOLD3);
+    ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+    ctx.fillStyle = sGr; _roundRect(ctx, sbX, sbY, sbW, sbH, 30); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.font = '800 24px sans-serif';
+    ctx.fillStyle = NAVY; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText((streak >= 30 ? '👑' : '🔥') + '  ' + streak + ' DAY STREAK', sbX + sbW/2, sbY + sbH/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.restore();
+  } else {
+    var d1W = 200, d1H = 50;
     ctx.save();
-    ctx.fillStyle = '#C9A227';
-    _roundRect(ctx, sx, statY, statW, 6, 3);
-    ctx.restore();
+    ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+    _roundRect(ctx, sbX, sbY, d1W, d1H, 25); ctx.stroke();
+    ctx.font = '700 20px sans-serif'; ctx.fillStyle = GOLD;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✨  SESSION ONE', sbX + d1W/2, sbY + d1H/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.restore();
+  }
 
-    // Stat value — massive
+  // ── BOOK TAG ──────────────────────────────────────────────────
+  var bookStat2 = stats2.find(function(r){ return String(r[0]).toLowerCase() === 'book'; });
+  if (bookStat2 && !isRest) {
+    var btTitle = String(bookStat2[1]).slice(0,24) + (bookStat2[1].length > 24 ? '…' : '');
+    var btY = sbY + (streak > 0 ? 76 : 66);
+    ctx.save();
+    ctx.font = '600 17px sans-serif';
+    var btW2 = Math.min(ctx.measureText('📖  ' + btTitle).width + 30, W - sbX - 60);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5;
+    _roundRect(ctx, sbX, btY, btW2, 42, 21); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.textBaseline = 'middle';
+    ctx.fillText('📖  ' + btTitle, sbX + 14, btY + 21);
+    ctx.textBaseline = 'alphabetic'; ctx.restore();
+  }
+
+  if (isRest) {
+    var rY = sbY + (streak > 0 ? 76 : 66);
+    ctx.save();
+    ctx.font = '700 19px sans-serif';
+    ctx.fillStyle = 'rgba(167,139,250,0.85)';
+    ctx.fillText('😴  REST DAY — RECOVERY IS PART OF THE SYSTEM', photoX, rY + 28);
+    ctx.restore();
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // DIAGONAL DIVIDER
+  // ════════════════════════════════════════════════════════════
+  ctx.save();
+  ctx.fillStyle = GOLD; ctx.globalAlpha = 0.65;
+  ctx.beginPath();
+  ctx.moveTo(0, splitY - 12); ctx.lineTo(W, splitY - 58);
+  ctx.lineTo(W, splitY - 51); ctx.lineTo(0, splitY - 5);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 0.2;
+  ctx.beginPath();
+  ctx.moveTo(0, splitY + 10); ctx.lineTo(W, splitY - 30);
+  ctx.lineTo(W, splitY - 27); ctx.lineTo(0, splitY + 13);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1; ctx.restore();
+
+  // ════════════════════════════════════════════════════════════
+  // BOTTOM — Achievement + Stats + Quote + CTA
+  // ════════════════════════════════════════════════════════════
+  var botY = splitY + 15;
+
+  // ── HEADLINE ──────────────────────────────────────────────────
+  ctx.save();
+  ctx.shadowColor = 'rgba(200,180,140,0.5)'; ctx.shadowOffsetY = 3;
+  var headText = isRest ? 'REST DAY LOGGED' : title.toUpperCase();
+  var headSize = headText.length > 18 ? 44 : headText.length > 14 ? 50 : 58;
+  ctx.font = '900 ' + headSize + 'px Georgia, serif';
+  ctx.fillStyle = NAVY2; ctx.textAlign = 'center';
+  ctx.fillText(headText, W/2, botY + 72);
+  ctx.shadowOffsetY = 0; ctx.shadowBlur = 0;
+  var hw2 = ctx.measureText(headText).width;
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(W/2 - Math.min(hw2/2, 200), botY + 84, Math.min(hw2, 400), 3);
+  ctx.restore();
+
+  // ── STAT BLOCKS ───────────────────────────────────────────────
+  var validStats = stats2.filter(function(r){
+    var v = String(r[1]||'');
+    return v && v !== '0 min' && v !== '0' && r[0] !== 'Book';
+  });
+  if (!validStats.length) validStats = stats2.slice(0,3);
+  var numStats = Math.min(validStats.length, 3);
+  var sPad = 60, sGap = 18;
+  var sW = numStats > 0 ? Math.floor((W - sPad*2 - sGap*(numStats-1)) / numStats) : 300;
+  var sY = botY + 110, sH = 190;
+
+  validStats.slice(0, numStats).forEach(function(row, i) {
+    var sx = sPad + i*(sW + sGap);
+    ctx.save();
+    ctx.shadowColor = 'rgba(11,31,59,0.12)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 10;
+    ctx.fillStyle = WHITE; _roundRect(ctx, sx, sY, sW, sH, 18); ctx.fill(); ctx.restore();
+    ctx.save();
+    ctx.fillStyle = GOLD; _roundRect(ctx, sx, sY, sW, 5, 3); ctx.fill(); ctx.restore();
     ctx.save();
     var valStr = String(row[1]);
-    var valSize = valStr.length > 5 ? 54 : valStr.length > 3 ? 66 : 80;
+    var valSize = valStr.length > 6 ? 48 : valStr.length > 4 ? 58 : valStr.length > 2 ? 68 : 82;
     ctx.font = '900 ' + valSize + 'px Georgia, serif';
-    ctx.fillStyle = '#0B1F3B';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(valStr, sx + statW/2, statY + statH*0.48);
-
-    // Stat label
-    ctx.font = '700 20px DM Sans, sans-serif';
-    ctx.fillStyle = 'rgba(11,31,59,0.38)';
-    ctx.fillText(String(row[0]).toUpperCase(), sx + statW/2, statY + statH - 28);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
+    ctx.fillStyle = NAVY2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(11,31,59,0.06)'; ctx.shadowBlur = 8;
+    ctx.fillText(valStr, sx + sW/2, sY + sH*0.47); ctx.shadowBlur = 0;
+    ctx.font = '700 17px sans-serif'; ctx.fillStyle = 'rgba(11,31,59,0.36)';
+    ctx.fillText(String(row[0]).toUpperCase(), sx + sW/2, sY + sH - 26);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.restore();
   });
 
-  // ── QUOTE ───────────────────────────────────
-  var quoteY = statY + statH + 55;
-  var qs = [
+  // ── QUOTE ──────────────────────────────────────────────────────
+  var qBaseY = sY + sH + 38;
+  var qs3 = [
     '"Not all readers are leaders — but all leaders are readers."',
-    '"The person you\'ll be in 5 years is shaped by the books you read today."',
-    '"Reading is the gym for the mind. Show up every day."',
-    '"One book at a time. One warrior at a time. One life transformed."',
-    '"The edge you seek is on the pages you haven\'t read yet."'
+    '"The person you\'ll be in 5 years is in the books you read today."',
+    '"Reading is the gym for the mind. Show up daily."',
+    '"One book at a time. One warrior at a time."',
+    '"The edge you seek is on pages you have not yet read."'
   ];
-  var q = qs[now.getDay() % qs.length];
+  var now3 = new Date();
+  var q3 = qs3[now3.getDay() % qs3.length];
+  ctx.save();
+  ctx.font = 'italic 27px Georgia, serif';
+  ctx.fillStyle = 'rgba(11,31,59,0.38)';
+  ctx.textAlign = 'center';
+  _wrapText(ctx, q3, W/2, qBaseY, W - 120, 40);
+  ctx.textAlign = 'left'; ctx.restore();
+
+  // ════════════════════════════════════════════════════════════
+  // CTA STRIP — THE VIRAL ENGINE
+  // ════════════════════════════════════════════════════════════
+  var ctaH2 = 130;
+  var ctaY3 = H - ctaH2 - 10;
 
   ctx.save();
-  ctx.font = 'italic 30px Georgia, serif';
-  ctx.fillStyle = 'rgba(11,31,59,0.5)';
-  ctx.textAlign = 'center';
-  _wrapText(ctx, q, W/2, quoteY, W - 140, 44);
-  ctx.textAlign = 'left';
-  ctx.restore();
+  var ctaGr = ctx.createLinearGradient(0, ctaY3, W, ctaY3 + ctaH2);
+  ctaGr.addColorStop(0, '#060E1C'); ctaGr.addColorStop(1, '#0F2A50');
+  ctx.fillStyle = ctaGr; ctx.fillRect(0, ctaY3, W, ctaH2);
 
-  // ── CTA BANNER — the part that makes people join ──
-  var ctaY = H - 190;
-  ctx.save();
-  var ctaGrad = ctx.createLinearGradient(0, ctaY, W, ctaY+110);
-  ctaGrad.addColorStop(0, '#0B1F3B');
-  ctaGrad.addColorStop(1, '#1547B0');
-  ctx.fillStyle = ctaGrad;
-  ctx.fillRect(0, ctaY, W, 110);
+  var shGr = ctx.createLinearGradient(0, ctaY3, W, ctaY3);
+  shGr.addColorStop(0, 'transparent'); shGr.addColorStop(0.3, GOLD);
+  shGr.addColorStop(0.7, GOLD); shGr.addColorStop(1, 'transparent');
+  ctx.fillStyle = shGr; ctx.fillRect(0, ctaY3, W, 2);
 
-  ctx.font = '700 26px DM Sans, sans-serif';
-  ctx.fillStyle = '#C9A227';
-  ctx.textAlign = 'center';
-  ctx.fillText('JOIN THE CHALLENGE', W/2, ctaY + 42);
-  ctx.font = '400 22px DM Sans, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.fillText('bookaweekchallenge.vercel.app  ·  #BookAWeek', W/2, ctaY + 76);
-  ctx.textAlign = 'left';
-  ctx.restore();
+  ctx.font = '800 28px sans-serif'; ctx.fillStyle = GOLD; ctx.textAlign = 'center';
+  ctx.fillText('JOIN 6 BOOKWARRIORS THIS SEASON', W/2, ctaY3 + 42);
+  ctx.font = '400 21px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillText('24 books · 6 months · 1 identity shift', W/2, ctaY3 + 74);
+  ctx.font = '700 20px sans-serif'; ctx.fillStyle = 'rgba(201,162,39,0.7)';
+  ctx.fillText('selar.com/bookaweekchallenge  ·  #BookAWeek', W/2, ctaY3 + 106);
+  ctx.textAlign = 'left'; ctx.restore();
 
-  // ── BOTTOM GOLD BAR ─────────────────────────
-  ctx.fillStyle = '#C9A227';
-  ctx.fillRect(0, H-8, W, 8);
+  // ── BOTTOM GOLD BAR ───────────────────────────────────────────
+  ctx.fillStyle = GOLD; ctx.fillRect(0, H - 8, W, 8);
 
-  // Done — update blob
   updateShareBlob(document.getElementById('shareCanvas'));
 }
 
@@ -4071,38 +4142,222 @@ function downloadShareCard() {
   link.click();
 }
 
+// ── PLATFORM-SPECIFIC SHARE ───────────────────────────────────
+function _shareCaption() {
+  var streak  = getStreak();
+  var n       = String((_lastLogData||{}).member || member || 'BookWarrior');
+  return '📚 ' + n + ' just logged a reading session on BOOKAWEEK!' +
+    (streak > 0 ? '\n\n🔥 ' + streak + '-day streak and counting.' : '') +
+    '\n\n24 books · 6 months · 1 identity shift.' +
+    '\nJoin Season 1 → selar.com/bookaweekchallenge' +
+    '\n\n#BookAWeek #BookWarrior #ReadingChallenge #ReadReflectExecute';
+}
+
+function shareToWhatsApp() {
+  // Save image first, then open WhatsApp
+  downloadShareCard();
+  setTimeout(function() {
+    var caption = encodeURIComponent(_shareCaption());
+    window.open('https://wa.me/?text=' + caption, '_blank');
+  }, 600);
+}
+
+function shareToInstagram() {
+  // Instagram doesn't support direct share via URL — save image + guide user
+  downloadShareCard();
+  setTimeout(function() {
+    toast('Image saved! Open Instagram and post from your gallery 📸');
+  }, 400);
+}
+
+function shareToTwitter() {
+  var streak = getStreak();
+  var n = String((_lastLogData||{}).member || member || 'BookWarrior');
+  var text = '📚 Just logged my reading session! ' +
+    (streak > 0 ? '🔥 ' + streak + ' day streak! ' : '') +
+    'Building the reading edge one session at a time. ' +
+    'Join me → selar.com/bookaweekchallenge ' +
+    '#BookAWeek #BookWarrior';
+  downloadShareCard();
+  setTimeout(function() {
+    window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+  }, 600);
+}
+
 </script>
 
 <!-- SHARE SHEET -->
+<style>
+/* ── SHARE SHEET REDESIGN ─────────────────────────────── */
+.share-sheet { position:fixed;inset:0;z-index:900;display:none;align-items:flex-end;justify-content:center; }
+.share-sheet.show { display:flex;animation:fadeIn .2s ease; }
+.share-backdrop { position:absolute;inset:0;background:rgba(6,14,28,.72);backdrop-filter:blur(6px); }
+.share-panel {
+  position:relative;width:100%;max-width:440px;
+  background:linear-gradient(180deg,#F8F4EE 0%,#F0EBE2 100%);
+  border-radius:28px 28px 0 0;
+  padding:0 0 env(safe-area-inset-bottom,24px);
+  overflow:hidden;
+  animation:slideUp .32s cubic-bezier(.34,1.1,.64,1);
+  max-height:94vh;overflow-y:auto;
+  box-shadow:0 -12px 60px rgba(6,14,28,.35);
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sht-handle { width:40px;height:4px;background:rgba(11,31,59,.15);border-radius:2px;margin:14px auto 0; }
+.sht-head {
+  padding:10px 24px 0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sht-head-label {
+  font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(11,31,59,.3);
+}
+.sht-head-close {
+  width:30px;height:30px;border-radius:50%;background:rgba(11,31,59,.08);
+  border:none;cursor:pointer;color:rgba(11,31,59,.4);font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.sht-preview {
+  padding:14px 20px 0;
+  position:relative;
+}
+.sht-canvas-wrap {
+  border-radius:16px;overflow:hidden;
+  box-shadow:0 10px 40px rgba(11,31,59,.22);
+  position:relative;border:1px solid rgba(11,31,59,.08);
+}
+.sht-canvas-wrap canvas { display:block;width:100%;height:auto; }
+
+/* Photo row */
+.sht-photo-row {
+  display:flex;align-items:center;gap:12px;
+  padding:14px 20px 0;
+}
+.sht-avatar {
+  width:44px;height:44px;border-radius:50%;object-fit:cover;
+  border:2.5px solid rgba(201,162,39,.5);flex-shrink:0;
+  background:rgba(11,31,59,.06);
+}
+.sht-avatar-empty {
+  width:44px;height:44px;border-radius:50%;
+  background:rgba(11,31,59,.07);border:2px dashed rgba(11,31,59,.18);
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  flex-shrink:0;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.sht-photo-info { flex:1;min-width:0; }
+.sht-photo-name { font-size:13px;font-weight:700;color:#0B1F3B; }
+.sht-photo-sub  { font-size:11px;color:rgba(11,31,59,.4);margin-top:1px; }
+.sht-photo-change {
+  font-size:12px;font-weight:700;color:#1547B0;
+  cursor:pointer;text-decoration:none;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+  padding:6px 12px;background:rgba(21,71,176,.08);
+  border-radius:8px;border:1px solid rgba(21,71,176,.18);
+}
+
+/* Share actions */
+.sht-actions { padding:14px 20px 0;display:flex;flex-direction:column;gap:10px; }
+
+/* Primary: native share */
+.sht-btn-native {
+  width:100%;height:58px;
+  background:linear-gradient(135deg,#0B1F3B 0%,#1547B0 100%);
+  border:none;border-radius:16px;color:#fff;
+  font-family:'DM Sans',sans-serif;font-size:16px;font-weight:800;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  -webkit-tap-highlight-color:transparent;
+  box-shadow:0 8px 28px rgba(11,31,59,.28);
+  transition:opacity .15s;letter-spacing:.02em;
+}
+.sht-btn-native:active { opacity:.88; }
+
+/* Platform row */
+.sht-platforms { display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px; }
+.sht-plat-btn {
+  height:52px;border-radius:14px;border:1.5px solid rgba(11,31,59,.1);
+  background:#fff;cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;
+  -webkit-tap-highlight-color:transparent;transition:all .15s;
+  box-shadow:0 2px 8px rgba(11,31,59,.07);
+}
+.sht-plat-btn:active { transform:scale(.96); }
+.sht-plat-icon { font-size:22px;line-height:1; }
+.sht-plat-label { font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(11,31,59,.4); }
+
+/* Save button */
+.sht-btn-save {
+  width:100%;height:46px;
+  background:rgba(11,31,59,.06);border:1.5px solid rgba(11,31,59,.13);
+  border-radius:14px;color:#0B1F3B;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;
+}
+.sht-btn-save:active { background:rgba(11,31,59,.1); }
+
+.sht-spacer { height:12px; }
+</style>
+
 <div class="share-sheet" id="shareSheet">
   <div class="share-backdrop" onclick="closeShare()"></div>
   <div class="share-panel">
-    <div class="share-handle"></div>
-    <div style="text-align:center;padding:10px 20px 0;">
-      <div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(11,31,59,.35);">Share Your Progress</div>
+    <div class="sht-handle"></div>
+    <div class="sht-head">
+      <div class="sht-head-label">Share Your Progress</div>
+      <button class="sht-head-close" onclick="closeShare()">&#x2715;</button>
     </div>
-    <div class="share-preview-wrap">
-      <div class="share-canvas-wrap">
-        <canvas id="shareCanvas" width="1080" height="1080"></canvas>
+
+    <div class="sht-preview">
+      <div class="sht-canvas-wrap">
+        <canvas id="shareCanvas" width="1080" height="1350"></canvas>
       </div>
     </div>
-    <div class="share-photo-row" id="sharePhotoRow" style="margin-top:14px;">
-      <img class="share-photo-avatar" id="sharePhotoThumb" src="" alt="">
-      <div class="share-photo-info">
-        <div class="share-photo-name" id="sharePhotoName"></div>
-        <div class="share-photo-sub">Your profile photo · used on every share card</div>
+
+    <!-- Photo row -->
+    <div class="sht-photo-row" id="sharePhotoRow">
+      <img class="sht-avatar" id="sharePhotoThumb" src="" alt="" style="display:none" onclick="changeProfilePhoto()">
+      <div class="sht-avatar-empty" id="shareAvatarEmpty" onclick="changeProfilePhoto()">📷</div>
+      <div class="sht-photo-info">
+        <div class="sht-photo-name" id="sharePhotoName"></div>
+        <div class="sht-photo-sub">Photo saved once — auto-used on every card</div>
       </div>
-      <span class="share-photo-change" onclick="changeProfilePhoto()">Change</span>
+      <span class="sht-photo-change" onclick="changeProfilePhoto()">Change</span>
     </div>
-    <div class="share-actions">
-      <button class="share-btn-primary" id="shareNativeBtn" onclick="doNativeShare()">
-        <span style="font-size:18px;">&#x2197;</span> Share to WhatsApp / Instagram / X
+
+    <!-- Actions -->
+    <div class="sht-actions">
+      <!-- Primary native share -->
+      <button class="sht-btn-native" id="shareNativeBtn" onclick="doNativeShare()">
+        <span style="font-size:20px;">&#x2197;</span>
+        Share to Socials
       </button>
-      <button class="share-btn-secondary" onclick="downloadShareCard()">
-        <span style="font-size:15px;">&#x2B07;</span> Save Image to Phone
+
+      <!-- Platform-specific row -->
+      <div class="sht-platforms">
+        <button class="sht-plat-btn" onclick="shareToWhatsApp()">
+          <span class="sht-plat-icon">💬</span>
+          <span class="sht-plat-label">WhatsApp</span>
+        </button>
+        <button class="sht-plat-btn" onclick="shareToInstagram()">
+          <span class="sht-plat-icon">📸</span>
+          <span class="sht-plat-label">Instagram</span>
+        </button>
+        <button class="sht-plat-btn" onclick="shareToTwitter()">
+          <span class="sht-plat-icon">𝕏</span>
+          <span class="sht-plat-label">X / Twitter</span>
+        </button>
+      </div>
+
+      <!-- Save -->
+      <button class="sht-btn-save" onclick="downloadShareCard()">
+        <span style="font-size:16px;">&#x2B07;</span>
+        Save Image to Phone
       </button>
     </div>
-    <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+
+    <div class="sht-spacer"></div>
+    <input type="file" id="photoInput" accept="image/*" capture="user" style="display:none" onchange="handlePhotoUpload(event)">
   </div>
 </div>
 
