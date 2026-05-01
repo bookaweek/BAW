@@ -1024,7 +1024,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </div>
     <div class="date-badge"><span id="dayName">Monday</span> &middot; <span id="fullDate">...</span></div>
     <div class="member-greeting">Hey, <em id="greetName">...</em> &#x1F44B;</div>
-    <div class="member-sub" id="greetSub">Ready to log your session?</div>
+    <div class="member-sub" id="greetSub" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      Ready to log your session?
+      <span id="syncBadge" style="display:none;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid;letter-spacing:.04em;"></span>
+    </div>
   </div>
 
 
@@ -2581,20 +2584,76 @@ function prog(){
 // GAS SEND + OFFLINE QUEUE
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
-function sendToGAS(payload) {
-  // no-cors is required for GAS — response is opaque but request reaches GAS
-  // We add member to every payload for GAS sheet routing
+async function sendToGAS(payload) {
   if (!payload.member) payload.member = member || '';
-  return fetch(URL, {
-    method:  'POST',
-    mode:    'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body:    JSON.stringify(payload)
-  }).then(function(r) {
-    // opaque response — we just trust it landed
-    console.log('[BAW] GAS POST sent:', payload.action, 'for', payload.member);
-    return r;
-  });
+  var body = JSON.stringify(payload);
+
+  // ── ATTEMPT 1: CORS mode — lets us READ the sheet's response ──
+  // GAS deployed to "Anyone" returns proper CORS headers.
+  // This is how we KNOW the data landed.
+  try {
+    var r = await fetch(URL, {
+      method:  'POST',
+      mode:    'cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body:    body
+    });
+    if (r.ok) {
+      var json = await r.json().catch(function(){ return {}; });
+      console.log('[BAW] GAS confirmed:', payload.action, json);
+      if (json.success !== false) {
+        // Sheet confirmed receipt — show green flash
+        _showSyncBadge(true);
+        return json;
+      } else {
+        console.warn('[BAW] GAS returned error:', json.error);
+        _showSyncBadge(false, json.error);
+        throw new Error(json.error || 'GAS error');
+      }
+    }
+  } catch(corsErr) {
+    // ── ATTEMPT 2: no-cors fallback ──
+    // Data lands in sheet but response is opaque — we can't confirm.
+    if (corsErr.name !== 'TypeError') throw corsErr; // rethrow non-network errors
+    console.warn('[BAW] CORS blocked, falling back to no-cors:', corsErr.message);
+    try {
+      await fetch(URL, {
+        method:  'POST',
+        mode:    'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body:    body
+      });
+      console.log('[BAW] no-cors POST sent (opaque):', payload.action);
+      _showSyncBadge(null); // unknown — show neutral
+    } catch(e2) {
+      throw e2; // truly offline — caller will queue
+    }
+  }
+}
+
+// Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
+function _showSyncBadge(confirmed, errMsg) {
+  var el = document.getElementById('syncBadge');
+  if (!el) return;
+  if (confirmed === true) {
+    el.textContent = '✓ Synced to sheet';
+    el.style.background = 'rgba(13,122,110,.18)';
+    el.style.color = '#0D7A6E';
+    el.style.borderColor = 'rgba(13,122,110,.35)';
+  } else if (confirmed === false) {
+    el.textContent = '⚠ Sheet error';
+    el.style.background = 'rgba(192,57,43,.12)';
+    el.style.color = '#E07070';
+    el.style.borderColor = 'rgba(192,57,43,.28)';
+    if (errMsg) console.warn('[BAW] Sheet error:', errMsg);
+  } else {
+    el.textContent = '↑ Sent to sheet';
+    el.style.background = 'rgba(242,183,5,.1)';
+    el.style.color = 'var(--gold)';
+    el.style.borderColor = 'rgba(242,183,5,.3)';
+  }
+  el.style.display = 'inline-flex';
+  setTimeout(function(){ el.style.display = 'none'; }, 5000);
 }
 
 function queueLog(payload) {
@@ -3687,366 +3746,543 @@ function renderShareCard(photoDataUrl) {
 
 function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg) {
 
-  // ════════════════════════════════════════════════════════════
-  // BOOKAWEEK SHARE CARD v2 — WORLD-CLASS EDITORIAL DESIGN
-  // 1080×1350 px  (4:5 — Instagram, WhatsApp, Twitter-ready)
-  // ════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════
+  // BOOKAWEEK SHARE CARD — MAGAZINE COVER EDITION
+  // Full-dark premium layout. Gold metallic. Billboard-level impact.
+  // Every element engineered to make viewers ask: "How do I join?"
+  // ════════════════════════════════════════════════════════════════════
 
-  var d       = _lastLogData || {};
-  var stats2  = d.stats || stats || [];
-  var title   = String(d.title || 'Session Logged').replace(/[!]/g,'').replace(/\(offline\)/g,'').trim();
-  var isRest  = title.toLowerCase().indexOf('rest') !== -1;
+  var d      = _lastLogData || {};
+  var stats2 = d.stats || stats || [];
+  var title  = String(d.title || 'Session Logged').replace(/[!]/g,'').replace(/\(offline\)/g,'').trim();
+  var isRest = title.toLowerCase().indexOf('rest') !== -1;
+  var now3   = new Date();
 
-  // ── PALETTE ──────────────────────────────────────────────────
-  var NAVY   = '#060E1C';
-  var NAVY2  = '#0B1F3B';
-  var NAVY3  = '#0F2A50';
-  var GOLD   = '#C9A227';
-  var GOLD2  = '#F5C842';
-  var GOLD3  = '#E8B800';
-  var CREAM  = '#F5F0E8';
-  var TEAL   = '#0D7A6E';
+  // ── PALETTE (premium dark) ───────────────────────────────────────────
+  var BG1    = '#04080F';   // Almost-black base
+  var BG2    = '#071526';   // Deep navy
+  var BG3    = '#0A1E3A';   // Mid navy
+  var GOLD   = '#C9A227';   // Main gold
+  var GOLD_L = '#F5C842';   // Light gold
+  var GOLD_D = '#8B6914';   // Dark gold
+  var GOLD_M = '#E0AE22';   // Mid gold
   var WHITE  = '#FFFFFF';
+  var OFF_W  = '#F0EBE0';   // Warm white for bottom section
+  var TEAL   = '#0D9E8E';
+  var CREAM  = '#FAF6EE';
 
-  // ── BACKGROUND ───────────────────────────────────────────────
-  var splitY = Math.round(H * 0.56);
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 0 — FULL CANVAS BACKGROUND
+  // ═══════════════════════════════════════════════════════════════════
+  var bgGr = ctx.createLinearGradient(0, 0, 0, H);
+  bgGr.addColorStop(0,   BG1);
+  bgGr.addColorStop(0.3, BG2);
+  bgGr.addColorStop(0.65, BG3);
+  bgGr.addColorStop(1,   BG2);
+  ctx.fillStyle = bgGr;
+  ctx.fillRect(0, 0, W, H);
 
-  var bgTop = ctx.createLinearGradient(0, 0, W, splitY);
-  bgTop.addColorStop(0,   NAVY);
-  bgTop.addColorStop(0.5, NAVY2);
-  bgTop.addColorStop(1,   NAVY3);
-  ctx.fillStyle = bgTop;
-  ctx.fillRect(0, 0, W, splitY + 80);
+  // ── Diagonal beam (upper right warm glow) ────────────────────────
+  var beam = ctx.createRadialGradient(W*0.9, 0, 0, W*0.9, 0, W*1.1);
+  beam.addColorStop(0,   'rgba(201,162,39,0.13)');
+  beam.addColorStop(0.4, 'rgba(201,162,39,0.05)');
+  beam.addColorStop(1,   'transparent');
+  ctx.fillStyle = beam;
+  ctx.fillRect(0, 0, W, H*0.7);
 
-  ctx.fillStyle = CREAM;
-  ctx.fillRect(0, splitY - 50, W, H - splitY + 50);
+  // ── Lower teal glow ─────────────────────────────────────────────
+  var tealGlow = ctx.createRadialGradient(W*0.1, H*0.85, 0, W*0.1, H*0.85, W*0.6);
+  tealGlow.addColorStop(0,   'rgba(13,158,142,0.09)');
+  tealGlow.addColorStop(1,   'transparent');
+  ctx.fillStyle = tealGlow;
+  ctx.fillRect(0, H*0.5, W, H*0.5);
 
-  // ── GRAIN TEXTURE ────────────────────────────────────────────
+  // ── Fine dot-grid pattern overlay ────────────────────────────────
   ctx.save();
-  ctx.globalAlpha = 0.025;
-  for (var gx = 0; gx < W; gx += 2) {
-    for (var gy = 0; gy < splitY; gy += 2) {
-      if (Math.random() > 0.6) {
-        ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
-        ctx.fillRect(gx, gy, 1, 1);
-      }
+  ctx.globalAlpha = 0.04;
+  for (var dx = 30; dx < W; dx += 40) {
+    for (var dy = 30; dy < H*0.7; dy += 40) {
+      ctx.beginPath();
+      ctx.arc(dx, dy, 1.2, 0, Math.PI*2);
+      ctx.fillStyle = GOLD;
+      ctx.fill();
     }
   }
   ctx.restore();
 
-  // ── RADIAL GLOW ───────────────────────────────────────────────
-  var glow = ctx.createRadialGradient(W*0.78, H*0.19, 50, W*0.78, H*0.19, 460);
-  glow.addColorStop(0, 'rgba(201,162,39,0.10)');
-  glow.addColorStop(1, 'transparent');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, splitY + 80);
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 1 — LEFT GOLD SPINE + TOP BORDER
+  // ═══════════════════════════════════════════════════════════════════
+  // Left spine — gradient from bright to muted
+  var spineGr = ctx.createLinearGradient(0, 0, 0, H);
+  spineGr.addColorStop(0,   GOLD_L);
+  spineGr.addColorStop(0.4, GOLD);
+  spineGr.addColorStop(1,   GOLD_D);
+  ctx.fillStyle = spineGr;
+  ctx.fillRect(0, 0, 7, H);
 
-  var glow2 = ctx.createRadialGradient(W*0.15, H*0.44, 30, W*0.15, H*0.44, 260);
-  glow2.addColorStop(0, 'rgba(13,122,110,0.08)');
-  glow2.addColorStop(1, 'transparent');
-  ctx.fillStyle = glow2;
-  ctx.fillRect(0, 0, W, splitY + 80);
-
-  // ── EDGE ACCENTS ──────────────────────────────────────────────
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(0, 0, 6, H);
+  // Top border full width
+  var topBdr = ctx.createLinearGradient(0, 0, W, 0);
+  topBdr.addColorStop(0,   GOLD_L);
+  topBdr.addColorStop(0.5, GOLD);
+  topBdr.addColorStop(1,   'transparent');
+  ctx.fillStyle = topBdr;
   ctx.fillRect(0, 0, W, 6);
 
-  // ── BACKGROUND CIRCLE ART ─────────────────────────────────────
+  // Bottom border
+  var botBdr = ctx.createLinearGradient(0, 0, W, 0);
+  botBdr.addColorStop(0,   GOLD_L);
+  botBdr.addColorStop(0.5, GOLD);
+  botBdr.addColorStop(1,   'transparent');
+  ctx.fillStyle = botBdr;
+  ctx.fillRect(0, H-7, W, 7);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 2 — DECORATIVE GEOMETRY
+  // ═══════════════════════════════════════════════════════════════════
+
+  // Large hollow circle — upper right (barely visible)
   ctx.save();
-  ctx.globalAlpha = 0.045;
-  ctx.beginPath(); ctx.arc(W*0.88, H*0.17, 310, 0, Math.PI*2);
-  ctx.fillStyle = GOLD; ctx.fill();
+  ctx.globalAlpha = 0.07;
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(W*0.82, H*0.13, 260, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 0.035;
+  ctx.beginPath(); ctx.arc(W*0.82, H*0.13, 310, 0, Math.PI*2); ctx.stroke();
   ctx.restore();
 
+  // Small accent circle — lower left
   ctx.save();
-  ctx.globalAlpha = 0.025;
-  ctx.beginPath(); ctx.arc(-30, splitY*0.72, 210, 0, Math.PI*2);
-  ctx.fillStyle = GOLD2; ctx.fill();
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(W*0.08, H*0.78, 120, 0, Math.PI*2); ctx.stroke();
   ctx.restore();
 
-  // ── DIAGONAL LINES ────────────────────────────────────────────
+  // Diagonal slash lines (top-right corner)
   ctx.save();
-  ctx.globalAlpha = 0.03;
+  ctx.globalAlpha = 0.06;
   ctx.strokeStyle = GOLD; ctx.lineWidth = 1;
-  for (var li = 0; li < 5; li++) {
+  for (var sl = 0; sl < 7; sl++) {
     ctx.beginPath();
-    ctx.moveTo(W*0.5 + li*120, 0);
-    ctx.lineTo(W + li*120 - 200, splitY);
+    ctx.moveTo(W*0.55 + sl*55, 0);
+    ctx.lineTo(W + sl*55 - 180, H*0.35);
     ctx.stroke();
   }
   ctx.restore();
 
-  // ════════════════════════════════════════════════════════════
-  // TOP — Brand Mark + Date
-  // ════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 3 — TOP BRAND BAR
+  // ═══════════════════════════════════════════════════════════════════
+  var brandY = 74;
+
   ctx.save();
-  ctx.font = '800 30px Georgia, serif';
-  ctx.fillStyle = GOLD;
+  // BOOKAWEEK logo text
+  ctx.font = '900 32px Georgia, serif';
+  ctx.fillStyle = GOLD_L;
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('BOOK', 54, 78);
-  var bw = ctx.measureText('BOOK').width;
-  ctx.font = '300 30px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillText('AWEEK', 54 + bw + 2, 78);
+  ctx.fillText('BOOK', 52, brandY);
+  var bkW = ctx.measureText('BOOK').width;
 
+  // thin gold divider between BOOK and AWEEK
+  ctx.fillStyle = GOLD_D;
+  ctx.fillRect(52 + bkW + 3, brandY - 22, 2, 26);
+
+  ctx.font = '300 32px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.42)';
+  ctx.fillText('AWEEK', 52 + bkW + 10, brandY);
+
+  // Season badge (right side)
   ctx.textAlign = 'right';
-  ctx.font = '700 16px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.28)';
-  ctx.fillText(dayName, W - 54, 62);
-  ctx.font = '400 15px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  ctx.fillText(dateFmt, W - 54, 84);
-
+  ctx.font = '700 13px sans-serif';
+  ctx.fillStyle = GOLD;
+  ctx.letterSpacing = '0.14em';
+  ctx.fillText('SEASON ONE · 2026', W - 52, brandY - 14);
+  ctx.font = '400 13px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillText(dayName + '  ·  ' + dateFmt, W - 52, brandY + 8);
   ctx.textAlign = 'left';
-  ctx.fillStyle = GOLD; ctx.globalAlpha = 0.4;
-  ctx.fillRect(54, 88, 200, 2);
+
+  // Gold rule under brand
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(52, brandY + 14, W - 104, 1);
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ════════════════════════════════════════════════════════════
-  // HERO — Photo / Avatar + Name Block
-  // ════════════════════════════════════════════════════════════
-  var photoSize = 188;
-  var photoX = 54, photoY = 118;
-  var photoCX = photoX + photoSize/2;
-  var photoCY = photoY + photoSize/2;
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 4 — HERO PHOTO + NAME
+  // ═══════════════════════════════════════════════════════════════════
+  var photoR  = 130;   // radius
+  var photoCX = 52 + photoR;
+  var photoCY = brandY + 60 + photoR;
+
+  // Outer glow halos
+  var haloColors = [
+    [photoR + 60, 0.04],
+    [photoR + 40, 0.07],
+    [photoR + 22, 0.12],
+    [photoR + 10, 0.20],
+  ];
+  haloColors.forEach(function(h) {
+    ctx.save();
+    ctx.globalAlpha = h[1];
+    var hGr = ctx.createRadialGradient(photoCX, photoCY, photoR, photoCX, photoCY, h[0]);
+    hGr.addColorStop(0, GOLD);
+    hGr.addColorStop(1, 'transparent');
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, h[0], 0, Math.PI*2);
+    ctx.fillStyle = hGr; ctx.fill();
+    ctx.restore();
+  });
 
   if (photoImg) {
-    // Glow rings
-    [[60,0.06],[40,0.10],[20,0.18]].forEach(function(r) {
-      ctx.save(); ctx.globalAlpha = r[1];
-      ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2 + r[0], 0, Math.PI*2);
-      ctx.fillStyle = GOLD; ctx.fill(); ctx.restore();
-    });
-    // Clipped photo
+    // ── USER PHOTO ────────────────────────────────────────────────
+    // Clip and draw photo
     ctx.save();
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
     ctx.closePath(); ctx.clip();
     var iw = photoImg.width, ih = photoImg.height;
-    var sc = Math.max(photoSize/iw, photoSize/ih);
+    var sc = Math.max((photoR*2)/iw, (photoR*2)/ih);
     ctx.drawImage(photoImg, photoCX - iw*sc/2, photoCY - ih*sc/2, iw*sc, ih*sc);
     ctx.restore();
-    // Gold ring
+
+    // Gold ring (double)
     ctx.save();
-    ctx.strokeStyle = GOLD; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2 + 5, 0, Math.PI*2); ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2 + 14, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = GOLD_L; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 4, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 12, 0, Math.PI*2); ctx.stroke();
     ctx.restore();
+
   } else {
-    // Initials circle
+    // ── INITIALS CIRCLE ────────────────────────────────────────────
     ctx.save();
-    var igr = ctx.createRadialGradient(photoCX - 20, photoCY - 20, 0, photoCX, photoCY, photoSize/2);
-    igr.addColorStop(0, '#1A3D70'); igr.addColorStop(1, NAVY);
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2, 0, Math.PI*2);
-    ctx.fillStyle = igr; ctx.fill();
-    ctx.strokeStyle = GOLD; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoSize/2 + 5, 0, Math.PI*2); ctx.stroke();
+    // Glassmorphism dark fill
+    var circGr = ctx.createRadialGradient(photoCX - 40, photoCY - 40, 0, photoCX, photoCY, photoR);
+    circGr.addColorStop(0, '#1A3D70');
+    circGr.addColorStop(0.6, '#0B1F3B');
+    circGr.addColorStop(1, '#06111F');
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
+    ctx.fillStyle = circGr; ctx.fill();
+
+    // Gold ring
+    ctx.strokeStyle = GOLD_L; ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 12, 0, Math.PI*2); ctx.stroke();
+
+    // Initials
     var ini = getInitials(name);
-    ctx.font = '700 ' + (ini.length > 1 ? '66' : '80') + 'px Georgia, serif';
-    ctx.fillStyle = GOLD;
+    ctx.font = '700 ' + (ini.length > 1 ? '80' : '100') + 'px Georgia, serif';
+    ctx.fillStyle = GOLD_L;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(201,162,39,0.4)'; ctx.shadowBlur = 20;
+    ctx.shadowColor = GOLD; ctx.shadowBlur = 30;
     ctx.fillText(ini, photoCX, photoCY);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.restore();
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
   }
 
-  // ── NAME BLOCK ────────────────────────────────────────────────
-  var nameX = photoX + photoSize + 46;
-  var nameY2 = photoY + 28;
+  // ── NAME BLOCK (right of photo) ────────────────────────────────
+  var nameStartX = photoCX + photoR + 48;
+  var nameStartY = photoCY - photoR + 10;
+  var nameW = W - nameStartX - 52;
 
   ctx.save();
-  ctx.font = '800 17px sans-serif';
-  ctx.fillStyle = GOLD;
-  ctx.fillText("TODAY'S SESSION", nameX, nameY2);
 
-  var fnSize = fname.length > 9 ? 76 : fname.length > 7 ? 86 : 96;
+  // "TODAY'S LOG" micro label
+  ctx.font = '800 15px sans-serif';
+  ctx.fillStyle = GOLD;
+  ctx.fillText("TODAY'S LOG", nameStartX, nameStartY + 18);
+
+  // Thin gold rule
+  ctx.fillStyle = GOLD_D;
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(nameStartX, nameStartY + 26, 160, 1);
+  ctx.globalAlpha = 1;
+
+  // FIRST NAME — massive
+  var fnLen = fname.length;
+  var fnSize = fnLen > 10 ? 70 : fnLen > 7 ? 82 : fnLen > 5 ? 94 : 106;
   ctx.font = '900 ' + fnSize + 'px Georgia, serif';
   ctx.fillStyle = WHITE;
-  ctx.shadowColor = 'rgba(201,162,39,0.2)'; ctx.shadowBlur = 25;
-  ctx.fillText(fname, nameX, nameY2 + 90);
+  ctx.shadowColor = 'rgba(201,162,39,0.3)';
+  ctx.shadowBlur = 35;
+  // Clip name to card width
+  var displayFirst = fname;
+  while (ctx.measureText(displayFirst).width > nameW && displayFirst.length > 4) {
+    displayFirst = displayFirst.slice(0, -1);
+  }
+  ctx.fillText(displayFirst, nameStartX, nameStartY + 36 + fnSize);
   ctx.shadowBlur = 0;
 
-  if (name !== fname && name.replace(fname,'').trim().length > 0) {
-    var lname = name.replace(fname,'').trim();
-    ctx.font = '300 42px Georgia, serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.38)';
-    ctx.fillText(lname.length > 11 ? lname.slice(0,11)+'…' : lname, nameX, nameY2 + 142);
+  // Last name (if exists) — lighter
+  var lname = name !== fname ? name.replace(fname,'').trim() : '';
+  if (lname) {
+    ctx.font = '300 38px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.32)';
+    var displayLast = lname.length > 13 ? lname.slice(0,12)+'…' : lname;
+    ctx.fillText(displayLast, nameStartX, nameStartY + 42 + fnSize + 44);
   }
 
-  var bwTagY = nameY2 + (name !== fname ? 175 : 148);
-  ctx.font = '700 18px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
-  ctx.fillText('BOOKWARRIOR', nameX, bwTagY);
-  var bwW = ctx.measureText('BOOKWARRIOR').width;
-  ctx.beginPath(); ctx.arc(nameX + bwW + 12, bwTagY - 5, 3, 0, Math.PI*2);
-  ctx.fillStyle = TEAL; ctx.fill();
+  // BookWarrior + Season chip
+  var chipY = nameStartY + 50 + fnSize + (lname ? 58 : 14);
+  ctx.font = '700 15px sans-serif';
   ctx.fillStyle = TEAL;
-  ctx.fillText("S1'26", nameX + bwW + 20, bwTagY);
+  ctx.fillText('BOOKWARRIOR  ·  S1\'26', nameStartX, chipY);
+
   ctx.restore();
 
-  // ── STREAK BADGE ──────────────────────────────────────────────
-  var sbY = photoY + photoSize + 28;
-  var sbX = photoX;
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 5 — STREAK BADGE (below photo)
+  // ═══════════════════════════════════════════════════════════════════
+  var sbY = photoCY + photoR + 36;
+  var sbX = 52;
 
   if (streak > 0) {
-    var sbW = Math.min(280, W - sbX - 50), sbH = 60;
+    var sbW = Math.min(320, W - sbX - 52), sbH = 64;
+
+    // Shadow
     ctx.save();
-    var sGr = ctx.createLinearGradient(sbX, sbY, sbX + sbW, sbY + sbH);
-    sGr.addColorStop(0, '#9A7200'); sGr.addColorStop(0.45, GOLD2); sGr.addColorStop(1, GOLD3);
-    ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
-    ctx.fillStyle = sGr; _roundRect(ctx, sbX, sbY, sbW, sbH, 30); ctx.fill();
-    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    ctx.font = '800 24px sans-serif';
-    ctx.fillStyle = NAVY; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText((streak >= 30 ? '👑' : '🔥') + '  ' + streak + ' DAY STREAK', sbX + sbW/2, sbY + sbH/2);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.restore();
-  } else {
-    var d1W = 200, d1H = 50;
-    ctx.save();
-    ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-    _roundRect(ctx, sbX, sbY, d1W, d1H, 25); ctx.stroke();
-    ctx.font = '700 20px sans-serif'; ctx.fillStyle = GOLD;
+    ctx.shadowColor = 'rgba(201,162,39,0.5)'; ctx.shadowBlur = 28;
+    // Metallic gold gradient fill
+    var strGr = ctx.createLinearGradient(sbX, sbY, sbX + sbW, sbY + sbH);
+    strGr.addColorStop(0,    '#7A5200');
+    strGr.addColorStop(0.15, GOLD_L);
+    strGr.addColorStop(0.5,  GOLD);
+    strGr.addColorStop(0.85, GOLD_M);
+    strGr.addColorStop(1,    '#9A6A00');
+    ctx.fillStyle = strGr;
+    _roundRect(ctx, sbX, sbY, sbW, sbH, 32); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Shine overlay
+    ctx.globalAlpha = 0.18;
+    var shineGr = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbH);
+    shineGr.addColorStop(0, WHITE);
+    shineGr.addColorStop(0.5, 'transparent');
+    ctx.fillStyle = shineGr;
+    _roundRect(ctx, sbX, sbY, sbW, sbH/2, 32); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.font = '800 26px sans-serif';
+    ctx.fillStyle = BG1;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('✨  SESSION ONE', sbX + d1W/2, sbY + d1H/2);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.restore();
+    var streakEmoji = streak >= 90 ? '🏆' : streak >= 30 ? '👑' : streak >= 14 ? '⚡' : '🔥';
+    ctx.fillText(streakEmoji + '  ' + streak + ' DAY STREAK', sbX + sbW/2, sbY + sbH/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+
+  } else {
+    // First session badge
+    ctx.save();
+    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
+    var d1W = 220, d1H = 50;
+    ctx.beginPath(); _roundRect(ctx, sbX, sbY, d1W, d1H, 25); ctx.stroke();
+    ctx.font = '700 20px sans-serif';
+    ctx.fillStyle = GOLD;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✨  FIRST SESSION', sbX + d1W/2, sbY + d1H/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
   }
 
-  // ── BOOK TAG ──────────────────────────────────────────────────
+  // ── Book tag ───────────────────────────────────────────────────────
   var bookStat2 = stats2.find(function(r){ return String(r[0]).toLowerCase() === 'book'; });
+  var tagY = sbY + (streak > 0 ? 82 : 68);
+
   if (bookStat2 && !isRest) {
-    var btTitle = String(bookStat2[1]).slice(0,24) + (bookStat2[1].length > 24 ? '…' : '');
-    var btY = sbY + (streak > 0 ? 76 : 66);
+    var btTxt = '📖  ' + String(bookStat2[1]).slice(0,26) + (bookStat2[1].length > 26 ? '…' : '');
     ctx.save();
-    ctx.font = '600 17px sans-serif';
-    var btW2 = Math.min(ctx.measureText('📖  ' + btTitle).width + 30, W - sbX - 60);
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5;
-    _roundRect(ctx, sbX, btY, btW2, 42, 21); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.textBaseline = 'middle';
-    ctx.fillText('📖  ' + btTitle, sbX + 14, btY + 21);
+    ctx.font = '600 16px sans-serif';
+    var btW2 = Math.min(ctx.measureText(btTxt).width + 28, W - sbX - 52);
+    // Glass pill
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1;
+    _roundRect(ctx, sbX, tagY, btW2, 44, 22); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.textBaseline = 'middle'; ctx.fillText(btTxt, sbX + 14, tagY + 22);
     ctx.textBaseline = 'alphabetic'; ctx.restore();
+    tagY += 62;
   }
 
   if (isRest) {
-    var rY = sbY + (streak > 0 ? 76 : 66);
     ctx.save();
-    ctx.font = '700 19px sans-serif';
+    ctx.font = '700 18px sans-serif';
     ctx.fillStyle = 'rgba(167,139,250,0.85)';
-    ctx.fillText('😴  REST DAY — RECOVERY IS PART OF THE SYSTEM', photoX, rY + 28);
+    ctx.fillText('😴  REST & RECOVERY — DISCIPLINE INCLUDES REST', sbX, tagY + 28);
     ctx.restore();
+    tagY += 52;
   }
 
-  // ════════════════════════════════════════════════════════════
-  // DIAGONAL DIVIDER
-  // ════════════════════════════════════════════════════════════
-  ctx.save();
-  ctx.fillStyle = GOLD; ctx.globalAlpha = 0.65;
-  ctx.beginPath();
-  ctx.moveTo(0, splitY - 12); ctx.lineTo(W, splitY - 58);
-  ctx.lineTo(W, splitY - 51); ctx.lineTo(0, splitY - 5);
-  ctx.closePath(); ctx.fill();
-  ctx.globalAlpha = 0.2;
-  ctx.beginPath();
-  ctx.moveTo(0, splitY + 10); ctx.lineTo(W, splitY - 30);
-  ctx.lineTo(W, splitY - 27); ctx.lineTo(0, splitY + 13);
-  ctx.closePath(); ctx.fill();
-  ctx.globalAlpha = 1; ctx.restore();
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 6 — ACHIEVEMENT HEADLINE (centered below everything)
+  // ═══════════════════════════════════════════════════════════════════
+  var achY = tagY + 44;
 
-  // ════════════════════════════════════════════════════════════
-  // BOTTOM — Achievement + Stats + Quote + CTA
-  // ════════════════════════════════════════════════════════════
-  var botY = splitY + 15;
+  // Achievement label
+  var achText = isRest ? 'REST DAY LOGGED' : title.toUpperCase();
 
-  // ── HEADLINE ──────────────────────────────────────────────────
   ctx.save();
-  ctx.shadowColor = 'rgba(200,180,140,0.5)'; ctx.shadowOffsetY = 3;
-  var headText = isRest ? 'REST DAY LOGGED' : title.toUpperCase();
-  var headSize = headText.length > 18 ? 44 : headText.length > 14 ? 50 : 58;
-  ctx.font = '900 ' + headSize + 'px Georgia, serif';
-  ctx.fillStyle = NAVY2; ctx.textAlign = 'center';
-  ctx.fillText(headText, W/2, botY + 72);
-  ctx.shadowOffsetY = 0; ctx.shadowBlur = 0;
-  var hw2 = ctx.measureText(headText).width;
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(W/2 - Math.min(hw2/2, 200), botY + 84, Math.min(hw2, 400), 3);
+  // Gold metallic headline text
+  var achGr = ctx.createLinearGradient(0, achY - 60, 0, achY);
+  achGr.addColorStop(0, GOLD_L);
+  achGr.addColorStop(0.5, GOLD_M);
+  achGr.addColorStop(1, GOLD_D);
+  var achSize = achText.length > 20 ? 54 : achText.length > 14 ? 62 : 72;
+  ctx.font = '900 ' + achSize + 'px Georgia, serif';
+  ctx.fillStyle = achGr;
+  ctx.textAlign = 'center';
+  ctx.shadowColor = 'rgba(201,162,39,0.35)'; ctx.shadowBlur = 22;
+  ctx.fillText(achText, W/2, achY);
+  ctx.shadowBlur = 0;
+
+  // Creed line
+  ctx.font = '700 20px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.letterSpacing = '0.2em';
+  ctx.fillText('READ · REFLECT · EXECUTE', W/2, achY + 36);
+  ctx.textAlign = 'left';
   ctx.restore();
 
-  // ── STAT BLOCKS ───────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 7 — STAT BLOCKS
+  // ═══════════════════════════════════════════════════════════════════
+  var statY = achY + 72;
   var validStats = stats2.filter(function(r){
     var v = String(r[1]||'');
     return v && v !== '0 min' && v !== '0' && r[0] !== 'Book';
   });
   if (!validStats.length) validStats = stats2.slice(0,3);
-  var numStats = Math.min(validStats.length, 3);
-  var sPad = 60, sGap = 18;
-  var sW = numStats > 0 ? Math.floor((W - sPad*2 - sGap*(numStats-1)) / numStats) : 300;
-  var sY = botY + 110, sH = 190;
+  var nSt = Math.min(validStats.length, 3);
+  var sPad = 52, sGap = 16;
+  var sW = nSt > 0 ? Math.floor((W - sPad*2 - sGap*(nSt-1)) / nSt) : 300;
+  var sH = 210;
 
-  validStats.slice(0, numStats).forEach(function(row, i) {
+  validStats.slice(0, nSt).forEach(function(row, i) {
     var sx = sPad + i*(sW + sGap);
+
+    // Glassmorphism card
     ctx.save();
-    ctx.shadowColor = 'rgba(11,31,59,0.12)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 10;
-    ctx.fillStyle = WHITE; _roundRect(ctx, sx, sY, sW, sH, 18); ctx.fill(); ctx.restore();
-    ctx.save();
-    ctx.fillStyle = GOLD; _roundRect(ctx, sx, sY, sW, 5, 3); ctx.fill(); ctx.restore();
-    ctx.save();
+    // Card background
+    var cBg = ctx.createLinearGradient(sx, statY, sx, statY + sH);
+    cBg.addColorStop(0, 'rgba(255,255,255,0.09)');
+    cBg.addColorStop(1, 'rgba(255,255,255,0.04)');
+    ctx.fillStyle = cBg;
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+    _roundRect(ctx, sx, statY, sW, sH, 20); ctx.fill(); ctx.stroke();
+
+    // Top gold accent bar
+    var tGr = ctx.createLinearGradient(sx, statY, sx + sW, statY);
+    tGr.addColorStop(0, GOLD_L); tGr.addColorStop(1, GOLD_D);
+    ctx.fillStyle = tGr;
+    _roundRect(ctx, sx, statY, sW, 5, 3); ctx.fill();
+
+    // Shine
+    ctx.globalAlpha = 0.08;
+    var shGr2 = ctx.createLinearGradient(sx, statY, sx, statY + sH*0.4);
+    shGr2.addColorStop(0, WHITE); shGr2.addColorStop(1, 'transparent');
+    ctx.fillStyle = shGr2;
+    _roundRect(ctx, sx + 1, statY + 5, sW - 2, sH * 0.35, 18); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Stat value — massive gold
     var valStr = String(row[1]);
-    var valSize = valStr.length > 6 ? 48 : valStr.length > 4 ? 58 : valStr.length > 2 ? 68 : 82;
+    var valSize = valStr.length > 7 ? 46 : valStr.length > 5 ? 58 : valStr.length > 3 ? 72 : 88;
+    var valGr = ctx.createLinearGradient(sx, statY + sH*0.3, sx, statY + sH*0.7);
+    valGr.addColorStop(0, GOLD_L);
+    valGr.addColorStop(0.5, GOLD_M);
+    valGr.addColorStop(1, GOLD_D);
     ctx.font = '900 ' + valSize + 'px Georgia, serif';
-    ctx.fillStyle = NAVY2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(11,31,59,0.06)'; ctx.shadowBlur = 8;
-    ctx.fillText(valStr, sx + sW/2, sY + sH*0.47); ctx.shadowBlur = 0;
-    ctx.font = '700 17px sans-serif'; ctx.fillStyle = 'rgba(11,31,59,0.36)';
-    ctx.fillText(String(row[0]).toUpperCase(), sx + sW/2, sY + sH - 26);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.restore();
+    ctx.fillStyle = valGr;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(201,162,39,0.4)'; ctx.shadowBlur = 16;
+    ctx.fillText(valStr, sx + sW/2, statY + sH * 0.49);
+    ctx.shadowBlur = 0;
+
+    // Label
+    ctx.font = '700 15px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText(String(row[0]).toUpperCase(), sx + sW/2, statY + sH - 26);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
   });
 
-  // ── QUOTE ──────────────────────────────────────────────────────
-  var qBaseY = sY + sH + 38;
-  var qs3 = [
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 8 — QUOTE
+  // ═══════════════════════════════════════════════════════════════════
+  var qY = statY + sH + 50;
+  var qList = [
     '"Not all readers are leaders — but all leaders are readers."',
     '"The person you\'ll be in 5 years is in the books you read today."',
     '"Reading is the gym for the mind. Show up daily."',
     '"One book at a time. One warrior at a time."',
-    '"The edge you seek is on pages you have not yet read."'
+    '"The edge you seek is on pages you have not yet read."',
+    '"A reader lives a thousand lives. The non-reader lives only one."',
+    '"Leaders are readers who act on what they read."'
   ];
-  var now3 = new Date();
-  var q3 = qs3[now3.getDay() % qs3.length];
+  var qText = qList[now3.getDay() % qList.length];
   ctx.save();
-  ctx.font = 'italic 27px Georgia, serif';
-  ctx.fillStyle = 'rgba(11,31,59,0.38)';
+  ctx.font = 'italic 26px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
   ctx.textAlign = 'center';
-  _wrapText(ctx, q3, W/2, qBaseY, W - 120, 40);
-  ctx.textAlign = 'left'; ctx.restore();
+  _wrapText(ctx, qText, W/2, qY, W - 120, 40);
+  ctx.textAlign = 'left';
+  ctx.restore();
 
-  // ════════════════════════════════════════════════════════════
-  // CTA STRIP — THE VIRAL ENGINE
-  // ════════════════════════════════════════════════════════════
-  var ctaH2 = 130;
-  var ctaY3 = H - ctaH2 - 10;
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 9 — VIRAL CTA BLOCK (bottom)
+  // Design principle: Make it feel exclusive and urgent.
+  // People must feel FOMO reading this.
+  // ═══════════════════════════════════════════════════════════════════
+  var ctaH3 = 165;
+  var ctaY4 = H - ctaH3 - 8;
 
   ctx.save();
-  var ctaGr = ctx.createLinearGradient(0, ctaY3, W, ctaY3 + ctaH2);
-  ctaGr.addColorStop(0, '#060E1C'); ctaGr.addColorStop(1, '#0F2A50');
-  ctx.fillStyle = ctaGr; ctx.fillRect(0, ctaY3, W, ctaH2);
 
-  var shGr = ctx.createLinearGradient(0, ctaY3, W, ctaY3);
-  shGr.addColorStop(0, 'transparent'); shGr.addColorStop(0.3, GOLD);
-  shGr.addColorStop(0.7, GOLD); shGr.addColorStop(1, 'transparent');
-  ctx.fillStyle = shGr; ctx.fillRect(0, ctaY3, W, 2);
+  // CTA background: premium dark glass with gold shimmer border
+  var ctaBg = ctx.createLinearGradient(0, ctaY4, W, ctaY4 + ctaH3);
+  ctaBg.addColorStop(0,   'rgba(201,162,39,0.14)');
+  ctaBg.addColorStop(0.5, 'rgba(10,26,60,0.85)');
+  ctaBg.addColorStop(1,   'rgba(4,8,15,0.95)');
+  ctx.fillStyle = ctaBg;
+  ctx.fillRect(0, ctaY4, W, ctaH3);
 
-  ctx.font = '800 28px sans-serif'; ctx.fillStyle = GOLD; ctx.textAlign = 'center';
-  ctx.fillText('JOIN 6 BOOKWARRIORS THIS SEASON', W/2, ctaY3 + 42);
-  ctx.font = '400 21px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.fillText('24 books · 6 months · 1 identity shift', W/2, ctaY3 + 74);
-  ctx.font = '700 20px sans-serif'; ctx.fillStyle = 'rgba(201,162,39,0.7)';
-  ctx.fillText('selar.com/bookaweekchallenge  ·  #BookAWeek', W/2, ctaY3 + 106);
-  ctx.textAlign = 'left'; ctx.restore();
+  // Gold shimmer top edge
+  var edgeGr = ctx.createLinearGradient(0, ctaY4, W, ctaY4);
+  edgeGr.addColorStop(0,    'transparent');
+  edgeGr.addColorStop(0.2,  GOLD_L);
+  edgeGr.addColorStop(0.5,  GOLD_M);
+  edgeGr.addColorStop(0.8,  GOLD_L);
+  edgeGr.addColorStop(1,    'transparent');
+  ctx.fillStyle = edgeGr;
+  ctx.fillRect(0, ctaY4, W, 2.5);
 
-  // ── BOTTOM GOLD BAR ───────────────────────────────────────────
-  ctx.fillStyle = GOLD; ctx.fillRect(0, H - 8, W, 8);
+  // Main CTA text
+  ctx.font = '900 34px Georgia, serif';
+  var ctaHeadGr = ctx.createLinearGradient(0, ctaY4 + 20, 0, ctaY4 + 60);
+  ctaHeadGr.addColorStop(0, GOLD_L);
+  ctaHeadGr.addColorStop(1, GOLD_M);
+  ctx.fillStyle = ctaHeadGr;
+  ctx.textAlign = 'center';
+  ctx.shadowColor = 'rgba(201,162,39,0.5)'; ctx.shadowBlur = 18;
+  ctx.fillText('24 BOOKS. 6 MONTHS. 1 IDENTITY.', W/2, ctaY4 + 50);
+  ctx.shadowBlur = 0;
+
+  // Sub-line
+  ctx.font = '500 22px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.fillText('Season 1 is LIVE. Spots are limited.', W/2, ctaY4 + 84);
+
+  // URL pill
+  ctx.font = '700 18px sans-serif';
+  ctx.fillStyle = GOLD_L;
+  ctx.fillText('→  selar.com/bookaweekchallenge', W/2, ctaY4 + 118);
+
+  // Hashtags
+  ctx.font = '600 16px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillText('#BookAWeek  ·  #BookWarrior  ·  #ReadReflectExecute', W/2, ctaY4 + 148);
+  ctx.textAlign = 'left';
+  ctx.restore();
 
   updateShareBlob(document.getElementById('shareCanvas'));
 }
@@ -4186,46 +4422,76 @@ function shareToTwitter() {
 
 </script>
 
-<!-- SHARE SHEET -->
+<!-- SHARE SHEET — PREMIUM DARK EDITION -->
 <style>
-/* ── SHARE SHEET REDESIGN ─────────────────────────────── */
-.share-sheet { position:fixed;inset:0;z-index:900;display:none;align-items:flex-end;justify-content:center; }
+/* ════════════════════════════════════════════
+   SHARE SHEET — full dark, matches card aesthetic
+   ════════════════════════════════════════════ */
+.share-sheet {
+  position:fixed;inset:0;z-index:900;display:none;
+  align-items:flex-end;justify-content:center;
+}
 .share-sheet.show { display:flex;animation:fadeIn .2s ease; }
-.share-backdrop { position:absolute;inset:0;background:rgba(6,14,28,.72);backdrop-filter:blur(6px); }
+
+.share-backdrop {
+  position:absolute;inset:0;
+  background:rgba(4,8,15,.85);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+
 .share-panel {
   position:relative;width:100%;max-width:440px;
-  background:linear-gradient(180deg,#F8F4EE 0%,#F0EBE2 100%);
+  background:linear-gradient(160deg,#0A1624 0%,#06100A 50%,#080D1C 100%);
   border-radius:28px 28px 0 0;
-  padding:0 0 env(safe-area-inset-bottom,24px);
+  border-top:1px solid rgba(201,162,39,0.25);
+  border-left:1px solid rgba(201,162,39,0.08);
+  border-right:1px solid rgba(201,162,39,0.08);
+  padding:0 0 env(safe-area-inset-bottom,28px);
   overflow:hidden;
-  animation:slideUp .32s cubic-bezier(.34,1.1,.64,1);
+  animation:slideUp .35s cubic-bezier(.34,1.1,.64,1);
   max-height:94vh;overflow-y:auto;
-  box-shadow:0 -12px 60px rgba(6,14,28,.35);
+  box-shadow:0 -20px 80px rgba(4,8,15,.7), 0 0 0 1px rgba(201,162,39,0.12);
 }
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.sht-handle { width:40px;height:4px;background:rgba(11,31,59,.15);border-radius:2px;margin:14px auto 0; }
+
+/* Gold shimmer at top of panel */
+.share-panel::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,#F5C842 40%,#C9A227 60%,transparent 100%);
+}
+
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+
+/* Handle */
+.sht-handle {
+  width:36px;height:4px;
+  background:rgba(201,162,39,0.25);
+  border-radius:2px;margin:14px auto 0;
+}
+
+/* Header */
 .sht-head {
-  padding:10px 24px 0;
+  padding:12px 22px 0;
   display:flex;align-items:center;justify-content:space-between;
 }
 .sht-head-label {
-  font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
-  color:rgba(11,31,59,.3);
+  font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(201,162,39,0.5);
 }
 .sht-head-close {
-  width:30px;height:30px;border-radius:50%;background:rgba(11,31,59,.08);
-  border:none;cursor:pointer;color:rgba(11,31,59,.4);font-size:16px;
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+  cursor:pointer;color:rgba(255,255,255,0.4);font-size:15px;
   display:flex;align-items:center;justify-content:center;
-  -webkit-tap-highlight-color:transparent;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;
 }
-.sht-preview {
-  padding:14px 20px 0;
-  position:relative;
-}
+.sht-head-close:active { background:rgba(255,255,255,0.1); }
+
+/* Preview canvas */
+.sht-preview { padding:14px 18px 0;position:relative; }
 .sht-canvas-wrap {
-  border-radius:16px;overflow:hidden;
-  box-shadow:0 10px 40px rgba(11,31,59,.22);
-  position:relative;border:1px solid rgba(11,31,59,.08);
+  border-radius:16px;overflow:hidden;position:relative;
+  box-shadow:0 12px 50px rgba(0,0,0,.6), 0 0 0 1px rgba(201,162,39,0.18);
 }
 .sht-canvas-wrap canvas { display:block;width:100%;height:auto; }
 
@@ -4235,79 +4501,103 @@ function shareToTwitter() {
   padding:14px 20px 0;
 }
 .sht-avatar {
-  width:44px;height:44px;border-radius:50%;object-fit:cover;
-  border:2.5px solid rgba(201,162,39,.5);flex-shrink:0;
-  background:rgba(11,31,59,.06);
+  width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;
+  border:2px solid rgba(201,162,39,0.6);
+  box-shadow:0 0 16px rgba(201,162,39,0.25);
 }
 .sht-avatar-empty {
-  width:44px;height:44px;border-radius:50%;
-  background:rgba(11,31,59,.07);border:2px dashed rgba(11,31,59,.18);
-  display:flex;align-items:center;justify-content:center;font-size:18px;
-  flex-shrink:0;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  width:42px;height:42px;border-radius:50%;flex-shrink:0;
+  background:rgba(201,162,39,0.08);
+  border:2px dashed rgba(201,162,39,0.3);
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s;
 }
+.sht-avatar-empty:active { background:rgba(201,162,39,0.14); }
 .sht-photo-info { flex:1;min-width:0; }
-.sht-photo-name { font-size:13px;font-weight:700;color:#0B1F3B; }
-.sht-photo-sub  { font-size:11px;color:rgba(11,31,59,.4);margin-top:1px; }
+.sht-photo-name { font-size:13px;font-weight:700;color:#fff; }
+.sht-photo-sub  { font-size:11px;color:rgba(255,255,255,0.28);margin-top:2px;line-height:1.4; }
 .sht-photo-change {
-  font-size:12px;font-weight:700;color:#1547B0;
-  cursor:pointer;text-decoration:none;flex-shrink:0;
-  -webkit-tap-highlight-color:transparent;
-  padding:6px 12px;background:rgba(21,71,176,.08);
-  border-radius:8px;border:1px solid rgba(21,71,176,.18);
+  font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:rgba(201,162,39,0.8);cursor:pointer;flex-shrink:0;
+  padding:7px 14px;
+  background:rgba(201,162,39,0.08);
+  border:1px solid rgba(201,162,39,0.2);
+  border-radius:20px;
+  -webkit-tap-highlight-color:transparent;transition:all .15s;
 }
+.sht-photo-change:active { background:rgba(201,162,39,0.16); }
 
-/* Share actions */
-.sht-actions { padding:14px 20px 0;display:flex;flex-direction:column;gap:10px; }
+/* Actions area */
+.sht-actions { padding:14px 18px 0;display:flex;flex-direction:column;gap:10px; }
 
-/* Primary: native share */
+/* Primary CTA — gold metallic */
 .sht-btn-native {
-  width:100%;height:58px;
-  background:linear-gradient(135deg,#0B1F3B 0%,#1547B0 100%);
-  border:none;border-radius:16px;color:#fff;
-  font-family:'DM Sans',sans-serif;font-size:16px;font-weight:800;
+  width:100%;height:60px;
+  background:linear-gradient(135deg,#7A5200 0%,#F5C842 40%,#C9A227 60%,#9A6A00 100%);
+  border:none;border-radius:18px;
+  color:#04080F;
+  font-family:'DM Sans',sans-serif;font-size:16px;font-weight:900;
   cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
-  -webkit-tap-highlight-color:transparent;
-  box-shadow:0 8px 28px rgba(11,31,59,.28);
-  transition:opacity .15s;letter-spacing:.02em;
+  -webkit-tap-highlight-color:transparent;letter-spacing:.04em;
+  box-shadow:0 6px 32px rgba(201,162,39,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  transition:opacity .12s,transform .12s;
+  position:relative;overflow:hidden;
 }
-.sht-btn-native:active { opacity:.88; }
+.sht-btn-native::before {
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,0.2) 0%,transparent 50%);
+  pointer-events:none;
+}
+.sht-btn-native:active { opacity:.88;transform:scale(.98); }
 
 /* Platform row */
 .sht-platforms { display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px; }
 .sht-plat-btn {
-  height:52px;border-radius:14px;border:1.5px solid rgba(11,31,59,.1);
-  background:#fff;cursor:pointer;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:3px;
+  height:58px;border-radius:14px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+  cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;
   -webkit-tap-highlight-color:transparent;transition:all .15s;
-  box-shadow:0 2px 8px rgba(11,31,59,.07);
 }
-.sht-plat-btn:active { transform:scale(.96); }
-.sht-plat-icon { font-size:22px;line-height:1; }
-.sht-plat-label { font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(11,31,59,.4); }
+.sht-plat-btn:active { background:rgba(255,255,255,0.1);transform:scale(.96); }
+.sht-plat-icon { font-size:24px;line-height:1; }
+.sht-plat-label {
+  font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,0.3);
+}
 
-/* Save button */
+/* Save/download button */
 .sht-btn-save {
-  width:100%;height:46px;
-  background:rgba(11,31,59,.06);border:1.5px solid rgba(11,31,59,.13);
-  border-radius:14px;color:#0B1F3B;
-  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+  width:100%;height:48px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;color:rgba(255,255,255,0.45);
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
   -webkit-tap-highlight-color:transparent;transition:background .15s;
 }
-.sht-btn-save:active { background:rgba(11,31,59,.1); }
+.sht-btn-save:active { background:rgba(255,255,255,0.08); }
 
-.sht-spacer { height:12px; }
+.sht-divider {
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(201,162,39,0.15),transparent);
+  margin:4px 0;
+}
+.sht-spacer { height:16px; }
 </style>
 
 <div class="share-sheet" id="shareSheet">
   <div class="share-backdrop" onclick="closeShare()"></div>
   <div class="share-panel">
     <div class="sht-handle"></div>
+
     <div class="sht-head">
-      <div class="sht-head-label">Share Your Progress</div>
+      <div class="sht-head-label">📤 &nbsp;Share Your Progress</div>
       <button class="sht-head-close" onclick="closeShare()">&#x2715;</button>
     </div>
 
+    <!-- Card preview -->
     <div class="sht-preview">
       <div class="sht-canvas-wrap">
         <canvas id="shareCanvas" width="1080" height="1350"></canvas>
@@ -4320,20 +4610,23 @@ function shareToTwitter() {
       <div class="sht-avatar-empty" id="shareAvatarEmpty" onclick="changeProfilePhoto()">📷</div>
       <div class="sht-photo-info">
         <div class="sht-photo-name" id="sharePhotoName"></div>
-        <div class="sht-photo-sub">Photo saved once — auto-used on every card</div>
+        <div class="sht-photo-sub">Add your photo once — appears on every card automatically</div>
       </div>
       <span class="sht-photo-change" onclick="changeProfilePhoto()">Change</span>
     </div>
 
-    <!-- Actions -->
+    <!-- Share actions -->
     <div class="sht-actions">
-      <!-- Primary native share -->
+
+      <!-- Gold CTA: native share (best on mobile) -->
       <button class="sht-btn-native" id="shareNativeBtn" onclick="doNativeShare()">
-        <span style="font-size:20px;">&#x2197;</span>
-        Share to Socials
+        <span style="font-size:22px;">&#x2197;</span>
+        Share to Any App
       </button>
 
-      <!-- Platform-specific row -->
+      <div class="sht-divider"></div>
+
+      <!-- Platform row -->
       <div class="sht-platforms">
         <button class="sht-plat-btn" onclick="shareToWhatsApp()">
           <span class="sht-plat-icon">💬</span>
@@ -4344,20 +4637,21 @@ function shareToTwitter() {
           <span class="sht-plat-label">Instagram</span>
         </button>
         <button class="sht-plat-btn" onclick="shareToTwitter()">
-          <span class="sht-plat-icon">𝕏</span>
+          <span class="sht-plat-icon">&#x1D54F;</span>
           <span class="sht-plat-label">X / Twitter</span>
         </button>
       </div>
 
-      <!-- Save -->
+      <!-- Save image -->
       <button class="sht-btn-save" onclick="downloadShareCard()">
-        <span style="font-size:16px;">&#x2B07;</span>
-        Save Image to Phone
+        <span style="font-size:17px;">&#x2B07;</span>
+        Save Image to Gallery
       </button>
+
     </div>
 
     <div class="sht-spacer"></div>
-    <input type="file" id="photoInput" accept="image/*" capture="user" style="display:none" onchange="handlePhotoUpload(event)">
+    <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
   </div>
 </div>
 
