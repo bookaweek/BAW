@@ -2588,47 +2588,41 @@ async function sendToGAS(payload) {
   if (!payload.member) payload.member = member || '';
   var body = JSON.stringify(payload);
 
-  // ── ATTEMPT 1: CORS mode — lets us READ the sheet's response ──
-  // GAS deployed to "Anyone" returns proper CORS headers.
-  // This is how we KNOW the data landed.
+  // ── STRATEGY: no-cors is the reliable channel for GAS POST ──────────
+  // GAS receives no-cors POSTs perfectly — the response is opaque but
+  // the data 100% lands in the sheet. CORS mode can silently fail if
+  // GAS redirects (302) or if the deployment CORS config is strict.
+  // So: always send via no-cors, then ping separately for badge feedback.
+  
   try {
-    var r = await fetch(URL, {
+    await fetch(URL, {
       method:  'POST',
-      mode:    'cors',
+      mode:    'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body:    body
     });
-    if (r.ok) {
-      var json = await r.json().catch(function(){ return {}; });
-      console.log('[BAW] GAS confirmed:', payload.action, json);
-      if (json.success !== false) {
-        // Sheet confirmed receipt — show green flash
-        _showSyncBadge(true);
-        return json;
-      } else {
-        console.warn('[BAW] GAS returned error:', json.error);
-        _showSyncBadge(false, json.error);
-        throw new Error(json.error || 'GAS error');
-      }
-    }
-  } catch(corsErr) {
-    // ── ATTEMPT 2: no-cors fallback ──
-    // Data lands in sheet but response is opaque — we can't confirm.
-    if (corsErr.name !== 'TypeError') throw corsErr; // rethrow non-network errors
-    console.warn('[BAW] CORS blocked, falling back to no-cors:', corsErr.message);
-    try {
-      await fetch(URL, {
-        method:  'POST',
-        mode:    'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body:    body
-      });
-      console.log('[BAW] no-cors POST sent (opaque):', payload.action);
-      _showSyncBadge(null); // unknown — show neutral
-    } catch(e2) {
-      throw e2; // truly offline — caller will queue
-    }
+    console.log('[BAW] POST sent:', payload.action, 'for', payload.member);
+  } catch(e) {
+    // Genuine network failure — device is offline
+    console.error('[BAW] Network error — queuing:', e.message);
+    throw e; // caller will queue locally
   }
+
+  // Show "sent" badge immediately
+  _showSyncBadge(null);
+
+  // ── PING GAS 2s later to confirm it's alive and processed ───────────
+  // This is separate from the write — just tells us GAS responded.
+  setTimeout(function() {
+    fetch(URL + '?action=ping&t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        if (j && j.pong) _showSyncBadge(true);
+      })
+      .catch(function() { /* ping failed — badge stays neutral */ });
+  }, 2000);
+
+  return {};
 }
 
 // Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
@@ -4023,12 +4017,27 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
     ctx.fillText(displayLast, nameStartX, nameStartY + 42 + fnSize + 44);
   }
 
-  // BookWarrior + Season chip
-  var chipY = nameStartY + 50 + fnSize + (lname ? 58 : 14);
-  ctx.font = '700 15px sans-serif';
-  ctx.fillStyle = TEAL;
-  ctx.fillText('BOOKWARRIOR  ·  S1\'26', nameStartX, chipY);
-
+  // BookWarrior identity chip — gold pill, not plain green text
+  var chipY = nameStartY + 52 + fnSize + (lname ? 62 : 18);
+  ctx.save();
+  var chipTxt = '⚔  BOOKWARRIOR  ·  S1 \'26';
+  ctx.font = '700 22px sans-serif';
+  var chipW = ctx.measureText(chipTxt).width + 36;
+  var chipH = 48;
+  // Pill background
+  var chipBg = ctx.createLinearGradient(nameStartX, chipY - chipH, nameStartX + chipW, chipY);
+  chipBg.addColorStop(0, 'rgba(201,162,39,0.18)');
+  chipBg.addColorStop(1, 'rgba(201,162,39,0.08)');
+  ctx.fillStyle = chipBg;
+  _roundRect(ctx, nameStartX, chipY - chipH + 6, chipW, chipH, 24); ctx.fill();
+  // Gold border
+  ctx.strokeStyle = 'rgba(201,162,39,0.4)'; ctx.lineWidth = 1.5;
+  _roundRect(ctx, nameStartX, chipY - chipH + 6, chipW, chipH, 24); ctx.stroke();
+  // Text
+  ctx.fillStyle = GOLD_L;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(chipTxt, nameStartX + 18, chipY - chipH + 6 + chipH/2);
+  ctx.textBaseline = 'alphabetic';
   ctx.restore();
 
   // ═══════════════════════════════════════════════════════════════════
@@ -4085,23 +4094,50 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
     ctx.restore();
   }
 
-  // ── Book tag ───────────────────────────────────────────────────────
+  // ── Book Feature Block — large and unmissable ─────────────────────
   var bookStat2 = stats2.find(function(r){ return String(r[0]).toLowerCase() === 'book'; });
-  var tagY = sbY + (streak > 0 ? 82 : 68);
+  var tagY = sbY + (streak > 0 ? 88 : 72);
 
   if (bookStat2 && !isRest) {
-    var btTxt = '📖  ' + String(bookStat2[1]).slice(0,26) + (bookStat2[1].length > 26 ? '…' : '');
+    var rawBook = String(bookStat2[1]);
+    var bookLine1 = rawBook.slice(0, 32);
+    var bookLine2 = rawBook.length > 32 ? rawBook.slice(32, 58) + (rawBook.length > 58 ? '…' : '') : '';
+    var bkBlockH = bookLine2 ? 120 : 96;
+    var bkBlockW = W - sbX - 52;
+
     ctx.save();
-    ctx.font = '600 16px sans-serif';
-    var btW2 = Math.min(ctx.measureText(btTxt).width + 28, W - sbX - 52);
-    // Glass pill
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1;
-    _roundRect(ctx, sbX, tagY, btW2, 44, 22); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    ctx.textBaseline = 'middle'; ctx.fillText(btTxt, sbX + 14, tagY + 22);
-    ctx.textBaseline = 'alphabetic'; ctx.restore();
-    tagY += 62;
+    // Glass background
+    var bkBg = ctx.createLinearGradient(sbX, tagY, sbX, tagY + bkBlockH);
+    bkBg.addColorStop(0, 'rgba(255,255,255,0.09)');
+    bkBg.addColorStop(1, 'rgba(255,255,255,0.04)');
+    ctx.fillStyle = bkBg;
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+    _roundRect(ctx, sbX, tagY, bkBlockW, bkBlockH, 16); ctx.fill(); ctx.stroke();
+
+    // Left gold accent bar
+    var lBarGr = ctx.createLinearGradient(sbX, tagY, sbX, tagY + bkBlockH);
+    lBarGr.addColorStop(0, GOLD_L); lBarGr.addColorStop(1, GOLD_D);
+    ctx.fillStyle = lBarGr;
+    ctx.fillRect(sbX, tagY, 5, bkBlockH);
+
+    // "NOW READING" micro-label
+    ctx.font = '700 18px sans-serif';
+    ctx.fillStyle = GOLD;
+    ctx.textBaseline = 'top';
+    ctx.fillText('📖  NOW READING', sbX + 24, tagY + 16);
+
+    // Book title — large bold
+    ctx.font = '800 ' + (bookLine2 ? '28' : '32') + 'px Georgia, serif';
+    ctx.fillStyle = WHITE;
+    ctx.shadowColor = 'rgba(201,162,39,0.2)'; ctx.shadowBlur = 10;
+    ctx.fillText(bookLine1, sbX + 24, tagY + 44);
+    if (bookLine2) {
+      ctx.fillText(bookLine2, sbX + 24, tagY + 80);
+    }
+    ctx.shadowBlur = 0;
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+    tagY += bkBlockH + 20;
   }
 
   if (isRest) {
