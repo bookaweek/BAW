@@ -2702,7 +2702,6 @@ function flushOnLogin() {
     resetDaily();
   }finally{setDL(false);}
 });
-})();
 
 // ── WEEKLY ──
 function setupWeekly(){
@@ -2731,6 +2730,7 @@ function setupWeekly(){
       });
   }
 }
+})();
 
 (function(){ var _wf=document.getElementById('weeklyForm'); if(_wf) _wf.addEventListener('submit',async function(e){
   e.preventDefault();
@@ -3696,92 +3696,162 @@ function renderShareCard(photoDataUrl) {
 }
 
 function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg, title, now) {
-  // ═══════════════════════════════════════════
-  // BOOKWARRIORS SHARE CARD
-  // 1080 × 1350 — Principle: whitespace, clarity, restraint
-  // Two zones: dark navy top (identity) / off-white bottom (stats + CTA)
-  // Every element has breathing room. Nothing fights for attention.
-  // ═══════════════════════════════════════════
+  // ════════════════════════════════════════════
+  // WORLD-CLASS VIRAL SHARE CARD
+  // 1080 × 1350 px — Portrait 4:5 (Instagram/WhatsApp perfect)
+  // Design: Bold editorial dark top + warm cream bottom
+  // Goal: 90% of viewers want to join BookWarriors
+  // ════════════════════════════════════════════
 
-  var NAVY   = '#0A1E33';
-  var GOLD   = '#C9A227';
-  var WHITE  = '#FFFFFF';
-  var CREAM  = '#F7F4EF';
-  var SMOKE  = '#E8E3DA';
-  var SPLIT  = Math.round(H * 0.54);  // where navy ends, cream begins
-  var PAD    = 72;                     // horizontal padding
+  // ── FULL BACKGROUND — rich deep navy ────────
+  var bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, '#050D1A');
+  bgGrad.addColorStop(0.55, '#091828');
+  bgGrad.addColorStop(1, '#0A1E33');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
 
-  // ── 1. BACKGROUNDS ──────────────────────────
-  // Navy top
-  ctx.fillStyle = NAVY;
-  ctx.fillRect(0, 0, W, SPLIT);
-
-  // Cream bottom
-  ctx.fillStyle = CREAM;
-  ctx.fillRect(0, SPLIT, W, H - SPLIT);
-
-  // ── 2. SINGLE GOLD LEFT RULE ────────────────
-  // One thin vertical gold line — the only decoration
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(0, 0, 5, H);
-
-  // ── 3. TOP BRAND LINE ───────────────────────
-  // "BOOKWARRIORS" left, date right — small, confident
-  var brandY = 80;
+  // ── GRAIN TEXTURE overlay ───────────────────
   ctx.save();
-  ctx.font = '700 24px "Playfair Display", Georgia, serif';
-  ctx.fillStyle = GOLD;
-  ctx.textBaseline = 'middle';
-  ctx.fillText('BOOKWARRIORS', PAD, brandY);
-
-  ctx.textAlign = 'right';
-  ctx.font = '400 20px "DM Sans", Arial, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.fillText(dateFmt, W - PAD, brandY);
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
+  ctx.globalAlpha = 0.028;
+  for (var gx = 0; gx < W; gx += 2) {
+    for (var gy = 0; gy < H; gy += 2) {
+      ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
+      ctx.fillRect(gx, gy, 1, 1);
+    }
+  }
   ctx.restore();
 
-  // ── 4. PHOTO CIRCLE ─────────────────────────
-  // Centred in the navy zone, generous top margin
-  var photoR  = 110;
-  var photoCX = W / 2;
-  var photoCY = 220 + photoR;
+  // ── LARGE RADIAL GOLD GLOW (top right) ──────
+  ctx.save();
+  var goldGlow = ctx.createRadialGradient(W * 0.85, H * 0.12, 0, W * 0.85, H * 0.12, 480);
+  goldGlow.addColorStop(0, 'rgba(201,162,39,0.18)');
+  goldGlow.addColorStop(0.5, 'rgba(201,162,39,0.06)');
+  goldGlow.addColorStop(1, 'rgba(201,162,39,0)');
+  ctx.fillStyle = goldGlow;
+  ctx.fillRect(0, 0, W, H * 0.5);
+  ctx.restore();
+
+  // ── BLUE GLOW (bottom left) ──────────────────
+  ctx.save();
+  var blueGlow = ctx.createRadialGradient(W * 0.15, H * 0.78, 0, W * 0.15, H * 0.78, 380);
+  blueGlow.addColorStop(0, 'rgba(21,71,176,0.22)');
+  blueGlow.addColorStop(1, 'rgba(21,71,176,0)');
+  ctx.fillStyle = blueGlow;
+  ctx.fillRect(0, H * 0.5, W, H * 0.5);
+  ctx.restore();
+
+  // ── DECORATIVE GEOMETRIC CIRCLES ────────────
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.beginPath(); ctx.arc(W * 0.88, -60, 320, 0, Math.PI*2);
+  ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(W * 0.88, -60, 250, 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.04;
+  ctx.beginPath(); ctx.arc(-40, H * 0.82, 260, 0, Math.PI*2);
+  ctx.strokeStyle = '#1547B0'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+
+  // ── GOLD LEFT ACCENT BAR ─────────────────────
+  var barGrad = ctx.createLinearGradient(0, 0, 0, H);
+  barGrad.addColorStop(0, '#F5C842');
+  barGrad.addColorStop(0.5, '#C9A227');
+  barGrad.addColorStop(1, 'rgba(201,162,39,0.3)');
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(0, 0, 8, H);
+
+  // ── TOP GOLD LINE ────────────────────────────
+  ctx.fillStyle = '#C9A227';
+  ctx.fillRect(0, 0, W, 6);
+
+  // ════════════════════════════════════════════
+  // SECTION 1 — BRAND HEADER (top 100px)
+  // ════════════════════════════════════════════
+  // Brand word mark
+  ctx.save();
+  ctx.font = '900 34px Georgia, serif';
+  ctx.fillStyle = '#F5C842';
+  ctx.fillText('BOOK', 52, 72);
+  var bkW = ctx.measureText('BOOK').width;
+  ctx.font = '300 34px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('WARRIORS', 52 + bkW + 4, 72);
+
+  // Small divider dot
+  ctx.beginPath();
+  ctx.arc(52 + bkW + 4 + ctx.measureText('WARRIORS').width + 22, 58, 3, 0, Math.PI*2);
+  ctx.fillStyle = '#C9A227';
+  ctx.fill();
+
+  // Date top right
+  ctx.textAlign = 'right';
+  ctx.font = '700 22px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillText(dayName, W - 52, 58);
+  ctx.font = '400 19px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillText(dateFmt, W - 52, 82);
+  ctx.textAlign = 'left';
+  ctx.restore();
+
+  // ════════════════════════════════════════════
+  // SECTION 2 — HERO PHOTO + WARRIOR NAME
+  // Large cinematic identity block
+  // ════════════════════════════════════════════
+  var photoR   = 100; // radius
+  var photoCX  = 52 + photoR;
+  var photoCY  = 220 + photoR;
+
+  // Outer aura rings
+  [55, 38, 20].forEach(function(extra, i) {
+    ctx.save();
+    ctx.globalAlpha = [0.07, 0.12, 0.22][i];
+    ctx.beginPath();
+    ctx.arc(photoCX, photoCY, photoR + extra, 0, Math.PI*2);
+    ctx.fillStyle = '#C9A227';
+    ctx.fill();
+    ctx.restore();
+  });
 
   if (photoImg) {
-    // Clip to circle
+    // Clip photo to circle
     ctx.save();
     ctx.beginPath();
-    ctx.arc(photoCX, photoCY, photoR, 0, Math.PI * 2);
+    ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
+    ctx.closePath();
     ctx.clip();
-    var iw = photoImg.naturalWidth  || photoImg.width  || 1;
-    var ih = photoImg.naturalHeight || photoImg.height || 1;
-    var sc = Math.max((photoR * 2) / iw, (photoR * 2) / ih);
+    var iw = photoImg.naturalWidth || photoImg.width;
+    var ih = photoImg.naturalHeight || photoImg.height;
+    var sc = Math.max((photoR*2)/iw, (photoR*2)/ih);
     ctx.drawImage(photoImg,
-      photoCX - (iw * sc) / 2,
-      photoCY - (ih * sc) / 2,
-      iw * sc, ih * sc);
+      photoCX - iw*sc/2, photoCY - ih*sc/2, iw*sc, ih*sc);
     ctx.restore();
-    // Gold ring
+    // Gold ring border
     ctx.save();
     ctx.beginPath();
-    ctx.arc(photoCX, photoCY, photoR + 3, 0, Math.PI * 2);
-    ctx.strokeStyle = GOLD;
-    ctx.lineWidth = 5;
+    ctx.arc(photoCX, photoCY, photoR + 4, 0, Math.PI*2);
+    ctx.strokeStyle = '#F5C842';
+    ctx.lineWidth = 6;
     ctx.stroke();
     ctx.restore();
   } else {
-    // Initials fallback — clean circle
+    // Initials circle — premium look
     ctx.save();
+    var igr = ctx.createRadialGradient(photoCX - 20, photoCY - 20, 0, photoCX, photoCY, photoR);
+    igr.addColorStop(0, '#1A3A6B');
+    igr.addColorStop(1, '#0A1828');
     ctx.beginPath();
-    ctx.arc(photoCX, photoCY, photoR, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(201,162,39,0.12)';
+    ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
+    ctx.fillStyle = igr;
     ctx.fill();
-    ctx.strokeStyle = GOLD;
-    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#F5C842';
+    ctx.lineWidth = 6;
     ctx.stroke();
-    ctx.font = '700 72px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = GOLD;
+    ctx.font = '700 72px Georgia, serif';
+    ctx.fillStyle = '#F5C842';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(getInitials(name), photoCX, photoCY);
@@ -3790,141 +3860,298 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
     ctx.restore();
   }
 
-  // ── 5. NAME ─────────────────────────────────
-  // Full name centred under photo, generous gap
-  var nameY = photoCY + photoR + 52;
+  // ── WARRIOR IDENTITY TEXT ────────────────────
+  var nameX = photoCX + photoR + 44;
+  var nameY = 240;
 
   ctx.save();
-  ctx.textAlign = 'center';
+  // "WARRIOR" micro-label
+  ctx.font = '800 18px Georgia, serif';
+  ctx.fillStyle = '#F5C842';
+  ctx.letterSpacing = '0.25em';
+  ctx.fillText('BOOKWARRIOR', nameX, nameY);
 
-  // Full name — large, white
-  var fullUpper = name.toUpperCase();
-  var nameSz = fullUpper.length > 16 ? 54 : fullUpper.length > 10 ? 66 : 80;
-  ctx.font = '700 ' + nameSz + 'px "Playfair Display", Georgia, serif';
-  ctx.fillStyle = WHITE;
-  ctx.fillText(fullUpper, W / 2, nameY);
+  // First name — massive cinematic
+  var nameFontSize = fname.length > 10 ? 72 : fname.length > 7 ? 86 : 100;
+  ctx.font = '900 ' + nameFontSize + 'px Georgia, serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowColor = 'rgba(245,200,66,0.3)';
+  ctx.shadowBlur = 40;
+  ctx.fillText(fname.toUpperCase(), nameX, nameY + 90);
+  ctx.shadowBlur = 0;
 
-  // Streak pill — only if streak > 0
-  if (streak > 0) {
-    var pillTxt = '\uD83D\uDD25 ' + streak + '-DAY STREAK';
-    ctx.font = '700 22px "DM Sans", Arial, sans-serif';
-    var pillW = ctx.measureText(pillTxt).width + 48;
-    var pillH = 46;
-    var pillX = W / 2 - pillW / 2;
-    var pillY = nameY + 32;
-
-    ctx.fillStyle = GOLD;
-    _roundRect(ctx, pillX, pillY, pillW, pillH, 23);
-    ctx.fillStyle = NAVY;
-    ctx.textBaseline = 'middle';
-    ctx.fillText(pillTxt, W / 2, pillY + pillH / 2);
-    ctx.textBaseline = 'alphabetic';
+  // Last name
+  if (name !== fname) {
+    var lname = name.replace(fname, '').trim();
+    ctx.font = '300 46px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.38)';
+    ctx.fillText(lname.toUpperCase(), nameX, nameY + 145);
   }
-
-  ctx.textAlign = 'left';
   ctx.restore();
 
-  // ── 6. THIN GOLD DIVIDER AT SPLIT ───────────
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(PAD, SPLIT - 1, W - PAD * 2, 2);
-
-  // ── 7. STATS BLOCK ──────────────────────────
-  // Clean horizontal row of stat numbers — cream zone
-  var cleanStats = (stats || []).filter(function(r) {
-    return r && r[0] && r[1] !== undefined && String(r[1]) !== '0' && String(r[1]) !== '';
-  }).slice(0, 3);
-  if (!cleanStats.length) cleanStats = (stats || []).slice(0, 3);
-
-  var numSt   = Math.max(1, Math.min(3, cleanStats.length));
-  var colW    = Math.floor((W - PAD * 2) / numSt);
-  var statsY  = SPLIT + 70;
-
-  cleanStats.slice(0, numSt).forEach(function(row, i) {
-    var cx = PAD + i * colW + colW / 2;
+  // ── STREAK BADGE — cinematic pill ────────────
+  if (streak > 0) {
+    var sBx = nameX;
+    var sBy = (name !== fname) ? nameY + 174 : nameY + 118;
+    var sBw = Math.min(340, W - nameX - 52);
+    var sBh = 58;
 
     ctx.save();
+    // Gradient pill
+    var sg = ctx.createLinearGradient(sBx, sBy, sBx + sBw, sBy + sBh);
+    sg.addColorStop(0, '#B8860B');
+    sg.addColorStop(0.4, '#F5C842');
+    sg.addColorStop(1, '#C9A227');
+    ctx.fillStyle = sg;
+    ctx.shadowColor = 'rgba(245,200,66,0.4)';
+    ctx.shadowBlur = 20;
+    _roundRect(ctx, sBx, sBy, sBw, sBh, 29);
+    ctx.shadowBlur = 0;
+    // Text
+    ctx.font = '800 26px Georgia, serif';
+    ctx.fillStyle = '#0A1828';
     ctx.textAlign = 'center';
-
-    // Stat value — bold, navy, large
-    var val = String(row[1] || '—');
-    var vsz = val.length > 6 ? 56 : val.length > 3 ? 68 : 84;
-    ctx.font = '700 ' + vsz + 'px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = NAVY;
-    ctx.fillText(val, cx, statsY + vsz);
-
-    // Stat label — small, muted, spaced
-    ctx.font = '600 18px "DM Sans", Arial, sans-serif';
-    ctx.fillStyle = 'rgba(10,30,51,0.4)';
-    ctx.fillText(String(row[0] || '').toUpperCase(), cx, statsY + vsz + 34);
-
-    // Vertical separator between stats (not after last)
-    if (i < numSt - 1) {
-      ctx.fillStyle = SMOKE;
-      ctx.fillRect(PAD + (i + 1) * colW - 1, statsY + 12, 2, vsz);
-    }
-
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\uD83D\uDD25  ' + streak + '-DAY STREAK', sBx + sBw/2, sBy + sBh/2);
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
+
+  // ════════════════════════════════════════════
+  // SECTION 3 — DIVIDER (angled gold line)
+  // ════════════════════════════════════════════
+  var divY = 500;
+  ctx.save();
+  // Diagonal gold stripe
+  var divGrad = ctx.createLinearGradient(0, divY, W, divY + 4);
+  divGrad.addColorStop(0, 'rgba(201,162,39,0)');
+  divGrad.addColorStop(0.2, '#C9A227');
+  divGrad.addColorStop(0.8, '#C9A227');
+  divGrad.addColorStop(1, 'rgba(201,162,39,0)');
+  ctx.strokeStyle = divGrad;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(52, divY);
+  ctx.lineTo(W - 52, divY - 30);
+  ctx.stroke();
+  ctx.restore();
+
+  // ════════════════════════════════════════════
+  // SECTION 4 — SESSION STATS (3 bold cards)
+  // ════════════════════════════════════════════
+  var statsY   = 540;
+  var statsH   = 210;
+  var showStats = stats.slice(0, 3).filter(function(r){ return r && r[1] !== undefined && String(r[1]) !== '0'; });
+  if (!showStats.length) showStats = (stats||[]).slice(0, 3);
+  var numSt = Math.max(1, Math.min(3, showStats.length));
+  var gap   = 16;
+  var cardW = Math.floor((W - 104 - gap * (numSt - 1)) / numSt);
+
+  showStats.slice(0, numSt).forEach(function(row, i) {
+    var cx = 52 + i * (cardW + gap);
+    var cy = statsY;
+
+    // Card background — dark glass
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 12;
+    var cGrad = ctx.createLinearGradient(cx, cy, cx + cardW, cy + statsH);
+    cGrad.addColorStop(0, 'rgba(255,255,255,0.07)');
+    cGrad.addColorStop(1, 'rgba(255,255,255,0.03)');
+    ctx.fillStyle = cGrad;
+    _roundRect(ctx, cx, cy, cardW, statsH, 22);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // Gold top accent bar
+    ctx.save();
+    ctx.fillStyle = '#C9A227';
+    _roundRect(ctx, cx, cy, cardW, 5, 3);
+    ctx.restore();
+
+    // Card border
+    ctx.save();
+    ctx.strokeStyle = 'rgba(201,162,39,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(cx, cy, cardW, statsH, 22) :
+      (function(){ ctx.moveTo(cx+22,cy); ctx.lineTo(cx+cardW-22,cy);
+        ctx.arcTo(cx+cardW,cy,cx+cardW,cy+22,22);
+        ctx.lineTo(cx+cardW,cy+statsH-22);
+        ctx.arcTo(cx+cardW,cy+statsH,cx+cardW-22,cy+statsH,22);
+        ctx.lineTo(cx+22,cy+statsH);
+        ctx.arcTo(cx,cy+statsH,cx,cy+statsH-22,22);
+        ctx.lineTo(cx,cy+22);
+        ctx.arcTo(cx,cy,cx+22,cy,22);
+        ctx.closePath(); })();
+    ctx.stroke();
+    ctx.restore();
+
+    // Stat VALUE — dominant
+    var valStr = String(row[1] || '—');
+    var vsz = valStr.length > 6 ? 52 : valStr.length > 4 ? 66 : valStr.length > 2 ? 78 : 90;
+    ctx.save();
+    ctx.font = '900 ' + vsz + 'px Georgia, serif';
+    ctx.fillStyle = '#F5C842';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(245,200,66,0.2)';
+    ctx.shadowBlur = 16;
+    ctx.fillText(valStr, cx + cardW/2, cy + statsH * 0.44);
+    ctx.shadowBlur = 0;
+
+    // Stat LABEL
+    ctx.font = '700 19px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(String(row[0] || '').toUpperCase(), cx + cardW/2, cy + statsH - 28);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
     ctx.restore();
   });
 
-  // ── 8. QUOTE LINE ───────────────────────────
-  // One sentence. No box, no border. Just words.
-  var qArr = [
-    'Read. Reflect. Execute. Every single day.',
-    'The gap between you and the rest is a book a week.',
-    'Every page compounds. Every session counts.',
-    'Leaders read. Warriors execute. Be both.',
-    'One book a week. One transformed life a year.',
-    'Your future self is reading right now. Are you?'
+  // ════════════════════════════════════════════
+  // SECTION 5 — ACHIEVEMENT TITLE
+  // ════════════════════════════════════════════
+  var achY = statsY + statsH + 60;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  // Overline
+  ctx.font = '700 19px Georgia, serif';
+  ctx.fillStyle = '#C9A227';
+  ctx.letterSpacing = '0.2em';
+  ctx.fillText('SESSION COMPLETE', W/2, achY);
+  // Main achievement
+  var achTitle = String(stats && stats[0] && stats[0][0] === 'Type' ? (stats[0][1] || 'Session Logged') : (title || 'Session Logged')).replace(/[!]/g,'');
+  ctx.font = '900 ' + (achTitle.length > 14 ? 58 : 68) + 'px Georgia, serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowColor = 'rgba(245,200,66,0.2)';
+  ctx.shadowBlur = 24;
+  _wrapText(ctx, achTitle.toUpperCase(), W/2, achY + 76, W - 120, 76);
+  ctx.shadowBlur = 0;
+  ctx.textAlign = 'left';
+  ctx.restore();
+
+  // ════════════════════════════════════════════
+  // SECTION 6 — VIRAL QUOTE (the hook)
+  // ════════════════════════════════════════════
+  var quoteY = achY + 200;
+  var quotes = [
+    'Every page you read today puts you further ahead of who you were yesterday.',
+    'The edge isn\'t given. It\'s read, reflected, and executed — daily.',
+    'While most scroll, warriors read. The gap compounds every single day.',
+    'One book a week. One warrior at a time. One life completely transformed.',
+    'You don\'t become exceptional by accident. You read. You reflect. You execute.',
+    'Your future self is built on the books you open today. Show up.'
   ];
-  var qText = qArr[now.getDay() % qArr.length];
+  var q = quotes[now.getDay() % quotes.length];
 
-  var quoteY = SPLIT + 260;
+  // Quote background — subtle glass card
   ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  _roundRect(ctx, 52, quoteY - 16, W - 104, 180, 16);
+  // Left gold quote bar
+  ctx.fillStyle = '#C9A227';
+  ctx.fillRect(52, quoteY - 16, 5, 180);
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = 'italic 700 28px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  ctx.textAlign = 'left';
+  _wrapText(ctx, '\u201C' + q + '\u201D', 80, quoteY + 28, W - 160, 44);
+  ctx.restore();
+
+  // ════════════════════════════════════════════
+  // SECTION 7 — CTA BLOCK (join us — viral)
+  // ════════════════════════════════════════════
+  var ctaY = H - 220;
+
+  // CTA card — premium gold gradient
+  ctx.save();
+  var ctaGrad = ctx.createLinearGradient(0, ctaY, W, ctaY + 140);
+  ctaGrad.addColorStop(0, '#0D2040');
+  ctaGrad.addColorStop(1, '#0A1828');
+  ctx.fillStyle = ctaGrad;
+  ctx.fillRect(0, ctaY, W, 140);
+
+  // Gold top border
+  var ctaBorderGrad = ctx.createLinearGradient(0, ctaY, W, ctaY);
+  ctaBorderGrad.addColorStop(0, 'rgba(201,162,39,0)');
+  ctaBorderGrad.addColorStop(0.3, '#C9A227');
+  ctaBorderGrad.addColorStop(0.7, '#C9A227');
+  ctaBorderGrad.addColorStop(1, 'rgba(201,162,39,0)');
+  ctx.fillStyle = ctaBorderGrad;
+  ctx.fillRect(0, ctaY, W, 3);
+
+  // Main CTA text
   ctx.textAlign = 'center';
-  ctx.font = 'italic 400 30px "Playfair Display", Georgia, serif';
-  ctx.fillStyle = 'rgba(10,30,51,0.45)';
-  _wrapText(ctx, '\u201C' + qText + '\u201D', W / 2, quoteY, W - PAD * 2 - 40, 46);
+  ctx.font = '900 36px Georgia, serif';
+  ctx.fillStyle = '#F5C842';
+  ctx.shadowColor = 'rgba(245,200,66,0.3)';
+  ctx.shadowBlur = 16;
+  ctx.fillText('JOIN THE BOOKWARRIORS', W/2, ctaY + 52);
+  ctx.shadowBlur = 0;
+
+  // Sub CTA
+  ctx.font = '400 24px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillText('24 books · 184 days · Life-changing community', W/2, ctaY + 88);
+
+  // URL pill
+  var urlPillW = 540, urlPillH = 46, urlPillX = (W - urlPillW)/2, urlPillY = ctaY + 108;
+  ctx.shadowColor = 'rgba(201,162,39,0.25)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = 'rgba(201,162,39,0.15)';
+  _roundRect(ctx, urlPillX, urlPillY, urlPillW, urlPillH, 23);
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(201,162,39,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect ? ctx.roundRect(urlPillX, urlPillY, urlPillW, urlPillH, 23) :
+    (function(){
+      ctx.moveTo(urlPillX+23,urlPillY);
+      ctx.lineTo(urlPillX+urlPillW-23,urlPillY);
+      ctx.arcTo(urlPillX+urlPillW,urlPillY,urlPillX+urlPillW,urlPillY+23,23);
+      ctx.lineTo(urlPillX+urlPillW,urlPillY+urlPillH-23);
+      ctx.arcTo(urlPillX+urlPillW,urlPillY+urlPillH,urlPillX+urlPillW-23,urlPillY+urlPillH,23);
+      ctx.lineTo(urlPillX+23,urlPillY+urlPillH);
+      ctx.arcTo(urlPillX,urlPillY+urlPillH,urlPillX,urlPillY+urlPillH-23,23);
+      ctx.lineTo(urlPillX,urlPillY+23);
+      ctx.arcTo(urlPillX,urlPillY,urlPillX+23,urlPillY,23);
+      ctx.closePath();
+    })();
+  ctx.stroke();
+  ctx.font = '700 22px Georgia, serif';
+  ctx.fillStyle = '#C9A227';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('bookaweekchallenge.vercel.app  \u00B7  #BookWarriors', W/2, urlPillY + urlPillH/2);
+  ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   ctx.restore();
 
-  // ── 9. CTA SECTION ──────────────────────────
-  // Minimal — brand name + URL + hashtag. No box, no button.
-  var ctaY = H - 180;
+  // ── BOTTOM GOLD BAR ─────────────────────────
+  var bottomBarGrad = ctx.createLinearGradient(0, H - 8, W, H);
+  bottomBarGrad.addColorStop(0, '#F5C842');
+  bottomBarGrad.addColorStop(0.5, '#C9A227');
+  bottomBarGrad.addColorStop(1, '#B8860B');
+  ctx.fillStyle = bottomBarGrad;
+  ctx.fillRect(0, H - 8, W, 8);
 
-  // Thin rule above CTA
-  ctx.fillStyle = SMOKE;
-  ctx.fillRect(PAD, ctaY, W - PAD * 2, 1);
-
+  // ── HASHTAGS watermark ───────────────────────
   ctx.save();
   ctx.textAlign = 'center';
-
-  // "Join the challenge" — small caps gold
-  ctx.font = '700 20px "DM Sans", Arial, sans-serif';
-  ctx.fillStyle = GOLD;
-  ctx.fillText('JOIN THE CHALLENGE', W / 2, ctaY + 44);
-
-  // URL — navy, medium
-  ctx.font = '400 24px "DM Sans", Arial, sans-serif';
-  ctx.fillStyle = 'rgba(10,30,51,0.55)';
-  ctx.fillText('bookaweekchallenge.vercel.app', W / 2, ctaY + 84);
-
-  // Hashtags — smallest, lightest
-  ctx.font = '400 20px "DM Sans", Arial, sans-serif';
-  ctx.fillStyle = 'rgba(10,30,51,0.28)';
-  ctx.fillText('#BookWarrior  #BookAWeek  #ReadingChallenge', W / 2, ctaY + 118);
-
+  ctx.font = '600 20px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillText('#BookWarrior  #ReadingChallenge  #BookAWeek  #24Books', W/2, H - 26);
   ctx.textAlign = 'left';
   ctx.restore();
 
-  // ── 10. BOTTOM GOLD BAR ─────────────────────
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(0, H - 6, W, 6);
-
-  // Done — cache blob for sharing
+  // Done — update blob
   updateShareBlob(document.getElementById('shareCanvas'));
 }
-
 
 function _roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
