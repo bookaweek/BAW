@@ -836,51 +836,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 }
 
 
-/* ══ SHARE SYSTEM — WORLD CLASS ══ */
-.share-sheet{position:fixed;inset:0;z-index:900;display:none;align-items:flex-end;justify-content:center;}
-.share-sheet.show{display:flex;animation:fadeIn .2s ease;}
-.share-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);}
-.share-panel{position:relative;width:100%;max-width:480px;background:linear-gradient(180deg,#0F2347 0%,#0A1B35 100%);border-radius:28px 28px 0 0;padding:0 0 env(safe-area-inset-bottom,24px);overflow:hidden;animation:slideUp .35s cubic-bezier(.34,1.2,.64,1);max-height:94vh;overflow-y:auto;border-top:1px solid rgba(242,183,5,.2);}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.share-handle{width:40px;height:4px;background:rgba(242,183,5,.3);border-radius:2px;margin:14px auto 0;}
-.share-header{text-align:center;padding:10px 20px 4px;}
-.share-header-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:900;color:#fff;letter-spacing:.03em;}
-.share-header-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;letter-spacing:.06em;text-transform:uppercase;}
-.share-preview-wrap{padding:14px 16px 0;}
-.share-canvas-wrap{border-radius:18px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.5),0 0 0 1px rgba(242,183,5,.15);position:relative;}
-.share-canvas-wrap canvas{display:block;width:100%;height:auto;}
-
-/* Photo row */
-.share-photo-row{display:flex;align-items:center;gap:11px;padding:12px 16px 0;}
-.share-photo-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2.5px solid rgba(242,183,5,.5);flex-shrink:0;background:rgba(255,255,255,.08);}
-.share-photo-info{flex:1;min-width:0;}
-.share-photo-name{font-size:13px;font-weight:700;color:#fff;}
-.share-photo-sub{font-size:11px;color:rgba(255,255,255,.4);}
-.share-photo-change{font-size:12px;font-weight:700;color:var(--gold);cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;padding:6px 10px;background:rgba(242,183,5,.12);border-radius:8px;border:1px solid rgba(242,183,5,.25);}
-
-/* Social share grid */
-.share-social-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:14px 16px 0;}
-.share-social-btn{height:52px;border:none;border-radius:14px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent;transition:transform .12s,opacity .12s;letter-spacing:.01em;}
-.share-social-btn:active{transform:scale(.95);opacity:.88;}
-.ssb-whatsapp{background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;}
-.ssb-instagram{background:linear-gradient(135deg,#E1306C,#833AB4,#FD1D1D);color:#fff;}
-.ssb-twitter{background:#000;color:#fff;border:1px solid rgba(255,255,255,.12);}
-.ssb-facebook{background:linear-gradient(135deg,#1877F2,#0d5bc4);color:#fff;}
-.ssb-more{background:linear-gradient(135deg,var(--gold),#F5C842);color:#0B1F3B;grid-column:1/-1;}
-
-/* Download button */
-.share-download-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 32px);margin:10px 16px 0;height:44px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:12px;color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s;}
-.share-download-btn:active{background:rgba(255,255,255,.1);}
-
-/* Share divider */
-.share-divider{display:flex;align-items:center;gap:10px;padding:10px 16px 0;}
-.share-divider-line{flex:1;height:1px;background:rgba(255,255,255,.1);}
-.share-divider-txt{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);}
-
-/* Old compat */
-.share-actions{padding:0;display:flex;flex-direction:column;gap:0;}
-.share-btn-primary{display:none;}
-.share-btn-secondary{display:none;}
+/* ══ SHARE SYSTEM ══ */
+/* share-sheet CSS moved to bottom of file */
 
 </style>
 </head>
@@ -1067,7 +1024,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </div>
     <div class="date-badge"><span id="dayName">Monday</span> &middot; <span id="fullDate">...</span></div>
     <div class="member-greeting">Hey, <em id="greetName">...</em> &#x1F44B;</div>
-    <div class="member-sub" id="greetSub">Ready to log your session?</div>
+    <div class="member-sub" id="greetSub" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      Ready to log your session?
+      <span id="syncBadge" style="display:none;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid;letter-spacing:.04em;"></span>
+    </div>
   </div>
 
 
@@ -2624,20 +2584,76 @@ function prog(){
 // GAS SEND + OFFLINE QUEUE
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
-function sendToGAS(payload) {
-  // no-cors is required for GAS — response is opaque but request reaches GAS
-  // We add member to every payload for GAS sheet routing
+async function sendToGAS(payload) {
   if (!payload.member) payload.member = member || '';
-  return fetch(URL, {
-    method:  'POST',
-    mode:    'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body:    JSON.stringify(payload)
-  }).then(function(r) {
-    // opaque response — we just trust it landed
-    console.log('[BAW] GAS POST sent:', payload.action, 'for', payload.member);
-    return r;
-  });
+  var body = JSON.stringify(payload);
+
+  // ── ATTEMPT 1: CORS mode — lets us READ the sheet's response ──
+  // GAS deployed to "Anyone" returns proper CORS headers.
+  // This is how we KNOW the data landed.
+  try {
+    var r = await fetch(URL, {
+      method:  'POST',
+      mode:    'cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body:    body
+    });
+    if (r.ok) {
+      var json = await r.json().catch(function(){ return {}; });
+      console.log('[BAW] GAS confirmed:', payload.action, json);
+      if (json.success !== false) {
+        // Sheet confirmed receipt — show green flash
+        _showSyncBadge(true);
+        return json;
+      } else {
+        console.warn('[BAW] GAS returned error:', json.error);
+        _showSyncBadge(false, json.error);
+        throw new Error(json.error || 'GAS error');
+      }
+    }
+  } catch(corsErr) {
+    // ── ATTEMPT 2: no-cors fallback ──
+    // Data lands in sheet but response is opaque — we can't confirm.
+    if (corsErr.name !== 'TypeError') throw corsErr; // rethrow non-network errors
+    console.warn('[BAW] CORS blocked, falling back to no-cors:', corsErr.message);
+    try {
+      await fetch(URL, {
+        method:  'POST',
+        mode:    'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body:    body
+      });
+      console.log('[BAW] no-cors POST sent (opaque):', payload.action);
+      _showSyncBadge(null); // unknown — show neutral
+    } catch(e2) {
+      throw e2; // truly offline — caller will queue
+    }
+  }
+}
+
+// Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
+function _showSyncBadge(confirmed, errMsg) {
+  var el = document.getElementById('syncBadge');
+  if (!el) return;
+  if (confirmed === true) {
+    el.textContent = '✓ Synced to sheet';
+    el.style.background = 'rgba(13,122,110,.18)';
+    el.style.color = '#0D7A6E';
+    el.style.borderColor = 'rgba(13,122,110,.35)';
+  } else if (confirmed === false) {
+    el.textContent = '⚠ Sheet error';
+    el.style.background = 'rgba(192,57,43,.12)';
+    el.style.color = '#E07070';
+    el.style.borderColor = 'rgba(192,57,43,.28)';
+    if (errMsg) console.warn('[BAW] Sheet error:', errMsg);
+  } else {
+    el.textContent = '↑ Sent to sheet';
+    el.style.background = 'rgba(242,183,5,.1)';
+    el.style.color = 'var(--gold)';
+    el.style.borderColor = 'rgba(242,183,5,.3)';
+  }
+  el.style.display = 'inline-flex';
+  setTimeout(function(){ el.style.display = 'none'; }, 5000);
 }
 
 function queueLog(payload) {
@@ -2724,9 +2740,9 @@ function flushOnLogin() {
     resetDaily();
   }finally{setDL(false);}
 });
-})(); // ── END DAILY FORM IIFE ──
+})();
 
-// ── WEEKLY SETUP (global) ──
+// ── WEEKLY — global scope so login() can call it ──
 function setupWeekly(){
   var now=new Date(),sun=now.getDay()===0,force=location.search.includes('weekly=open');
   document.getElementById('weeklyLocked').style.display=(!sun&&!force)?'block':'none';
@@ -2807,6 +2823,11 @@ function success(title,msg,stats){
     return '<div class="s-row"><span class="s-lbl">'+r[0]+'</span><span class="s-val">'+esc(String(r[1]))+'</span></div>';
   }).join('');
   document.getElementById('successOverlay').classList.add('show');
+  // Pre-render share card in background so tapping Share is instant
+  setTimeout(function() {
+    var photo = localStorage.getItem(photoKey());
+    renderShareCard(photo || null);
+  }, 400);
 }
 function closeSuccess(){
   document.getElementById('successOverlay').classList.remove('show');
@@ -3580,18 +3601,47 @@ function getInitials(name) {
 // - Download fallback for desktop / platforms that don't support share API
 // ══════════════════════════════════════════════════════════════════════
 
-var PHOTO_KEY = 'baw_profile_photo';
+var PHOTO_KEY = 'baw_profile_photo'; // base key — we append member name below
 var _shareBlob = null; // cached blob from last render
+
+// Member-specific photo key (so each warrior keeps their own photo)
+function photoKey() {
+  return PHOTO_KEY + (member ? '_' + lettersOnly(member) : '');
+}
+
+// ── MISSING FUNCTIONS (called by _drawCard / renderShareCard) ──
+function updateShareBlob(canvas) {
+  try {
+    canvas.toBlob(function(blob) { _shareBlob = blob; }, 'image/png');
+  } catch(e) { _shareBlob = null; }
+}
+
+function updatePhotoThumb(dataUrl, name) {
+  var thumb   = document.getElementById('sharePhotoThumb');
+  var empty   = document.getElementById('shareAvatarEmpty');
+  var nameEl  = document.getElementById('sharePhotoName');
+  if (nameEl) nameEl.textContent = name || member || '';
+  if (!thumb) return;
+  if (dataUrl) {
+    thumb.src = dataUrl;
+    thumb.style.display = 'block';
+    if (empty) empty.style.display = 'none';
+  } else {
+    thumb.src = '';
+    thumb.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+  }
+}
 
 // ── OPEN SHARE SHEET ──────────────────────────────────────────
 function openShare() {
   var sheet = document.getElementById('shareSheet');
   sheet.classList.add('show');
-  // Check if we have a saved photo
-  var photo = localStorage.getItem(PHOTO_KEY);
+  var photo = localStorage.getItem(photoKey());
   if (!photo) {
-    // First time — prompt to add photo
-    setTimeout(function() { promptPhoto(); }, 200);
+    // First time — prompt and render with initials
+    renderShareCard(null);
+    setTimeout(function() { promptPhoto(); }, 300);
   } else {
     renderShareCard(photo);
   }
@@ -3603,27 +3653,32 @@ function closeShare() {
 
 // ── PHOTO MANAGEMENT ──────────────────────────────────────────
 function promptPhoto() {
+  // Show a lightweight overlay asking to add photo
   var panel = document.getElementById('shareSheet');
   var existing = panel.querySelector('.photo-prompt-overlay');
   if (existing) existing.remove();
 
   var overlay = document.createElement('div');
   overlay.className = 'photo-prompt-overlay';
-  overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;' +
-    'background:linear-gradient(180deg,#0F2347 0%,#0A1B35 100%);border-radius:28px 28px 0 0;z-index:10;' +
-    'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center;';
-  overlay.innerHTML =
-    '<div style="width:90px;height:90px;border-radius:50%;background:rgba(201,162,39,0.15);border:2px solid rgba(201,162,39,0.4);display:flex;align-items:center;justify-content:center;font-size:42px;margin-bottom:22px;">📸</div>' +
-    '<div style="font-family:\'Playfair Display\',serif;font-size:24px;font-weight:900;color:#fff;margin-bottom:10px;">Add Your Photo Once</div>' +
-    '<div style="font-size:14px;color:rgba(255,255,255,.5);line-height:1.7;max-width:280px;margin-bottom:32px;">' +
-      'Your face on the card makes people stop scrolling. Add it once — it\'s saved forever.' +
-    '</div>' +
-    '<button onclick="triggerPhotoInput()" style="width:100%;max-width:280px;height:56px;background:linear-gradient(135deg,#C9A227,#F5D060);border:none;border-radius:16px;color:#050D1A;font-family:\'DM Sans\',sans-serif;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:14px;letter-spacing:.02em;">' +
-      '📷  Choose Your Photo' +
-    '</button>' +
-    '<button onclick="skipPhoto()" style="background:none;border:none;color:rgba(255,255,255,.35);font-family:\'DM Sans\',sans-serif;font-size:13px;cursor:pointer;text-decoration:underline;">' +
-      'Skip — use initials instead' +
-    '</button>';
+  overlay.style.cssText = [
+    'position:absolute','top:0','left:0','right:0','bottom:0',
+    'background:#fff','border-radius:28px 28px 0 0','z-index:10',
+    'display:flex','flex-direction:column','align-items:center',
+    'justify-content:center','padding:32px 24px','text-align:center'
+  ].join(';');
+  overlay.innerHTML = [
+    '<div style="font-size:56px;margin-bottom:16px;">📸</div>',
+    '<div style="font-family:\'Playfair Display\',serif;font-size:22px;font-weight:900;color:#0B1F3B;margin-bottom:8px;">Add Your Photo Once</div>',
+    '<div style="font-size:14px;color:rgba(11,31,59,.5);line-height:1.6;max-width:260px;margin-bottom:28px;">',
+      'Your photo will appear on every share card automatically. You only add it once.',
+    '</div>',
+    '<button onclick="triggerPhotoInput()" style="width:100%;max-width:260px;height:52px;background:linear-gradient(135deg,#0B1F3B,#1547B0);border:none;border-radius:16px;color:#fff;font-family:\'DM Sans\',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;">',
+      '📷 Choose Photo from Phone',
+    '</button>',
+    '<button onclick="skipPhoto()" style="background:none;border:none;color:rgba(11,31,59,.4);font-family:\'DM Sans\',sans-serif;font-size:13px;cursor:pointer;text-decoration:underline;">',
+      'Skip — use initials instead',
+    '</button>'
+  ].join('');
   panel.querySelector('.share-panel').appendChild(overlay);
 }
 
@@ -3648,7 +3703,7 @@ function handlePhotoUpload(event) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var b64 = e.target.result;
-    localStorage.setItem(PHOTO_KEY, b64);
+    localStorage.setItem(photoKey(), b64);
     // Remove prompt overlay if present
     var overlay = document.querySelector('.photo-prompt-overlay');
     if (overlay) overlay.remove();
@@ -3690,377 +3745,546 @@ function renderShareCard(photoDataUrl) {
 }
 
 function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg) {
-  ctx.clearRect(0, 0, W, H);
 
-  // ═══════════════════════════════════════════════════
-  // WORLD-CLASS SHARE CARD — "THE WARRIOR'S CARD"
-  // Dark luxury editorial — think Economist + Nike + Apple
-  // W=1080 H=1350 (4:5 — perfect Instagram portrait)
-  // ═══════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════
+  // BOOKAWEEK SHARE CARD — MAGAZINE COVER EDITION
+  // Full-dark premium layout. Gold metallic. Billboard-level impact.
+  // Every element engineered to make viewers ask: "How do I join?"
+  // ════════════════════════════════════════════════════════════════════
 
-  // ── 1. FULL BACKGROUND — Rich deep navy-black ──────
-  var bgGrad = ctx.createLinearGradient(0, 0, W, H);
-  bgGrad.addColorStop(0,   '#050D1A');
-  bgGrad.addColorStop(0.45,'#09162B');
-  bgGrad.addColorStop(1,   '#040C18');
-  ctx.fillStyle = bgGrad;
+  var d      = _lastLogData || {};
+  var stats2 = d.stats || stats || [];
+  var title  = String(d.title || 'Session Logged').replace(/[!]/g,'').replace(/\(offline\)/g,'').trim();
+  var isRest = title.toLowerCase().indexOf('rest') !== -1;
+  var now3   = new Date();
+
+  // ── PALETTE (premium dark) ───────────────────────────────────────────
+  var BG1    = '#04080F';   // Almost-black base
+  var BG2    = '#071526';   // Deep navy
+  var BG3    = '#0A1E3A';   // Mid navy
+  var GOLD   = '#C9A227';   // Main gold
+  var GOLD_L = '#F5C842';   // Light gold
+  var GOLD_D = '#8B6914';   // Dark gold
+  var GOLD_M = '#E0AE22';   // Mid gold
+  var WHITE  = '#FFFFFF';
+  var OFF_W  = '#F0EBE0';   // Warm white for bottom section
+  var TEAL   = '#0D9E8E';
+  var CREAM  = '#FAF6EE';
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 0 — FULL CANVAS BACKGROUND
+  // ═══════════════════════════════════════════════════════════════════
+  var bgGr = ctx.createLinearGradient(0, 0, 0, H);
+  bgGr.addColorStop(0,   BG1);
+  bgGr.addColorStop(0.3, BG2);
+  bgGr.addColorStop(0.65, BG3);
+  bgGr.addColorStop(1,   BG2);
+  ctx.fillStyle = bgGr;
   ctx.fillRect(0, 0, W, H);
 
-  // ── 2. AMBIENT GLOW — subtle gold bloom top-right ──
-  var glow1 = ctx.createRadialGradient(W*0.85, H*0.08, 0, W*0.85, H*0.08, W*0.65);
-  glow1.addColorStop(0,   'rgba(201,162,39,0.13)');
-  glow1.addColorStop(0.5, 'rgba(201,162,39,0.04)');
-  glow1.addColorStop(1,   'transparent');
-  ctx.fillStyle = glow1;
-  ctx.fillRect(0, 0, W, H);
+  // ── Diagonal beam (upper right warm glow) ────────────────────────
+  var beam = ctx.createRadialGradient(W*0.9, 0, 0, W*0.9, 0, W*1.1);
+  beam.addColorStop(0,   'rgba(201,162,39,0.13)');
+  beam.addColorStop(0.4, 'rgba(201,162,39,0.05)');
+  beam.addColorStop(1,   'transparent');
+  ctx.fillStyle = beam;
+  ctx.fillRect(0, 0, W, H*0.7);
 
-  // Teal bloom bottom-left
-  var glow2 = ctx.createRadialGradient(W*0.1, H*0.88, 0, W*0.1, H*0.88, W*0.55);
-  glow2.addColorStop(0,   'rgba(13,122,110,0.10)');
-  glow2.addColorStop(1,   'transparent');
-  ctx.fillStyle = glow2;
-  ctx.fillRect(0, 0, W, H);
+  // ── Lower teal glow ─────────────────────────────────────────────
+  var tealGlow = ctx.createRadialGradient(W*0.1, H*0.85, 0, W*0.1, H*0.85, W*0.6);
+  tealGlow.addColorStop(0,   'rgba(13,158,142,0.09)');
+  tealGlow.addColorStop(1,   'transparent');
+  ctx.fillStyle = tealGlow;
+  ctx.fillRect(0, H*0.5, W, H*0.5);
 
-  // ── 3. DIAGONAL GEOMETRIC SHAPES (abstract pattern) ─
+  // ── Fine dot-grid pattern overlay ────────────────────────────────
   ctx.save();
   ctx.globalAlpha = 0.04;
-  // Large rotated rectangle top-left
-  ctx.save();
-  ctx.translate(W*0.15, H*0.15);
-  ctx.rotate(-0.35);
-  ctx.fillStyle = '#C9A227';
-  ctx.fillRect(-W*0.3, -H*0.05, W*0.6, H*0.1);
+  for (var dx = 30; dx < W; dx += 40) {
+    for (var dy = 30; dy < H*0.7; dy += 40) {
+      ctx.beginPath();
+      ctx.arc(dx, dy, 1.2, 0, Math.PI*2);
+      ctx.fillStyle = GOLD;
+      ctx.fill();
+    }
+  }
   ctx.restore();
-  // Lines pattern
-  for (var li = 0; li < 8; li++) {
-    ctx.strokeStyle = '#C9A227';
-    ctx.lineWidth = 1.5;
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 1 — LEFT GOLD SPINE + TOP BORDER
+  // ═══════════════════════════════════════════════════════════════════
+  // Left spine — gradient from bright to muted
+  var spineGr = ctx.createLinearGradient(0, 0, 0, H);
+  spineGr.addColorStop(0,   GOLD_L);
+  spineGr.addColorStop(0.4, GOLD);
+  spineGr.addColorStop(1,   GOLD_D);
+  ctx.fillStyle = spineGr;
+  ctx.fillRect(0, 0, 7, H);
+
+  // Top border full width
+  var topBdr = ctx.createLinearGradient(0, 0, W, 0);
+  topBdr.addColorStop(0,   GOLD_L);
+  topBdr.addColorStop(0.5, GOLD);
+  topBdr.addColorStop(1,   'transparent');
+  ctx.fillStyle = topBdr;
+  ctx.fillRect(0, 0, W, 6);
+
+  // Bottom border
+  var botBdr = ctx.createLinearGradient(0, 0, W, 0);
+  botBdr.addColorStop(0,   GOLD_L);
+  botBdr.addColorStop(0.5, GOLD);
+  botBdr.addColorStop(1,   'transparent');
+  ctx.fillStyle = botBdr;
+  ctx.fillRect(0, H-7, W, 7);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 2 — DECORATIVE GEOMETRY
+  // ═══════════════════════════════════════════════════════════════════
+
+  // Large hollow circle — upper right (barely visible)
+  ctx.save();
+  ctx.globalAlpha = 0.07;
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(W*0.82, H*0.13, 260, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 0.035;
+  ctx.beginPath(); ctx.arc(W*0.82, H*0.13, 310, 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
+
+  // Small accent circle — lower left
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(W*0.08, H*0.78, 120, 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
+
+  // Diagonal slash lines (top-right corner)
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 1;
+  for (var sl = 0; sl < 7; sl++) {
     ctx.beginPath();
-    ctx.moveTo(W*0.65 + li*22, 0);
-    ctx.lineTo(W + li*22 - W*0.35, H*0.35);
+    ctx.moveTo(W*0.55 + sl*55, 0);
+    ctx.lineTo(W + sl*55 - 180, H*0.35);
     ctx.stroke();
   }
   ctx.restore();
 
-  // ── 4. GOLD BORDER FRAME ────────────────────────────
-  // Left bar — signature accent
-  var leftBar = ctx.createLinearGradient(0, 0, 0, H);
-  leftBar.addColorStop(0,   '#C9A227');
-  leftBar.addColorStop(0.5, '#F5D060');
-  leftBar.addColorStop(1,   '#9A7A1A');
-  ctx.fillStyle = leftBar;
-  ctx.fillRect(0, 0, 8, H);
-  // Top bar
-  ctx.fillStyle = '#C9A227';
-  ctx.fillRect(0, 0, W, 6);
-  // Bottom bar
-  ctx.fillRect(0, H-6, W, 6);
-  // Right thin line
-  ctx.fillStyle = 'rgba(201,162,39,0.3)';
-  ctx.fillRect(W-3, 0, 3, H);
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 3 — TOP BRAND BAR
+  // ═══════════════════════════════════════════════════════════════════
+  var brandY = 74;
 
-  // ── 5. BOOKAWEEK BRAND HEADER ───────────────────────
-  var hPad = 72;
   ctx.save();
-  // Logo text: BOOK (gold/bold) + AWEEK (thin white)
-  ctx.font = '800 38px Georgia, serif';
-  ctx.fillStyle = '#C9A227';
-  ctx.textAlign = 'left';
+  // BOOKAWEEK logo text
+  ctx.font = '900 32px Georgia, serif';
+  ctx.fillStyle = GOLD_L;
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('BOOK', hPad, 90);
-  var bookW = ctx.measureText('BOOK').width;
-  ctx.font = '300 38px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillText('AWEEK', hPad + bookW + 3, 90);
-  // Sub brand line
-  ctx.font = '600 17px DM Sans, sans-serif';
-  ctx.fillStyle = 'rgba(201,162,39,0.55)';
-  ctx.letterSpacing = '0.15em';
-  ctx.fillText('READ · REFLECT · EXECUTE', hPad, 118);
+  ctx.fillText('BOOK', 52, brandY);
+  var bkW = ctx.measureText('BOOK').width;
 
-  // Date top-right
+  // thin gold divider between BOOK and AWEEK
+  ctx.fillStyle = GOLD_D;
+  ctx.fillRect(52 + bkW + 3, brandY - 22, 2, 26);
+
+  ctx.font = '300 32px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.42)';
+  ctx.fillText('AWEEK', 52 + bkW + 10, brandY);
+
+  // Season badge (right side)
   ctx.textAlign = 'right';
-  ctx.font = '700 21px DM Sans, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.28)';
-  ctx.fillText(dayName, W - hPad, 80);
-  ctx.font = '400 17px DM Sans, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  ctx.fillText(dateFmt, W - hPad, 104);
+  ctx.font = '700 13px sans-serif';
+  ctx.fillStyle = GOLD;
+  ctx.letterSpacing = '0.14em';
+  ctx.fillText('SEASON ONE · 2026', W - 52, brandY - 14);
+  ctx.font = '400 13px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillText(dayName + '  ·  ' + dateFmt, W - 52, brandY + 8);
   ctx.textAlign = 'left';
+
+  // Gold rule under brand
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(52, brandY + 14, W - 104, 1);
+  ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── 6. THIN GOLD SEPARATOR LINE ─────────────────────
-  ctx.save();
-  ctx.strokeStyle = 'rgba(201,162,39,0.25)';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(hPad, 140); ctx.lineTo(W - hPad, 140); ctx.stroke();
-  ctx.restore();
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 4 — HERO PHOTO + NAME
+  // ═══════════════════════════════════════════════════════════════════
+  var photoR  = 130;   // radius
+  var photoCX = 52 + photoR;
+  var photoCY = brandY + 60 + photoR;
 
-  // ── 7. PHOTO + NAME HERO ────────────────────────────
-  var photoR  = 98;   // radius
-  var photoCX = hPad + photoR;
-  var photoCY = 140 + 30 + photoR;
+  // Outer glow halos
+  var haloColors = [
+    [photoR + 60, 0.04],
+    [photoR + 40, 0.07],
+    [photoR + 22, 0.12],
+    [photoR + 10, 0.20],
+  ];
+  haloColors.forEach(function(h) {
+    ctx.save();
+    ctx.globalAlpha = h[1];
+    var hGr = ctx.createRadialGradient(photoCX, photoCY, photoR, photoCX, photoCY, h[0]);
+    hGr.addColorStop(0, GOLD);
+    hGr.addColorStop(1, 'transparent');
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, h[0], 0, Math.PI*2);
+    ctx.fillStyle = hGr; ctx.fill();
+    ctx.restore();
+  });
 
   if (photoImg) {
-    // Triple-ring aura
-    [[52, 0.06], [34, 0.11], [18, 0.20]].forEach(function(pair) {
-      var expand = pair[0], alpha = pair[1];
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.beginPath();
-      ctx.arc(photoCX, photoCY, photoR + expand, 0, Math.PI*2);
-      ctx.fillStyle = '#C9A227';
-      ctx.fill();
-      ctx.restore();
-    });
-    // Photo clipped circle
+    // ── USER PHOTO ────────────────────────────────────────────────
+    // Clip and draw photo
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
-    ctx.clip();
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
+    ctx.closePath(); ctx.clip();
     var iw = photoImg.width, ih = photoImg.height;
     var sc = Math.max((photoR*2)/iw, (photoR*2)/ih);
-    ctx.drawImage(photoImg,
-      photoCX - iw*sc/2,
-      photoCY - ih*sc/2,
-      iw*sc, ih*sc);
+    ctx.drawImage(photoImg, photoCX - iw*sc/2, photoCY - ih*sc/2, iw*sc, ih*sc);
     ctx.restore();
-    // Gold ring
+
+    // Gold ring (double)
     ctx.save();
-    ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 5;
+    ctx.strokeStyle = GOLD_L; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 4, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 12, 0, Math.PI*2); ctx.stroke();
     ctx.restore();
+
   } else {
-    // Initials avatar
+    // ── INITIALS CIRCLE ────────────────────────────────────────────
     ctx.save();
-    var igr = ctx.createRadialGradient(photoCX, photoCY, 0, photoCX, photoCY, photoR);
-    igr.addColorStop(0, '#1A3460'); igr.addColorStop(1, '#0B1F3B');
+    // Glassmorphism dark fill
+    var circGr = ctx.createRadialGradient(photoCX - 40, photoCY - 40, 0, photoCX, photoCY, photoR);
+    circGr.addColorStop(0, '#1A3D70');
+    circGr.addColorStop(0.6, '#0B1F3B');
+    circGr.addColorStop(1, '#06111F');
     ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
-    ctx.fillStyle = igr; ctx.fill();
-    // Aura rings
-    [[18,0.20],[34,0.11],[52,0.06]].forEach(function(pair){
-      ctx.save(); ctx.globalAlpha=pair[1];
-      ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR+pair[0], 0, Math.PI*2);
-      ctx.fillStyle='#C9A227'; ctx.fill(); ctx.restore();
-    });
-    ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR+4, 0, Math.PI*2); ctx.stroke();
-    ctx.font = '700 72px Georgia, serif';
-    ctx.fillStyle = '#C9A227';
+    ctx.fillStyle = circGr; ctx.fill();
+
+    // Gold ring
+    ctx.strokeStyle = GOLD_L; ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 12, 0, Math.PI*2); ctx.stroke();
+
+    // Initials
+    var ini = getInitials(name);
+    ctx.font = '700 ' + (ini.length > 1 ? '80' : '100') + 'px Georgia, serif';
+    ctx.fillStyle = GOLD_L;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(getInitials(name), photoCX, photoCY);
-    ctx.restore();
-  }
-
-  // Name block to the right of photo
-  var nameX = photoCX + photoR + 52;
-  var nameY = photoCY - photoR + 10;
-
-  ctx.save();
-  // Micro label
-  ctx.font = '700 19px DM Sans, sans-serif';
-  ctx.fillStyle = '#C9A227';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  ctx.fillText('TODAY\'S WARRIOR', nameX, nameY + 22);
-
-  // First name — MASSIVE
-  var fnSize = fname.length > 10 ? 78 : fname.length > 7 ? 90 : 104;
-  ctx.font = '900 ' + fnSize + 'px Georgia, serif';
-  ctx.fillStyle = '#FFFFFF';
-  ctx.shadowColor = 'rgba(201,162,39,0.3)'; ctx.shadowBlur = 36;
-  ctx.fillText(fname, nameX, nameY + 22 + fnSize);
-  ctx.shadowBlur = 0;
-
-  // Last name if present
-  if (name !== fname) {
-    var lname = name.slice(fname.length).trim();
-    ctx.font = '300 46px Georgia, serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.38)';
-    ctx.fillText(lname, nameX, nameY + 22 + fnSize + 52);
-  }
-  ctx.restore();
-
-  // ── 8. STREAK BADGE (below photo) ───────────────────
-  var streakY = photoCY + photoR + 44;
-  if (streak > 0) {
-    var sBadgeW = 340, sBadgeH = 68;
-    var sBadgeX = hPad;
-    ctx.save();
-    // Gradient pill
-    var sGr = ctx.createLinearGradient(sBadgeX, streakY, sBadgeX+sBadgeW, streakY+sBadgeH);
-    sGr.addColorStop(0, '#9A7A1A'); sGr.addColorStop(0.4,'#F5D060'); sGr.addColorStop(1,'#C9A227');
-    ctx.fillStyle = sGr;
-    _roundRect(ctx, sBadgeX, streakY, sBadgeW, sBadgeH, 34);
-    ctx.font = '800 28px DM Sans, sans-serif';
-    ctx.fillStyle = '#050D1A';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('🔥  ' + streak + ' DAY STREAK  🔥', sBadgeX + sBadgeW/2, streakY + sBadgeH/2);
+    ctx.shadowColor = GOLD; ctx.shadowBlur = 30;
+    ctx.fillText(ini, photoCX, photoCY);
+    ctx.shadowBlur = 0;
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.restore();
   }
 
-  // ── 9. THICK DIAGONAL SLASH DIVIDER ─────────────────
-  var slashY = streakY + (streak > 0 ? 68 + 50 : 20);
+  // ── NAME BLOCK (right of photo) ────────────────────────────────
+  var nameStartX = photoCX + photoR + 48;
+  var nameStartY = photoCY - photoR + 10;
+  var nameW = W - nameStartX - 52;
+
   ctx.save();
-  ctx.fillStyle = '#C9A227';
-  ctx.globalAlpha = 0.9;
-  ctx.beginPath();
-  ctx.moveTo(0, slashY);
-  ctx.lineTo(W, slashY - 55);
-  ctx.lineTo(W, slashY - 46);
-  ctx.lineTo(0, slashY + 9);
-  ctx.closePath();
-  ctx.fill();
-  ctx.globalAlpha = 0.3;
-  ctx.beginPath();
-  ctx.moveTo(0, slashY + 16);
-  ctx.lineTo(W, slashY - 38);
-  ctx.lineTo(W, slashY - 34);
-  ctx.lineTo(0, slashY + 20);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
 
-  // ── 10. STATS SECTION ───────────────────────────────
-  var statsAreaY = slashY + 35;
-  var showStats  = (stats || []).filter(function(r){ return r[1] && String(r[1]) !== '0 min' && String(r[1]) !== '0'; });
-  if (!showStats.length) showStats = (stats || []).slice(0, 3);
-  var numStats = Math.min(showStats.length, 3);
+  // "TODAY'S LOG" micro label
+  ctx.font = '800 15px sans-serif';
+  ctx.fillStyle = GOLD;
+  ctx.fillText("TODAY'S LOG", nameStartX, nameStartY + 18);
 
-  if (numStats > 0) {
-    var statTotalW = W - hPad*2;
-    var statGap    = 20;
-    var statW      = Math.floor((statTotalW - statGap*(numStats-1)) / numStats);
-    var statH      = 220;
+  // Thin gold rule
+  ctx.fillStyle = GOLD_D;
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(nameStartX, nameStartY + 26, 160, 1);
+  ctx.globalAlpha = 1;
 
-    showStats.slice(0, numStats).forEach(function(row, i) {
-      var sx = hPad + i*(statW+statGap);
-      var sy = statsAreaY;
-
-      // Card bg — glassy dark
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 12;
-      ctx.fillStyle = 'rgba(255,255,255,0.07)';
-      _roundRect(ctx, sx, sy, statW, statH, 22);
-      ctx.restore();
-
-      // Inner border glow
-      ctx.save();
-      ctx.strokeStyle = 'rgba(201,162,39,0.25)'; ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(sx+0.75, sy+0.75, statW-1.5, statH-1.5, 22) : _roundRectPath(ctx, sx+0.75, sy+0.75, statW-1.5, statH-1.5, 22);
-      ctx.stroke();
-      ctx.restore();
-
-      // Gold top accent bar
-      ctx.save();
-      ctx.fillStyle = '#C9A227';
-      _roundRect(ctx, sx, sy, statW, 7, 4);
-      ctx.restore();
-
-      // Value — enormous
-      var valStr = String(row[1]);
-      var valSize = valStr.length > 6 ? 56 : valStr.length > 4 ? 68 : valStr.length > 2 ? 82 : 96;
-      ctx.save();
-      ctx.font = '900 ' + valSize + 'px Georgia, serif';
-      ctx.fillStyle = '#FFFFFF';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.shadowColor = 'rgba(201,162,39,0.18)'; ctx.shadowBlur = 20;
-      ctx.fillText(valStr, sx + statW/2, sy + statH*0.48);
-      ctx.shadowBlur = 0;
-
-      // Label
-      ctx.font = '700 18px DM Sans, sans-serif';
-      ctx.fillStyle = 'rgba(201,162,39,0.7)';
-      ctx.letterSpacing = '0.1em';
-      ctx.fillText(String(row[0]).toUpperCase(), sx + statW/2, sy + statH - 28);
-      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      ctx.restore();
-    });
-    statsAreaY += statH + 44;
-  } else {
-    statsAreaY += 20;
+  // FIRST NAME — massive
+  var fnLen = fname.length;
+  var fnSize = fnLen > 10 ? 70 : fnLen > 7 ? 82 : fnLen > 5 ? 94 : 106;
+  ctx.font = '900 ' + fnSize + 'px Georgia, serif';
+  ctx.fillStyle = WHITE;
+  ctx.shadowColor = 'rgba(201,162,39,0.3)';
+  ctx.shadowBlur = 35;
+  // Clip name to card width
+  var displayFirst = fname;
+  while (ctx.measureText(displayFirst).width > nameW && displayFirst.length > 4) {
+    displayFirst = displayFirst.slice(0, -1);
   }
-
-  // ── 11. INSPIRATIONAL QUOTE ──────────────────────────
-  var quotes = [
-    ['"Leaders are readers. Today you proved it."', 'BookWarrior Creed'],
-    ['"The edge you seek lives in the pages you haven\'t read yet."', 'BookAWeek'],
-    ['"One book at a time. One warrior at a time. One life transformed."', 'BookAWeek'],
-    ['"Your future self is shaped by the books you read today."', 'BookAWeek'],
-    ['"Reading is not a hobby. It is a competitive advantage."', 'BookWarrior Creed'],
-    ['"Every page is a rep. You just worked out your mind."', 'BookAWeek'],
-    ['"Not all readers are leaders — but all leaders are readers."', 'Harry S. Truman'],
-  ];
-  var now2  = new Date();
-  var qPair = quotes[(now2.getDay() + (streak % 3)) % quotes.length];
-  var qText = qPair[0];
-  var qAuth = qPair[1];
-
-  ctx.save();
-  // Left gold bar for quote
-  ctx.fillStyle = '#C9A227';
-  ctx.fillRect(hPad, statsAreaY, 5, 110);
-
-  ctx.font = 'italic 700 30px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  _wrapText(ctx, qText, hPad + 26, statsAreaY + 38, W - hPad*2 - 30, 44);
-
-  ctx.font = '700 19px DM Sans, sans-serif';
-  ctx.fillStyle = 'rgba(201,162,39,0.65)';
-  ctx.fillText('— ' + qAuth, hPad + 26, statsAreaY + 102);
-  ctx.restore();
-
-  // ── 12. CTA BAND — the part that makes 90% want to join ──
-  var ctaH = 148;
-  var ctaY = H - ctaH - 6;  // 6 = bottom gold bar
-
-  // Dark gradient background
-  ctx.save();
-  var ctaGr = ctx.createLinearGradient(0, ctaY, W, ctaY + ctaH);
-  ctaGr.addColorStop(0, 'rgba(201,162,39,0.18)');
-  ctaGr.addColorStop(1, 'rgba(201,162,39,0.06)');
-  ctx.fillStyle = ctaGr;
-  ctx.fillRect(0, ctaY, W, ctaH);
-
-  // Top thin gold line
-  ctx.fillStyle = 'rgba(201,162,39,0.55)';
-  ctx.fillRect(0, ctaY, W, 1.5);
-
-  // "JOIN 1000+ WARRIORS" — social proof hook
-  ctx.font = '800 22px DM Sans, sans-serif';
-  ctx.fillStyle = 'rgba(201,162,39,0.8)';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.letterSpacing = '0.14em';
-  ctx.fillText('✦  JOIN 1000+ BOOKWARRIORS  ✦', W/2, ctaY + 40);
-
-  // Big CTA headline
-  ctx.font = '900 46px Georgia, serif';
-  ctx.fillStyle = '#FFFFFF';
-  ctx.shadowColor = 'rgba(201,162,39,0.25)'; ctx.shadowBlur = 20;
-  ctx.fillText('READ ONE BOOK A WEEK', W/2, ctaY + 94);
+  ctx.fillText(displayFirst, nameStartX, nameStartY + 36 + fnSize);
   ctx.shadowBlur = 0;
 
-  // URL
-  ctx.font = '600 22px DM Sans, sans-serif';
-  ctx.fillStyle = 'rgba(201,162,39,0.65)';
-  ctx.fillText('bookaweekchallenge.vercel.app', W/2, ctaY + 128);
+  // Last name (if exists) — lighter
+  var lname = name !== fname ? name.replace(fname,'').trim() : '';
+  if (lname) {
+    ctx.font = '300 38px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.32)';
+    var displayLast = lname.length > 13 ? lname.slice(0,12)+'…' : lname;
+    ctx.fillText(displayLast, nameStartX, nameStartY + 42 + fnSize + 44);
+  }
+
+  // BookWarrior + Season chip
+  var chipY = nameStartY + 50 + fnSize + (lname ? 58 : 14);
+  ctx.font = '700 15px sans-serif';
+  ctx.fillStyle = TEAL;
+  ctx.fillText('BOOKWARRIOR  ·  S1\'26', nameStartX, chipY);
+
+  ctx.restore();
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 5 — STREAK BADGE (below photo)
+  // ═══════════════════════════════════════════════════════════════════
+  var sbY = photoCY + photoR + 36;
+  var sbX = 52;
+
+  if (streak > 0) {
+    var sbW = Math.min(320, W - sbX - 52), sbH = 64;
+
+    // Shadow
+    ctx.save();
+    ctx.shadowColor = 'rgba(201,162,39,0.5)'; ctx.shadowBlur = 28;
+    // Metallic gold gradient fill
+    var strGr = ctx.createLinearGradient(sbX, sbY, sbX + sbW, sbY + sbH);
+    strGr.addColorStop(0,    '#7A5200');
+    strGr.addColorStop(0.15, GOLD_L);
+    strGr.addColorStop(0.5,  GOLD);
+    strGr.addColorStop(0.85, GOLD_M);
+    strGr.addColorStop(1,    '#9A6A00');
+    ctx.fillStyle = strGr;
+    _roundRect(ctx, sbX, sbY, sbW, sbH, 32); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Shine overlay
+    ctx.globalAlpha = 0.18;
+    var shineGr = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbH);
+    shineGr.addColorStop(0, WHITE);
+    shineGr.addColorStop(0.5, 'transparent');
+    ctx.fillStyle = shineGr;
+    _roundRect(ctx, sbX, sbY, sbW, sbH/2, 32); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.font = '800 26px sans-serif';
+    ctx.fillStyle = BG1;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var streakEmoji = streak >= 90 ? '🏆' : streak >= 30 ? '👑' : streak >= 14 ? '⚡' : '🔥';
+    ctx.fillText(streakEmoji + '  ' + streak + ' DAY STREAK', sbX + sbW/2, sbY + sbH/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+
+  } else {
+    // First session badge
+    ctx.save();
+    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
+    var d1W = 220, d1H = 50;
+    ctx.beginPath(); _roundRect(ctx, sbX, sbY, d1W, d1H, 25); ctx.stroke();
+    ctx.font = '700 20px sans-serif';
+    ctx.fillStyle = GOLD;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✨  FIRST SESSION', sbX + d1W/2, sbY + d1H/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
+
+  // ── Book tag ───────────────────────────────────────────────────────
+  var bookStat2 = stats2.find(function(r){ return String(r[0]).toLowerCase() === 'book'; });
+  var tagY = sbY + (streak > 0 ? 82 : 68);
+
+  if (bookStat2 && !isRest) {
+    var btTxt = '📖  ' + String(bookStat2[1]).slice(0,26) + (bookStat2[1].length > 26 ? '…' : '');
+    ctx.save();
+    ctx.font = '600 16px sans-serif';
+    var btW2 = Math.min(ctx.measureText(btTxt).width + 28, W - sbX - 52);
+    // Glass pill
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1;
+    _roundRect(ctx, sbX, tagY, btW2, 44, 22); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.textBaseline = 'middle'; ctx.fillText(btTxt, sbX + 14, tagY + 22);
+    ctx.textBaseline = 'alphabetic'; ctx.restore();
+    tagY += 62;
+  }
+
+  if (isRest) {
+    ctx.save();
+    ctx.font = '700 18px sans-serif';
+    ctx.fillStyle = 'rgba(167,139,250,0.85)';
+    ctx.fillText('😴  REST & RECOVERY — DISCIPLINE INCLUDES REST', sbX, tagY + 28);
+    ctx.restore();
+    tagY += 52;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 6 — ACHIEVEMENT HEADLINE (centered below everything)
+  // ═══════════════════════════════════════════════════════════════════
+  var achY = tagY + 44;
+
+  // Achievement label
+  var achText = isRest ? 'REST DAY LOGGED' : title.toUpperCase();
+
+  ctx.save();
+  // Gold metallic headline text
+  var achGr = ctx.createLinearGradient(0, achY - 60, 0, achY);
+  achGr.addColorStop(0, GOLD_L);
+  achGr.addColorStop(0.5, GOLD_M);
+  achGr.addColorStop(1, GOLD_D);
+  var achSize = achText.length > 20 ? 54 : achText.length > 14 ? 62 : 72;
+  ctx.font = '900 ' + achSize + 'px Georgia, serif';
+  ctx.fillStyle = achGr;
+  ctx.textAlign = 'center';
+  ctx.shadowColor = 'rgba(201,162,39,0.35)'; ctx.shadowBlur = 22;
+  ctx.fillText(achText, W/2, achY);
+  ctx.shadowBlur = 0;
+
+  // Creed line
+  ctx.font = '700 20px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.letterSpacing = '0.2em';
+  ctx.fillText('READ · REFLECT · EXECUTE', W/2, achY + 36);
   ctx.textAlign = 'left';
   ctx.restore();
 
-  // ── Done — cache blob for sharing ───────────────────
-  updateShareBlob(document.getElementById('shareCanvas'));
-}
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 7 — STAT BLOCKS
+  // ═══════════════════════════════════════════════════════════════════
+  var statY = achY + 72;
+  var validStats = stats2.filter(function(r){
+    var v = String(r[1]||'');
+    return v && v !== '0 min' && v !== '0' && r[0] !== 'Book';
+  });
+  if (!validStats.length) validStats = stats2.slice(0,3);
+  var nSt = Math.min(validStats.length, 3);
+  var sPad = 52, sGap = 16;
+  var sW = nSt > 0 ? Math.floor((W - sPad*2 - sGap*(nSt-1)) / nSt) : 300;
+  var sH = 210;
 
-function _roundRectPath(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x+r,y);
-  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
-  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
-  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
-  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
-  ctx.closePath();
+  validStats.slice(0, nSt).forEach(function(row, i) {
+    var sx = sPad + i*(sW + sGap);
+
+    // Glassmorphism card
+    ctx.save();
+    // Card background
+    var cBg = ctx.createLinearGradient(sx, statY, sx, statY + sH);
+    cBg.addColorStop(0, 'rgba(255,255,255,0.09)');
+    cBg.addColorStop(1, 'rgba(255,255,255,0.04)');
+    ctx.fillStyle = cBg;
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
+    _roundRect(ctx, sx, statY, sW, sH, 20); ctx.fill(); ctx.stroke();
+
+    // Top gold accent bar
+    var tGr = ctx.createLinearGradient(sx, statY, sx + sW, statY);
+    tGr.addColorStop(0, GOLD_L); tGr.addColorStop(1, GOLD_D);
+    ctx.fillStyle = tGr;
+    _roundRect(ctx, sx, statY, sW, 5, 3); ctx.fill();
+
+    // Shine
+    ctx.globalAlpha = 0.08;
+    var shGr2 = ctx.createLinearGradient(sx, statY, sx, statY + sH*0.4);
+    shGr2.addColorStop(0, WHITE); shGr2.addColorStop(1, 'transparent');
+    ctx.fillStyle = shGr2;
+    _roundRect(ctx, sx + 1, statY + 5, sW - 2, sH * 0.35, 18); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Stat value — massive gold
+    var valStr = String(row[1]);
+    var valSize = valStr.length > 7 ? 46 : valStr.length > 5 ? 58 : valStr.length > 3 ? 72 : 88;
+    var valGr = ctx.createLinearGradient(sx, statY + sH*0.3, sx, statY + sH*0.7);
+    valGr.addColorStop(0, GOLD_L);
+    valGr.addColorStop(0.5, GOLD_M);
+    valGr.addColorStop(1, GOLD_D);
+    ctx.font = '900 ' + valSize + 'px Georgia, serif';
+    ctx.fillStyle = valGr;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(201,162,39,0.4)'; ctx.shadowBlur = 16;
+    ctx.fillText(valStr, sx + sW/2, statY + sH * 0.49);
+    ctx.shadowBlur = 0;
+
+    // Label
+    ctx.font = '700 15px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText(String(row[0]).toUpperCase(), sx + sW/2, statY + sH - 26);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 8 — QUOTE
+  // ═══════════════════════════════════════════════════════════════════
+  var qY = statY + sH + 50;
+  var qList = [
+    '"Not all readers are leaders — but all leaders are readers."',
+    '"The person you\'ll be in 5 years is in the books you read today."',
+    '"Reading is the gym for the mind. Show up daily."',
+    '"One book at a time. One warrior at a time."',
+    '"The edge you seek is on pages you have not yet read."',
+    '"A reader lives a thousand lives. The non-reader lives only one."',
+    '"Leaders are readers who act on what they read."'
+  ];
+  var qText = qList[now3.getDay() % qList.length];
+  ctx.save();
+  ctx.font = 'italic 26px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.textAlign = 'center';
+  _wrapText(ctx, qText, W/2, qY, W - 120, 40);
+  ctx.textAlign = 'left';
+  ctx.restore();
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER 9 — VIRAL CTA BLOCK (bottom)
+  // Design principle: Make it feel exclusive and urgent.
+  // People must feel FOMO reading this.
+  // ═══════════════════════════════════════════════════════════════════
+  var ctaH3 = 165;
+  var ctaY4 = H - ctaH3 - 8;
+
+  ctx.save();
+
+  // CTA background: premium dark glass with gold shimmer border
+  var ctaBg = ctx.createLinearGradient(0, ctaY4, W, ctaY4 + ctaH3);
+  ctaBg.addColorStop(0,   'rgba(201,162,39,0.14)');
+  ctaBg.addColorStop(0.5, 'rgba(10,26,60,0.85)');
+  ctaBg.addColorStop(1,   'rgba(4,8,15,0.95)');
+  ctx.fillStyle = ctaBg;
+  ctx.fillRect(0, ctaY4, W, ctaH3);
+
+  // Gold shimmer top edge
+  var edgeGr = ctx.createLinearGradient(0, ctaY4, W, ctaY4);
+  edgeGr.addColorStop(0,    'transparent');
+  edgeGr.addColorStop(0.2,  GOLD_L);
+  edgeGr.addColorStop(0.5,  GOLD_M);
+  edgeGr.addColorStop(0.8,  GOLD_L);
+  edgeGr.addColorStop(1,    'transparent');
+  ctx.fillStyle = edgeGr;
+  ctx.fillRect(0, ctaY4, W, 2.5);
+
+  // Main CTA text
+  ctx.font = '900 34px Georgia, serif';
+  var ctaHeadGr = ctx.createLinearGradient(0, ctaY4 + 20, 0, ctaY4 + 60);
+  ctaHeadGr.addColorStop(0, GOLD_L);
+  ctaHeadGr.addColorStop(1, GOLD_M);
+  ctx.fillStyle = ctaHeadGr;
+  ctx.textAlign = 'center';
+  ctx.shadowColor = 'rgba(201,162,39,0.5)'; ctx.shadowBlur = 18;
+  ctx.fillText('24 BOOKS. 6 MONTHS. 1 IDENTITY.', W/2, ctaY4 + 50);
+  ctx.shadowBlur = 0;
+
+  // Sub-line
+  ctx.font = '500 22px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.fillText('Season 1 is LIVE. Spots are limited.', W/2, ctaY4 + 84);
+
+  // URL pill
+  ctx.font = '700 18px sans-serif';
+  ctx.fillStyle = GOLD_L;
+  ctx.fillText('→  selar.com/bookaweekchallenge', W/2, ctaY4 + 118);
+
+  // Hashtags
+  ctx.font = '600 16px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillText('#BookAWeek  ·  #BookWarrior  ·  #ReadReflectExecute', W/2, ctaY4 + 148);
+  ctx.textAlign = 'left';
+  ctx.restore();
+
+  updateShareBlob(document.getElementById('shareCanvas'));
 }
 
 function _roundRect(ctx, x, y, w, h, r) {
@@ -4106,143 +4330,42 @@ function drawInitialsCircle(ctx, x, y, r, name) {
 }
 
 
-// ── UPDATE BLOB (called after canvas draw) ────────────────────
-function updateShareBlob(canvas) {
-  try {
-    canvas.toBlob(function(blob) {
-      if (blob) _shareBlob = blob;
-    }, 'image/png');
-  } catch(e) { _shareBlob = null; }
-}
-
-// ── UPDATE PHOTO THUMBNAIL IN SHARE PANEL ─────────────────────
-function updatePhotoThumb(photoDataUrl, name) {
-  var thumb    = document.getElementById('sharePhotoThumb');
-  var initials = document.getElementById('sharePhotoInitials');
-  var nameEl   = document.getElementById('sharePhotoName');
-  if (nameEl) nameEl.textContent = name || member || 'BookWarrior';
-  if (photoDataUrl && thumb) {
-    thumb.src = photoDataUrl;
-    thumb.style.display = 'block';
-    if (initials) initials.style.display = 'none';
-  } else {
-    if (thumb) thumb.style.display = 'none';
-    if (initials) {
-      initials.style.display = 'flex';
-      initials.textContent   = getInitials(name || member || 'BW');
-    }
-  }
-}
-
-// ── BUILD SHARE CAPTION ───────────────────────────────────────
-function _buildCaption() {
-  var name   = String((_lastLogData||{}).member || member || 'BookWarrior');
-  var streak = getStreak();
-  var stats  = (_lastLogData||{}).stats || [];
-  var minsRow = stats.find(function(r){ return String(r[0]).toLowerCase().includes('min'); });
-  var minsStr = minsRow ? minsRow[1] : '';
-  var bookRow = stats.find(function(r){ return String(r[0]).toLowerCase().includes('book'); });
-  var bookStr = bookRow ? bookRow[1] : '';
-  var caption = '📚 ' + name + ' just logged a reading session on BOOKAWEEK!';
-  if (minsStr) caption += ' ' + minsStr + ' of deep reading.';
-  if (streak > 0) caption += ' 🔥 ' + streak + '-day streak!';
-  caption += '\n\n"Read. Reflect. Execute."\n';
-  caption += '👉 Join the challenge: bookaweekchallenge.vercel.app\n';
-  caption += '#BookAWeek #BookWarrior #ReadingChallenge #ReadToLead';
-  return caption;
-}
-
-// ── ENSURE BLOB IS READY, THEN RUN CALLBACK ───────────────────
-function _withBlob(cb) {
-  if (_shareBlob) { cb(_shareBlob); return; }
-  var canvas = document.getElementById('shareCanvas');
-  canvas.toBlob(function(blob) {
-    _shareBlob = blob;
-    cb(blob);
-  }, 'image/png');
-}
-
-// ── WHATSAPP SHARE ────────────────────────────────────────────
-function shareToWhatsApp() {
-  _withBlob(function(blob) {
-    var caption = _buildCaption();
-    var name    = String((_lastLogData||{}).member || member || 'BookWarrior');
-    var file    = new File([blob], 'bookaweek-' + name.toLowerCase() + '.png', {type:'image/png'});
-    if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
-      navigator.share({title:'BOOKAWEEK', text:caption, files:[file]})
-        .catch(function(e){ if(e.name!=='AbortError') _whatsappFallback(caption); });
-    } else {
-      _whatsappFallback(caption);
-    }
-  });
-}
-function _whatsappFallback(caption) {
-  // Save image first, then open WhatsApp
-  downloadShareCard();
-  setTimeout(function(){
-    window.open('https://wa.me/?text='+encodeURIComponent(caption), '_blank');
-  }, 800);
-}
-
-// ── INSTAGRAM SHARE ───────────────────────────────────────────
-function shareToInstagram() {
-  _withBlob(function(blob) {
-    var name = String((_lastLogData||{}).member || member || 'BookWarrior');
-    var file = new File([blob], 'bookaweek-' + name.toLowerCase() + '.png', {type:'image/png'});
-    if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
-      navigator.share({title:'BOOKAWEEK', files:[file]})
-        .catch(function(e){
-          if(e.name!=='AbortError'){
-            downloadShareCard();
-            toast('📸 Image saved! Open Instagram and share from your gallery.');
-          }
-        });
-    } else {
-      downloadShareCard();
-      setTimeout(function(){
-        toast('📸 Image saved! Open Instagram and share from your gallery.');
-      }, 500);
-    }
-  });
-}
-
-// ── X / TWITTER SHARE ────────────────────────────────────────
-function shareToTwitter() {
-  var caption = _buildCaption();
-  // Twitter doesn't accept files via Web Share — download image + open tweet
-  downloadShareCard();
-  setTimeout(function(){
-    var tweetText = encodeURIComponent(caption.slice(0, 280));
-    window.open('https://twitter.com/intent/tweet?text=' + tweetText, '_blank');
-  }, 600);
-}
-
-// ── FACEBOOK SHARE ────────────────────────────────────────────
-function shareToFacebook() {
-  downloadShareCard();
-  setTimeout(function(){
-    window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent('https://bookaweekchallenge.vercel.app'), '_blank');
-    toast('📸 Image saved! Attach it to your Facebook post.');
-  }, 600);
-}
-
-// ── NATIVE SHARE (More Apps button) ──────────────────────────
+// ── NATIVE SHARE ─────────────────────────────────────────────
 function doNativeShare() {
-  _withBlob(function(blob) {
-    var name    = String((_lastLogData||{}).member || member || 'BookWarrior');
-    var caption = _buildCaption();
-    var file    = new File([blob], 'bookaweek-' + name.toLowerCase() + '.png', {type:'image/png'});
-    if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
-      navigator.share({title:'BOOKAWEEK — ' + name, text:caption, files:[file]})
-        .catch(function(e){ if(e.name!=='AbortError') downloadShareCard(); });
-    } else if (navigator.share) {
-      navigator.share({title:'BOOKAWEEK', text:caption})
-        .then(function(){ downloadShareCard(); })
-        .catch(function(e){ if(e.name!=='AbortError') downloadShareCard(); });
-    } else {
-      downloadShareCard();
-    }
-  });
+  if (!_shareBlob) {
+    // Blob not ready yet — generate and retry
+    var canvas = document.getElementById('shareCanvas');
+    canvas.toBlob(function(blob) {
+      _shareBlob = blob;
+      doNativeShare();
+    }, 'image/png');
+    return;
+  }
+  var name    = String((_lastLogData||{}).member || member || 'BookWarrior');
+  var streak  = getStreak();
+  var caption = '📚 Just logged my reading session on BOOKAWEEK!' +
+    (streak > 0 ? ' ' + streak + '-day streak! 🔥' : '') +
+    '\n\nRead. Reflect. Execute.\n#BookAWeek #BookWarrior #ReadingChallenge';
+
+  var file = new File([_shareBlob], 'bookaweek-' + name.toLowerCase() + '.png', { type:'image/png' });
+
+  if (navigator.share && navigator.canShare && navigator.canShare({ files:[file] })) {
+    navigator.share({
+      title:  'BOOKAWEEK — ' + name + ' logged a session!',
+      text:   caption,
+      files:  [file]
+    }).catch(function(e) {
+      if (e.name !== 'AbortError') downloadShareCard();
+    });
+  } else if (navigator.share) {
+    // Share without file (text only)
+    navigator.share({ title:'BOOKAWEEK', text: caption })
+      .then(function() { downloadShareCard(); }) // also save image
+      .catch(function(e) { if (e.name !== 'AbortError') downloadShareCard(); });
+  } else {
+    // Desktop fallback
+    downloadShareCard();
+  }
 }
 
 // ── DOWNLOAD FALLBACK ─────────────────────────────────────────
@@ -4255,71 +4378,279 @@ function downloadShareCard() {
   link.click();
 }
 
+// ── PLATFORM-SPECIFIC SHARE ───────────────────────────────────
+function _shareCaption() {
+  var streak  = getStreak();
+  var n       = String((_lastLogData||{}).member || member || 'BookWarrior');
+  return '📚 ' + n + ' just logged a reading session on BOOKAWEEK!' +
+    (streak > 0 ? '\n\n🔥 ' + streak + '-day streak and counting.' : '') +
+    '\n\n24 books · 6 months · 1 identity shift.' +
+    '\nJoin Season 1 → selar.com/bookaweekchallenge' +
+    '\n\n#BookAWeek #BookWarrior #ReadingChallenge #ReadReflectExecute';
+}
+
+function shareToWhatsApp() {
+  // Save image first, then open WhatsApp
+  downloadShareCard();
+  setTimeout(function() {
+    var caption = encodeURIComponent(_shareCaption());
+    window.open('https://wa.me/?text=' + caption, '_blank');
+  }, 600);
+}
+
+function shareToInstagram() {
+  // Instagram doesn't support direct share via URL — save image + guide user
+  downloadShareCard();
+  setTimeout(function() {
+    toast('Image saved! Open Instagram and post from your gallery 📸');
+  }, 400);
+}
+
+function shareToTwitter() {
+  var streak = getStreak();
+  var n = String((_lastLogData||{}).member || member || 'BookWarrior');
+  var text = '📚 Just logged my reading session! ' +
+    (streak > 0 ? '🔥 ' + streak + ' day streak! ' : '') +
+    'Building the reading edge one session at a time. ' +
+    'Join me → selar.com/bookaweekchallenge ' +
+    '#BookAWeek #BookWarrior';
+  downloadShareCard();
+  setTimeout(function() {
+    window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+  }, 600);
+}
+
 </script>
 
-<!-- SHARE SHEET -->
+<!-- SHARE SHEET — PREMIUM DARK EDITION -->
+<style>
+/* ════════════════════════════════════════════
+   SHARE SHEET — full dark, matches card aesthetic
+   ════════════════════════════════════════════ */
+.share-sheet {
+  position:fixed;inset:0;z-index:900;display:none;
+  align-items:flex-end;justify-content:center;
+}
+.share-sheet.show { display:flex;animation:fadeIn .2s ease; }
+
+.share-backdrop {
+  position:absolute;inset:0;
+  background:rgba(4,8,15,.85);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+
+.share-panel {
+  position:relative;width:100%;max-width:440px;
+  background:linear-gradient(160deg,#0A1624 0%,#06100A 50%,#080D1C 100%);
+  border-radius:28px 28px 0 0;
+  border-top:1px solid rgba(201,162,39,0.25);
+  border-left:1px solid rgba(201,162,39,0.08);
+  border-right:1px solid rgba(201,162,39,0.08);
+  padding:0 0 env(safe-area-inset-bottom,28px);
+  overflow:hidden;
+  animation:slideUp .35s cubic-bezier(.34,1.1,.64,1);
+  max-height:94vh;overflow-y:auto;
+  box-shadow:0 -20px 80px rgba(4,8,15,.7), 0 0 0 1px rgba(201,162,39,0.12);
+}
+
+/* Gold shimmer at top of panel */
+.share-panel::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,#F5C842 40%,#C9A227 60%,transparent 100%);
+}
+
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+
+/* Handle */
+.sht-handle {
+  width:36px;height:4px;
+  background:rgba(201,162,39,0.25);
+  border-radius:2px;margin:14px auto 0;
+}
+
+/* Header */
+.sht-head {
+  padding:12px 22px 0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sht-head-label {
+  font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(201,162,39,0.5);
+}
+.sht-head-close {
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+  cursor:pointer;color:rgba(255,255,255,0.4);font-size:15px;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;
+}
+.sht-head-close:active { background:rgba(255,255,255,0.1); }
+
+/* Preview canvas */
+.sht-preview { padding:14px 18px 0;position:relative; }
+.sht-canvas-wrap {
+  border-radius:16px;overflow:hidden;position:relative;
+  box-shadow:0 12px 50px rgba(0,0,0,.6), 0 0 0 1px rgba(201,162,39,0.18);
+}
+.sht-canvas-wrap canvas { display:block;width:100%;height:auto; }
+
+/* Photo row */
+.sht-photo-row {
+  display:flex;align-items:center;gap:12px;
+  padding:14px 20px 0;
+}
+.sht-avatar {
+  width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;
+  border:2px solid rgba(201,162,39,0.6);
+  box-shadow:0 0 16px rgba(201,162,39,0.25);
+}
+.sht-avatar-empty {
+  width:42px;height:42px;border-radius:50%;flex-shrink:0;
+  background:rgba(201,162,39,0.08);
+  border:2px dashed rgba(201,162,39,0.3);
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s;
+}
+.sht-avatar-empty:active { background:rgba(201,162,39,0.14); }
+.sht-photo-info { flex:1;min-width:0; }
+.sht-photo-name { font-size:13px;font-weight:700;color:#fff; }
+.sht-photo-sub  { font-size:11px;color:rgba(255,255,255,0.28);margin-top:2px;line-height:1.4; }
+.sht-photo-change {
+  font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:rgba(201,162,39,0.8);cursor:pointer;flex-shrink:0;
+  padding:7px 14px;
+  background:rgba(201,162,39,0.08);
+  border:1px solid rgba(201,162,39,0.2);
+  border-radius:20px;
+  -webkit-tap-highlight-color:transparent;transition:all .15s;
+}
+.sht-photo-change:active { background:rgba(201,162,39,0.16); }
+
+/* Actions area */
+.sht-actions { padding:14px 18px 0;display:flex;flex-direction:column;gap:10px; }
+
+/* Primary CTA — gold metallic */
+.sht-btn-native {
+  width:100%;height:60px;
+  background:linear-gradient(135deg,#7A5200 0%,#F5C842 40%,#C9A227 60%,#9A6A00 100%);
+  border:none;border-radius:18px;
+  color:#04080F;
+  font-family:'DM Sans',sans-serif;font-size:16px;font-weight:900;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  -webkit-tap-highlight-color:transparent;letter-spacing:.04em;
+  box-shadow:0 6px 32px rgba(201,162,39,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  transition:opacity .12s,transform .12s;
+  position:relative;overflow:hidden;
+}
+.sht-btn-native::before {
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,0.2) 0%,transparent 50%);
+  pointer-events:none;
+}
+.sht-btn-native:active { opacity:.88;transform:scale(.98); }
+
+/* Platform row */
+.sht-platforms { display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px; }
+.sht-plat-btn {
+  height:58px;border-radius:14px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+  cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;
+  -webkit-tap-highlight-color:transparent;transition:all .15s;
+}
+.sht-plat-btn:active { background:rgba(255,255,255,0.1);transform:scale(.96); }
+.sht-plat-icon { font-size:24px;line-height:1; }
+.sht-plat-label {
+  font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,0.3);
+}
+
+/* Save/download button */
+.sht-btn-save {
+  width:100%;height:48px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;color:rgba(255,255,255,0.45);
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;
+}
+.sht-btn-save:active { background:rgba(255,255,255,0.08); }
+
+.sht-divider {
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(201,162,39,0.15),transparent);
+  margin:4px 0;
+}
+.sht-spacer { height:16px; }
+</style>
+
 <div class="share-sheet" id="shareSheet">
   <div class="share-backdrop" onclick="closeShare()"></div>
   <div class="share-panel">
-    <div class="share-handle"></div>
-    <div class="share-header">
-      <div class="share-header-title">📤 Share Your Victory</div>
-      <div class="share-header-sub">Inspire others to join the movement</div>
+    <div class="sht-handle"></div>
+
+    <div class="sht-head">
+      <div class="sht-head-label">📤 &nbsp;Share Your Progress</div>
+      <button class="sht-head-close" onclick="closeShare()">&#x2715;</button>
     </div>
 
-    <!-- Canvas preview -->
-    <div class="share-preview-wrap">
-      <div class="share-canvas-wrap">
+    <!-- Card preview -->
+    <div class="sht-preview">
+      <div class="sht-canvas-wrap">
         <canvas id="shareCanvas" width="1080" height="1350"></canvas>
       </div>
     </div>
 
-    <!-- Profile photo row -->
-    <div class="share-photo-row" id="sharePhotoRow">
-      <img class="share-photo-avatar" id="sharePhotoThumb" src="" alt="" style="display:none;">
-      <div id="sharePhotoInitials" style="width:44px;height:44px;border-radius:50%;border:2.5px solid rgba(242,183,5,.5);flex-shrink:0;background:rgba(242,183,5,.12);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:var(--gold);"></div>
-      <div class="share-photo-info">
-        <div class="share-photo-name" id="sharePhotoName"></div>
-        <div class="share-photo-sub">Your photo · saved once, used always</div>
+    <!-- Photo row -->
+    <div class="sht-photo-row" id="sharePhotoRow">
+      <img class="sht-avatar" id="sharePhotoThumb" src="" alt="" style="display:none" onclick="changeProfilePhoto()">
+      <div class="sht-avatar-empty" id="shareAvatarEmpty" onclick="changeProfilePhoto()">📷</div>
+      <div class="sht-photo-info">
+        <div class="sht-photo-name" id="sharePhotoName"></div>
+        <div class="sht-photo-sub">Add your photo once — appears on every card automatically</div>
       </div>
-      <span class="share-photo-change" onclick="changeProfilePhoto()">📷 Change</span>
+      <span class="sht-photo-change" onclick="changeProfilePhoto()">Change</span>
     </div>
 
-    <!-- Social share grid -->
-    <div class="share-social-grid">
-      <button class="share-social-btn ssb-whatsapp" onclick="shareToWhatsApp()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-        WhatsApp
+    <!-- Share actions -->
+    <div class="sht-actions">
+
+      <!-- Gold CTA: native share (best on mobile) -->
+      <button class="sht-btn-native" id="shareNativeBtn" onclick="doNativeShare()">
+        <span style="font-size:22px;">&#x2197;</span>
+        Share to Any App
       </button>
-      <button class="share-social-btn ssb-instagram" onclick="shareToInstagram()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-        Instagram
+
+      <div class="sht-divider"></div>
+
+      <!-- Platform row -->
+      <div class="sht-platforms">
+        <button class="sht-plat-btn" onclick="shareToWhatsApp()">
+          <span class="sht-plat-icon">💬</span>
+          <span class="sht-plat-label">WhatsApp</span>
+        </button>
+        <button class="sht-plat-btn" onclick="shareToInstagram()">
+          <span class="sht-plat-icon">📸</span>
+          <span class="sht-plat-label">Instagram</span>
+        </button>
+        <button class="sht-plat-btn" onclick="shareToTwitter()">
+          <span class="sht-plat-icon">&#x1D54F;</span>
+          <span class="sht-plat-label">X / Twitter</span>
+        </button>
+      </div>
+
+      <!-- Save image -->
+      <button class="sht-btn-save" onclick="downloadShareCard()">
+        <span style="font-size:17px;">&#x2B07;</span>
+        Save Image to Gallery
       </button>
-      <button class="share-social-btn ssb-twitter" onclick="shareToTwitter()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.733-8.835L1.254 2.25H8.08l4.259 5.631zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-        X / Twitter
-      </button>
-      <button class="share-social-btn ssb-facebook" onclick="shareToFacebook()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-        Facebook
-      </button>
-      <button class="share-social-btn ssb-more" onclick="doNativeShare()">
-        <span style="font-size:18px;">↗</span> Share to More Apps
-      </button>
+
     </div>
 
-    <!-- Download fallback -->
-    <div class="share-divider">
-      <div class="share-divider-line"></div>
-      <div class="share-divider-txt">or</div>
-      <div class="share-divider-line"></div>
-    </div>
-    <button class="share-download-btn" onclick="downloadShareCard()">
-      <span style="font-size:15px;">⬇</span> Save Image to Device
-    </button>
-
-    <div style="height:16px;"></div>
-    <div class="share-actions"></div>
+    <div class="sht-spacer"></div>
     <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
   </div>
 </div>
