@@ -1493,7 +1493,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <script>
 // ═══════════════════════════════════════════════
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
-// BUILD: 2026-04-30-v10-realtime (5-layer real-time engine)
+// BUILD: 2026-05-02-v13-CORS-FINAL (all fetches cors, response validated)
 // ═══════════════════════════════════════════════
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzNSLcx7LjrQekWWEPzfVkcak1g_7-1M3QZ-9wAD6DpFhi1Gwq_V9lyuXH_QajV0NySGQ/exec';
 const PRE = 'baw_';
@@ -2095,8 +2095,9 @@ async function finalizeRegistration() {
   try {
     var _rmPayload = {action:'registerMember',member:cand,date:dateStr(),
       joinedAt:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
-    await fetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now(),
+    var _rm = await fetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now(),
       {mode:'cors',cache:'no-store'});
+    if(_rm.ok){ var _rmd=await _rm.json(); if(!_rmd||!_rmd.success) console.warn('[BAW] registerMember:', _rmd&&_rmd.error); }
   } catch(e) { /* registration still works locally */ }
   // Log in
   sessionStorage.setItem(PRE+'member', cand);
@@ -2165,7 +2166,7 @@ function initAuthScreen() {
 
 // ── LOGIN ──
 function login(name) {
-  member=name;
+  member=(name||'').trim();
   document.getElementById('memberScreen').classList.add('hidden');
   document.getElementById('mainApp').style.display='block';
   document.getElementById('greetName').textContent=name;
@@ -2542,8 +2543,11 @@ async function submitBook(){
   setBL(true);
   try{
     var _abPayload={action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat};
-    await fetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now(),
+    var _ab = await fetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now(),
       {mode:'cors',cache:'no-store'});
+    if(!_ab.ok) throw new Error('HTTP '+_ab.status);
+    var _abd = await _ab.json();
+    if(!_abd||!_abd.success) throw new Error(_abd&&_abd.error||'addBook failed');
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
     document.getElementById('b-goal').value='';
@@ -2584,34 +2588,29 @@ async function sendToGAS(payload) {
   // convert POST→GET on 302, dropping the body entirely. doPost() NEVER fires.
   // Solution: send all writes as GET with payload in ?data= param.
   // doGet() is updated to bridge writes to the correct handler.
-  //
-  // WHY CORS (not no-cors): mode:'no-cors' produces an opaque response — the
-  // browser sends the request but GAS may not execute the script, and we can
-  // NEVER read whether it succeeded. mode:'cors' lets GAS respond normally.
-  // GAS /exec already sets Access-Control-Allow-Origin:* so cors works fine.
   if (!payload.member) payload.member = member || '';
   var url = GAS_URL
     + '?action=' + encodeURIComponent(payload.action)
     + '&data='   + encodeURIComponent(JSON.stringify(payload))
     + '&t='      + Date.now();
   try {
-    var resp = await fetch(url, { mode: 'cors', cache: 'no-store' });
-    var json = null;
-    try { json = await resp.json(); } catch(pe) { /* non-JSON response — treat as ok */ }
-    if (json && json.success === false) {
-      // GAS returned an error — log it but don't throw (so UI still shows success)
-      console.warn('[BAW] GAS returned error:', json.error, '| action:', payload.action, '| member:', payload.member);
-      _showSyncBadge(false, json.error);
-      return json;
+    var _r = await fetch(url, { mode: 'cors', cache: 'no-store' });
+    if (!_r.ok) throw new Error('HTTP ' + _r.status);
+    var _d = await _r.json();
+    if (!_d || !_d.success) {
+      var _err = (_d && _d.error) || 'GAS returned failure';
+      console.error('[BAW] ❌ GAS error:', payload.action, _err);
+      _showSyncBadge(false, _err);
+      throw new Error(_err);
     }
-    console.log('[BAW] GAS confirmed:', payload.action, 'for', payload.member, json);
+    console.log('[BAW] ✅ GAS confirmed:', payload.action, 'for', payload.member);
     _showSyncBadge(true);
-    return json || {};
   } catch(e) {
-    console.error('[BAW] Network error - queuing:', e.message);
+    console.error('[BAW] Network/GAS error:', e.message);
     _showSyncBadge(false, e.message);
     throw e;
   }
+  return {};
 }
 
 // Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
@@ -2739,8 +2738,8 @@ function setupWeekly(){
   }
   if(sun||force){
     ['w-days','w-mins','w-pages'].forEach(function(id){document.getElementById(id).textContent='...';});
-    fetch(GAS_URL+'?action=getWeekStats&member='+encodeURIComponent(member))
-      .then(function(r){return r.json();})
+    fetch(GAS_URL+'?action=getWeekStats&member='+encodeURIComponent(member),{mode:'cors',cache:'no-store'})
+      .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
       .then(function(d){
         if(d&&d.success){
           document.getElementById('w-days').textContent=d.daysRead||0;
@@ -3081,8 +3080,11 @@ async function submitComplete() {
   };
 
   try {
-    await fetch(GAS_URL+'?action='+encodeURIComponent(payload.action)+'&data='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now(),
+    var _cb = await fetch(GAS_URL+'?action='+encodeURIComponent(payload.action)+'&data='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now(),
       {mode:'cors',cache:'no-store'});
+    if(!_cb.ok) throw new Error('HTTP '+_cb.status);
+    var _cbd = await _cb.json();
+    if(!_cbd||!_cbd.success) throw new Error(_cbd&&_cbd.error||'completeBook failed');
     closeCompleteModal();
     renderLib();
     dropBooks();
@@ -3271,7 +3273,7 @@ function fetchLiveBoard(forceRender) {
   _inFlight = true;
 
   var t0 = Date.now();
-  fetch(GAS_URL + '?action=getDashboard&t=' + t0, { cache: 'no-store' })
+  fetch(GAS_URL + '?action=getDashboard&t=' + t0, { cache: 'no-store', mode: 'cors' })
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
