@@ -2095,7 +2095,8 @@ async function finalizeRegistration() {
   try {
     var _rmPayload = {action:'registerMember',member:cand,date:dateStr(),
       joinedAt:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
-    await fetch(GAS_URL, {method:'POST',mode:'no-cors',cache:'no-store',headers:{'Content-Type':'text/plain'},body:JSON.stringify(_rmPayload)});
+    await fetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now(),
+      {mode:'cors',cache:'no-store'});
   } catch(e) { /* registration still works locally */ }
   // Log in
   sessionStorage.setItem(PRE+'member', cand);
@@ -2541,7 +2542,8 @@ async function submitBook(){
   setBL(true);
   try{
     var _abPayload={action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat};
-    await fetch(GAS_URL, {method:'POST',mode:'no-cors',cache:'no-store',headers:{'Content-Type':'text/plain'},body:JSON.stringify(_abPayload)});
+    await fetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now(),
+      {mode:'cors',cache:'no-store'});
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
     document.getElementById('b-goal').value='';
@@ -2578,32 +2580,38 @@ function prog(){
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
 async function sendToGAS(payload) {
-  // FIX: GAS write actions (logDaily, logWeekly, addBook, completeBook) are
-  // handled by doPost() — they MUST be sent as POST with a JSON body.
-  // The previous GET approach hit doGet() which returned "Unknown GET action"
-  // and silently discarded every log submission.
+  // WHY GET (not POST): GAS /exec does a 302 redirect. Per HTTP spec, browsers
+  // convert POST→GET on 302, dropping the body entirely. doPost() NEVER fires.
+  // Solution: send all writes as GET with payload in ?data= param.
+  // doGet() is updated to bridge writes to the correct handler.
+  //
+  // WHY CORS (not no-cors): mode:'no-cors' produces an opaque response — the
+  // browser sends the request but GAS may not execute the script, and we can
+  // NEVER read whether it succeeded. mode:'cors' lets GAS respond normally.
+  // GAS /exec already sets Access-Control-Allow-Origin:* so cors works fine.
   if (!payload.member) payload.member = member || '';
+  var url = GAS_URL
+    + '?action=' + encodeURIComponent(payload.action)
+    + '&data='   + encodeURIComponent(JSON.stringify(payload))
+    + '&t='      + Date.now();
   try {
-    await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      cache: 'no-store',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
-    });
-    console.log('[BAW] GAS POST sent:', payload.action, 'for', payload.member);
+    var resp = await fetch(url, { mode: 'cors', cache: 'no-store' });
+    var json = null;
+    try { json = await resp.json(); } catch(pe) { /* non-JSON response — treat as ok */ }
+    if (json && json.success === false) {
+      // GAS returned an error — log it but don't throw (so UI still shows success)
+      console.warn('[BAW] GAS returned error:', json.error, '| action:', payload.action, '| member:', payload.member);
+      _showSyncBadge(false, json.error);
+      return json;
+    }
+    console.log('[BAW] GAS confirmed:', payload.action, 'for', payload.member, json);
+    _showSyncBadge(true);
+    return json || {};
   } catch(e) {
     console.error('[BAW] Network error - queuing:', e.message);
+    _showSyncBadge(false, e.message);
     throw e;
   }
-  _showSyncBadge(null);
-  setTimeout(function() {
-    fetch(GAS_URL + '?action=ping&t=' + Date.now(), { cache: 'no-store' })
-      .then(function(r){ return r.json(); })
-      .then(function(j){ if(j && j.pong) _showSyncBadge(true); })
-      .catch(function(){});
-  }, 2000);
-  return {};
 }
 
 // Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
@@ -3073,7 +3081,8 @@ async function submitComplete() {
   };
 
   try {
-    await fetch(GAS_URL, {method:'POST',mode:'no-cors',cache:'no-store',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    await fetch(GAS_URL+'?action='+encodeURIComponent(payload.action)+'&data='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now(),
+      {mode:'cors',cache:'no-store'});
     closeCompleteModal();
     renderLib();
     dropBooks();
