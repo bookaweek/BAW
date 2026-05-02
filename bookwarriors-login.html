@@ -1495,7 +1495,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // BUILD: 2026-04-30-v10-realtime (5-layer real-time engine)
 // ═══════════════════════════════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzPgnVOggM3nXlzQvEOlGI_APhGLE2mh-5UyPqbvJT9IjpeoGT4NbRwvHGLBIdc4aZ0MA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzBbVPZrVX5jRDb_dRsgQObJazGNpJS10_WBLGpGxa4YNFvBtrrfNNaarRyui9X_Oa3Tg/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 let deferredInstall = null;
@@ -2093,16 +2093,10 @@ async function finalizeRegistration() {
   addRecent(cand);
   // Register in Google Sheet
   try {
-    await fetch(GAS_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type':'text/plain'},
-      body: JSON.stringify({
-        action: 'registerMember',
-        member: cand,
-        date: dateStr(),
-        joinedAt: new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
-      })
-    });
+    var _rmPayload = {action:'registerMember',member:cand,date:dateStr(),
+      joinedAt:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
+    await fetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now(),
+      {mode:'no-cors',cache:'no-store'});
   } catch(e) { /* registration still works locally */ }
   // Log in
   sessionStorage.setItem(PRE+'member', cand);
@@ -2547,8 +2541,9 @@ async function submitBook(){
   lib.push({t:title,a:author,s:status,category:cat,goal:goal}); saveLib();
   setBL(true);
   try{
-    await fetch(GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat})});
+    var _abPayload={action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat};
+    await fetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now(),
+      {mode:'no-cors',cache:'no-store'});
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
     document.getElementById('b-goal').value='';
@@ -2585,43 +2580,29 @@ function prog(){
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
 async function sendToGAS(payload) {
+  // ROOT CAUSE FIX: GAS web apps redirect POST 302 to GET (HTTP spec).
+  // Browser follows redirect but drops the body — doPost() never fires.
+  // Solution: send everything as GET with payload in the data param.
+  // GET requests confirmed working via ping test.
   if (!payload.member) payload.member = member || '';
-  var body = JSON.stringify(payload);
-
-  // ── STRATEGY: no-cors is the reliable channel for GAS POST ──────────
-  // GAS receives no-cors POSTs perfectly — the response is opaque but
-  // the data 100% lands in the sheet. CORS mode can silently fail if
-  // GAS redirects (302) or if the deployment CORS config is strict.
-  // So: always send via no-cors, then ping separately for badge feedback.
-  
+  var url = GAS_URL
+    + '?action=' + encodeURIComponent(payload.action)
+    + '&data='   + encodeURIComponent(JSON.stringify(payload))
+    + '&t='      + Date.now();
   try {
-    await fetch(GAS_URL, {
-      method:  'POST',
-      mode:    'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    body
-    });
-    console.log('[BAW] POST sent:', payload.action, 'for', payload.member);
+    await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+    console.log('[BAW] GAS GET sent:', payload.action, 'for', payload.member);
   } catch(e) {
-    // Genuine network failure — device is offline
-    console.error('[BAW] Network error — queuing:', e.message);
-    throw e; // caller will queue locally
+    console.error('[BAW] Network error - queuing:', e.message);
+    throw e;
   }
-
-  // Show "sent" badge immediately
   _showSyncBadge(null);
-
-  // ── PING GAS 2s later to confirm it's alive and processed ───────────
-  // This is separate from the write — just tells us GAS responded.
   setTimeout(function() {
     fetch(GAS_URL + '?action=ping&t=' + Date.now(), { cache: 'no-store' })
-      .then(function(r) { return r.json(); })
-      .then(function(j) {
-        if (j && j.pong) _showSyncBadge(true);
-      })
-      .catch(function() { /* ping failed — badge stays neutral */ });
+      .then(function(r){ return r.json(); })
+      .then(function(j){ if(j && j.pong) _showSyncBadge(true); })
+      .catch(function(){});
   }, 2000);
-
   return {};
 }
 
@@ -3092,12 +3073,8 @@ async function submitComplete() {
   };
 
   try {
-    await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
-    });
+    await fetch(GAS_URL+'?action='+encodeURIComponent(payload.action)+'&data='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now(),
+      {mode:'no-cors',cache:'no-store'});
     closeCompleteModal();
     renderLib();
     dropBooks();
