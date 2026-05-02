@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BAW Diagnostic</title>
+<style>
+body{margin:0;padding:16px;background:#0B1F3B;color:#fff;font-family:monospace;font-size:13px;}
+h2{color:#C9A227;margin:0 0 12px;font-size:18px;}
+button{width:100%;padding:14px;margin:6px 0;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;background:#C9A227;color:#0B1F3B;}
+button.sec{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);}
+.log{background:#060E1C;border-radius:10px;padding:12px;margin:10px 0;font-size:12px;line-height:1.8;max-height:60vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all;}
+.ok{color:#4ADE80;}.err{color:#F87171;}.warn{color:#FCD34D;}.info{color:#60A5FA;}.dim{color:rgba(255,255,255,.4);}
+input,select{width:100%;padding:10px;background:#0D2040;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:8px;font-size:14px;margin:4px 0 10px;box-sizing:border-box;}
+label{font-size:12px;color:rgba(255,255,255,.5);font-weight:700;letter-spacing:.06em;}
+</style>
+</head>
+<body>
+<h2>🔍 BAW Live Diagnostic</h2>
+
+<label>MEMBER NAME (exact)</label>
+<select id="mem">
+  <option>Dorcas</option>
+  <option>Haliyah</option>
+  <option>Jesulayomi</option>
+  <option>Juliet</option>
+  <option>Motolani</option>
+  <option>EA</option>
+</select>
+
+<div id="log" class="log">Tap a test to begin...\n</div>
+
+<button onclick="runAll()">▶ RUN ALL TESTS</button>
+<button class="sec" onclick="testPing()">1. Ping GAS (is it alive?)</button>
+<button class="sec" onclick="testDiag()">2. Diagnostic (sheet names)</button>
+<button class="sec" onclick="testDashboard()">3. Dashboard (leaderboard data)</button>
+<button class="sec" onclick="testLog()">4. Write a test log row</button>
+<button class="sec" onclick="clearLog()">Clear</button>
+
+<script>
+var GAS = 'https://script.google.com/macros/s/AKfycbzNSLcx7LjrQekWWEPzfVkcak1g_7-1M3QZ-9wAD6DpFhi1Gwq_V9lyuXH_QajV0NySGQ/exec';
+
+function log(msg, cls) {
+  var el = document.getElementById('log');
+  var line = document.createElement('div');
+  line.className = cls || 'dim';
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog() { document.getElementById('log').innerHTML = ''; }
+function member() { return document.getElementById('mem').value; }
+
+function get(params) {
+  var url = GAS + '?' + params + '&t=' + Date.now();
+  log('→ GET ' + url.substring(0,80) + '...', 'dim');
+  return fetch(url, { cache: 'no-store' })
+    .then(function(r) {
+      log('  HTTP ' + r.status, r.ok ? 'ok' : 'err');
+      return r.text();
+    })
+    .then(function(t) {
+      log('  Response: ' + t.substring(0, 300), 'dim');
+      try { return JSON.parse(t); } catch(e) { return { raw: t }; }
+    });
+}
+
+// ── TEST 1: PING ──────────────────────────────────────────────
+function testPing() {
+  log('\n━━ TEST 1: GAS PING ━━', 'info');
+  get('action=ping')
+    .then(function(d) {
+      if (d && d.pong) {
+        log('✅ GAS IS ALIVE — ' + (d.ts || ''), 'ok');
+      } else if (d && d.raw) {
+        log('❌ Not JSON — GAS may not be deployed correctly', 'err');
+        log('   Raw: ' + d.raw.substring(0,200), 'err');
+      } else {
+        log('⚠️ GAS responded but no pong: ' + JSON.stringify(d), 'warn');
+      }
+    })
+    .catch(function(e) {
+      log('❌ FETCH FAILED: ' + e.message, 'err');
+      log('   → Check: Is GAS deployed? Access = Anyone?', 'warn');
+    });
+}
+
+// ── TEST 2: DIAGNOSTIC ────────────────────────────────────────
+function testDiag() {
+  log('\n━━ TEST 2: SHEET DIAGNOSTIC ━━', 'info');
+  get('action=diagnostic')
+    .then(function(d) {
+      if (!d.success) {
+        log('❌ Diagnostic failed: ' + (d.error || JSON.stringify(d)), 'err');
+        return;
+      }
+      log('📋 All sheet tabs in spreadsheet:', 'info');
+      (d.allSheets || []).forEach(function(s) { log('   "' + s + '"', 'dim'); });
+      log('', '');
+      log('👥 Warrior sheet lookup:', 'info');
+      (d.warriors || []).forEach(function(w) {
+        var daily  = w.daily  ? '✅' : '❌ MISSING';
+        var books  = w.books  ? '✅' : '❌ MISSING';
+        var weekly = w.weekly ? '✅' : '❌ MISSING';
+        var cls = (w.daily && w.books && w.weekly) ? 'ok' : 'err';
+        log('   ' + w.warrior + ': daily=' + daily + ' books=' + books + ' weekly=' + weekly, cls);
+        if (!w.daily)  log('     Expected: "' + w.dailyName  + '"', 'warn');
+        if (!w.books)  log('     Expected: "' + w.booksName  + '"', 'warn');
+        if (!w.weekly) log('     Expected: "' + w.weeklyName + '"', 'warn');
+      });
+    })
+    .catch(function(e) {
+      log('❌ ' + e.message, 'err');
+      log('   → GAS may not have the diagnostic function. Redeploy GAS.', 'warn');
+    });
+}
+
+// ── TEST 3: DASHBOARD ─────────────────────────────────────────
+function testDashboard() {
+  log('\n━━ TEST 3: DASHBOARD DATA ━━', 'info');
+  get('action=getDashboard')
+    .then(function(d) {
+      if (!d.success) {
+        log('❌ ' + (d.error || JSON.stringify(d)), 'err');
+        return;
+      }
+      log('✅ Board loaded — ' + (d.board||[]).length + ' members:', 'ok');
+      (d.board || []).forEach(function(w) {
+        log('   ' + w.name + ': books=' + w.booksCompleted + ' mins=' + w.totalMins + ' days=' + w.daysLogged, 'ok');
+      });
+    })
+    .catch(function(e) { log('❌ ' + e.message, 'err'); });
+}
+
+// ── TEST 4: WRITE A LOG ROW ───────────────────────────────────
+function testLog() {
+  var m = member();
+  log('\n━━ TEST 4: WRITE LOG ROW for "' + m + '" ━━', 'info');
+  log('Using GET bridge (same method as the app)...', 'dim');
+
+  var payload = {
+    action:      'logDaily',
+    member:      m,
+    date:        new Date().toISOString().slice(0,10),
+    dateDisplay: 'DIAGNOSTIC TEST',
+    book:        'DIAGNOSTIC — DELETE THIS ROW',
+    module:      'TEST',
+    minutes:     1,
+    pages:       1,
+    insight:     'This is a diagnostic test row — please delete it',
+    actionTaken: 'Testing',
+    rating:      1,
+    isRestDay:   false
+  };
+
+  var url = GAS
+    + '?action=logDaily'
+    + '&data=' + encodeURIComponent(JSON.stringify(payload))
+    + '&t=' + Date.now();
+
+  log('→ ' + url.substring(0,100) + '...', 'dim');
+
+  fetch(url, { cache: 'no-store' })
+    .then(function(r) {
+      log('HTTP ' + r.status + ' ' + r.statusText, r.ok ? 'ok' : 'err');
+      return r.json();
+    })
+    .then(function(d) {
+      if (d.success) {
+        log('✅ ROW WRITTEN SUCCESSFULLY!', 'ok');
+        log('   → Open "📅 ' + m + ' Daily" tab in your Google Sheet', 'ok');
+        log('   → You should see a new row at the bottom', 'ok');
+        log('   → Delete it after confirming', 'ok');
+      } else {
+        log('❌ GAS returned error: ' + JSON.stringify(d), 'err');
+        if (d.error && d.error.includes('not found')) {
+          log('', '');
+          log('⚠️  SHEET TAB NAME MISMATCH', 'warn');
+          log('   GAS looked for: 📅 ' + m + ' Daily', 'warn');
+          log('   Run Test 2 to see actual tab names', 'warn');
+        }
+        if (d.error && d.error.includes('Bridge')) {
+          log('', '');
+          log('⚠️  GAS doGet bridge not found', 'warn');
+          log('   The new GAS code was not deployed', 'warn');
+          log('   → Go to Apps Script → Deploy → NEW version', 'warn');
+        }
+      }
+    })
+    .catch(function(e) {
+      log('❌ Network error: ' + e.message, 'err');
+      log('   Check internet connection', 'warn');
+    });
+}
+
+// ── RUN ALL ───────────────────────────────────────────────────
+function runAll() {
+  clearLog();
+  log('Running all tests for member: ' + member(), 'info');
+  testPing();
+  setTimeout(testDiag, 1500);
+  setTimeout(testDashboard, 3000);
+  setTimeout(testLog, 4500);
+}
+</script>
+</body>
+</html>
