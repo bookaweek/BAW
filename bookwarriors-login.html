@@ -837,7 +837,28 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 
 /* ══ SHARE SYSTEM ══ */
-/* share-sheet CSS moved to bottom of file */
+.share-sheet{position:fixed;inset:0;z-index:900;display:none;align-items:flex-end;justify-content:center;}
+.share-sheet.show{display:flex;animation:fadeIn .2s ease;}
+.share-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);}
+.share-panel{position:relative;width:100%;max-width:420px;background:#F5F0E8;border-radius:28px 28px 0 0;padding:0 0 env(safe-area-inset-bottom,20px);overflow:hidden;animation:slideUp .3s cubic-bezier(.34,1.2,.64,1);max-height:92vh;overflow-y:auto;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.share-handle{width:36px;height:4px;background:rgba(0,0,0,.12);border-radius:2px;margin:12px auto 0;}
+.share-preview-wrap{padding:16px 20px 0;}
+.share-canvas-wrap{border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(11,31,59,.18);position:relative;}
+.share-canvas-wrap canvas{display:block;width:100%;height:auto;}
+.share-photo-hint{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.55);border-radius:8px;padding:4px 8px;font-size:10px;color:#fff;display:none;}
+.share-photo-hint.show{display:block;}
+.share-actions{padding:14px 20px 0;display:flex;flex-direction:column;gap:10px;}
+.share-btn-primary{width:100%;height:54px;background:linear-gradient(135deg,#0B1F3B,#1A3A6B);border:none;border-radius:16px;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;-webkit-tap-highlight-color:transparent;transition:opacity .15s;letter-spacing:.02em;box-shadow:0 6px 24px rgba(11,31,59,0.25);}
+.share-btn-primary:active{opacity:.85;}
+.share-btn-secondary{width:100%;height:46px;background:rgba(11,31,59,0.06);border:1.5px solid rgba(11,31,59,.15);border-radius:14px;color:#0B1F3B;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;-webkit-tap-highlight-color:transparent;transition:background .15s;}
+.share-btn-secondary:active{background:rgba(11,31,59,.05);}
+.share-photo-row{display:flex;align-items:center;gap:10px;padding:0 20px;margin-top:4px;}
+.share-photo-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(11,31,59,.1);flex-shrink:0;background:#f0f0f0;}
+.share-photo-info{flex:1;min-width:0;}
+.share-photo-name{font-size:13px;font-weight:700;color:#0B1F3B;}
+.share-photo-sub{font-size:11px;color:rgba(11,31,59,.45);}
+.share-photo-change{font-size:12px;font-weight:700;color:#1547B0;cursor:pointer;text-decoration:underline;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
 
 </style>
 </head>
@@ -1024,10 +1045,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </div>
     <div class="date-badge"><span id="dayName">Monday</span> &middot; <span id="fullDate">...</span></div>
     <div class="member-greeting">Hey, <em id="greetName">...</em> &#x1F44B;</div>
-    <div class="member-sub" id="greetSub" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      Ready to log your session?
-      <span id="syncBadge" style="display:none;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid;letter-spacing:.04em;"></span>
-    </div>
+    <div class="member-sub" id="greetSub">Ready to log your session?</div>
   </div>
 
 
@@ -1493,7 +1511,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <script>
 // ═══════════════════════════════════════════════
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
-// BUILD: 2026-04-30-v10-realtime (5-layer real-time engine)
+// BUILD: 2026-05-02-v11-cors-fix (CRITICAL: no-cors → cors, all fetches confirmed)
 // ═══════════════════════════════════════════════
 const URL = 'https://script.google.com/macros/s/AKfycbzQN-CGrGriAv1TTe-_xbMkGdPC6EnMBfxFlQOEbByP5xwfEyUFCF4ClSfQlVHlWoKGdw/exec';
 const PRE = 'baw_';
@@ -2094,11 +2112,11 @@ async function finalizeRegistration() {
   // Register in Google Sheet
   try {
     await fetch(URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type':'text/plain'},
+      method: 'POST', mode: 'cors',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         action: 'registerMember',
-        member: cand,
+        member: cand.trim(),
         date: dateStr(),
         joinedAt: new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
       })
@@ -2171,7 +2189,7 @@ function initAuthScreen() {
 
 // ── LOGIN ──
 function login(name) {
-  member=name;
+  member=(name||'').trim();
   document.getElementById('memberScreen').classList.add('hidden');
   document.getElementById('mainApp').style.display='block';
   document.getElementById('greetName').textContent=name;
@@ -2547,8 +2565,7 @@ async function submitBook(){
   lib.push({t:title,a:author,s:status,category:cat,goal:goal}); saveLib();
   setBL(true);
   try{
-    await fetch(URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat})});
+    await sendToGAS({action:'addBook',member:(member||'').trim(),date:dateStr(),title:title,author:author,status:status,category:cat});
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
     document.getElementById('b-goal').value='';
@@ -2582,78 +2599,26 @@ function prog(){
 
 // ══════════════════════════════════════════════════════════
 // GAS SEND + OFFLINE QUEUE
-// sendToGAS: fires fetch, queues on fail, retries on reconnect
+// sendToGAS: fires fetch with cors mode so we can read the
+// JSON response and confirm the sheet was actually written.
+// no-cors was the root cause — opaque responses meant we
+// could never detect GAS errors, so failed logs looked fine.
 // ══════════════════════════════════════════════════════════
-async function sendToGAS(payload) {
-  if (!payload.member) payload.member = member || '';
-  var body = JSON.stringify(payload);
-
-  // ── ATTEMPT 1: CORS mode — lets us READ the sheet's response ──
-  // GAS deployed to "Anyone" returns proper CORS headers.
-  // This is how we KNOW the data landed.
-  try {
-    var r = await fetch(URL, {
-      method:  'POST',
-      mode:    'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    body
-    });
-    if (r.ok) {
-      var json = await r.json().catch(function(){ return {}; });
-      console.log('[BAW] GAS confirmed:', payload.action, json);
-      if (json.success !== false) {
-        // Sheet confirmed receipt — show green flash
-        _showSyncBadge(true);
-        return json;
-      } else {
-        console.warn('[BAW] GAS returned error:', json.error);
-        _showSyncBadge(false, json.error);
-        throw new Error(json.error || 'GAS error');
-      }
-    }
-  } catch(corsErr) {
-    // ── ATTEMPT 2: no-cors fallback ──
-    // Data lands in sheet but response is opaque — we can't confirm.
-    if (corsErr.name !== 'TypeError') throw corsErr; // rethrow non-network errors
-    console.warn('[BAW] CORS blocked, falling back to no-cors:', corsErr.message);
-    try {
-      await fetch(URL, {
-        method:  'POST',
-        mode:    'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body:    body
-      });
-      console.log('[BAW] no-cors POST sent (opaque):', payload.action);
-      _showSyncBadge(null); // unknown — show neutral
-    } catch(e2) {
-      throw e2; // truly offline — caller will queue
-    }
-  }
-}
-
-// Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
-function _showSyncBadge(confirmed, errMsg) {
-  var el = document.getElementById('syncBadge');
-  if (!el) return;
-  if (confirmed === true) {
-    el.textContent = '✓ Synced to sheet';
-    el.style.background = 'rgba(13,122,110,.18)';
-    el.style.color = '#0D7A6E';
-    el.style.borderColor = 'rgba(13,122,110,.35)';
-  } else if (confirmed === false) {
-    el.textContent = '⚠ Sheet error';
-    el.style.background = 'rgba(192,57,43,.12)';
-    el.style.color = '#E07070';
-    el.style.borderColor = 'rgba(192,57,43,.28)';
-    if (errMsg) console.warn('[BAW] Sheet error:', errMsg);
-  } else {
-    el.textContent = '↑ Sent to sheet';
-    el.style.background = 'rgba(242,183,5,.1)';
-    el.style.color = 'var(--gold)';
-    el.style.borderColor = 'rgba(242,183,5,.3)';
-  }
-  el.style.display = 'inline-flex';
-  setTimeout(function(){ el.style.display = 'none'; }, 5000);
+function sendToGAS(payload) {
+  if (!payload.member) payload.member = (member || '').trim();
+  return fetch(URL, {
+    method:  'POST',
+    mode:    'cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:    JSON.stringify(payload)
+  }).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(d) {
+    if (!d || !d.success) throw new Error((d && d.error) || 'GAS returned failure');
+    console.log('[BAW] GAS confirmed:', payload.action, 'for', payload.member);
+    return d;
+  });
 }
 
 function queueLog(payload) {
@@ -2705,7 +2670,7 @@ function flushOnLogin() {
   var bookClean = rest ? 'Rest Day' : book.split(' - ')[0].trim();
   var payload={
     action:'logDaily',
-    member:member,
+    member:(member||'').trim(),
     date:dateStr(),
     dateDisplay:now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
     book:bookClean,
@@ -2715,7 +2680,7 @@ function flushOnLogin() {
     insight:rest?'Rest Day':insight,
     actionTaken:rest?'':document.getElementById('d-action').value.trim(),
     rating:rest?0:stars,
-    isRestDay:rest
+    isRestDay: rest === true
   };
   setDL(true);
   try{
@@ -2740,9 +2705,8 @@ function flushOnLogin() {
     resetDaily();
   }finally{setDL(false);}
 });
-})();
 
-// ── WEEKLY — global scope so login() can call it ──
+// ── WEEKLY ──
 function setupWeekly(){
   var now=new Date(),sun=now.getDay()===0,force=location.search.includes('weekly=open');
   document.getElementById('weeklyLocked').style.display=(!sun&&!force)?'block':'none';
@@ -2756,8 +2720,8 @@ function setupWeekly(){
   }
   if(sun||force){
     ['w-days','w-mins','w-pages'].forEach(function(id){document.getElementById(id).textContent='...';});
-    fetch(URL+'?action=getWeekStats&member='+encodeURIComponent(member))
-      .then(function(r){return r.json();})
+    fetch(URL+'?action=getWeekStats&member='+encodeURIComponent(member),{mode:'cors',cache:'no-store'})
+      .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
       .then(function(d){
         if(d&&d.success){
           document.getElementById('w-days').textContent=d.daysRead||0;
@@ -2769,6 +2733,7 @@ function setupWeekly(){
       });
   }
 }
+})();
 
 (function(){ var _wf=document.getElementById('weeklyForm'); if(_wf) _wf.addEventListener('submit',async function(e){
   e.preventDefault();
@@ -2785,7 +2750,7 @@ function setupWeekly(){
   var fmt=function(d){return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
   setWL(true);
   try{
-    var wPayload={action:'logWeekly',member:member,date:dateStr(),weekNum:wk,
+    var wPayload={action:'logWeekly',member:(member||'').trim(),date:dateStr(),weekNum:wk,
         weekRange:fmt(s)+' to '+fmt(en),
         topBook:document.getElementById('w-book').value||'',
         insight:insight,commitment:commit,
@@ -2799,7 +2764,7 @@ function setupWeekly(){
     success('Week Reflected!','Week '+wk+' submitted. See you next Sunday!',[['Week',wk],['Feeling',document.getElementById('w-feeling').value||'-']]);
     document.getElementById('weeklyForm').reset();
   }catch(err2){
-    queueLog({action:'logWeekly',member:member,date:dateStr(),weekNum:wk,
+    queueLog({action:'logWeekly',member:(member||'').trim(),date:dateStr(),weekNum:wk,
       weekRange:fmt(s)+' to '+fmt(en),
       topBook:document.getElementById('w-book').value||'',
       insight:insight,commitment:commit,
@@ -2823,11 +2788,6 @@ function success(title,msg,stats){
     return '<div class="s-row"><span class="s-lbl">'+r[0]+'</span><span class="s-val">'+esc(String(r[1]))+'</span></div>';
   }).join('');
   document.getElementById('successOverlay').classList.add('show');
-  // Pre-render share card in background so tapping Share is instant
-  setTimeout(function() {
-    var photo = localStorage.getItem(photoKey());
-    renderShareCard(photo || null);
-  }, 400);
 }
 function closeSuccess(){
   document.getElementById('successOverlay').classList.remove('show');
@@ -3084,7 +3044,7 @@ async function submitComplete() {
   // Send to Google Sheet — action:'completeBook' updates existing row
   var payload = {
     action:      'completeBook',
-    member:      member,
+    member:      (member||'').trim(),
     title:       b.t,
     author:      b.a || '',
     date:        dateStr(),
@@ -3098,12 +3058,7 @@ async function submitComplete() {
   };
 
   try {
-    await fetch(URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
-    });
+    await sendToGAS(payload);
     closeCompleteModal();
     renderLib();
     dropBooks();
@@ -3292,7 +3247,7 @@ function fetchLiveBoard(forceRender) {
   _inFlight = true;
 
   var t0 = Date.now();
-  fetch(URL + '?action=getDashboard&t=' + t0, { cache: 'no-store' })
+  fetch(URL + '?action=getDashboard&t=' + t0, { cache: 'no-store', mode: 'cors' })
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -3601,47 +3556,18 @@ function getInitials(name) {
 // - Download fallback for desktop / platforms that don't support share API
 // ══════════════════════════════════════════════════════════════════════
 
-var PHOTO_KEY = 'baw_profile_photo'; // base key — we append member name below
+var PHOTO_KEY = 'baw_profile_photo';
 var _shareBlob = null; // cached blob from last render
-
-// Member-specific photo key (so each warrior keeps their own photo)
-function photoKey() {
-  return PHOTO_KEY + (member ? '_' + lettersOnly(member) : '');
-}
-
-// ── MISSING FUNCTIONS (called by _drawCard / renderShareCard) ──
-function updateShareBlob(canvas) {
-  try {
-    canvas.toBlob(function(blob) { _shareBlob = blob; }, 'image/png');
-  } catch(e) { _shareBlob = null; }
-}
-
-function updatePhotoThumb(dataUrl, name) {
-  var thumb   = document.getElementById('sharePhotoThumb');
-  var empty   = document.getElementById('shareAvatarEmpty');
-  var nameEl  = document.getElementById('sharePhotoName');
-  if (nameEl) nameEl.textContent = name || member || '';
-  if (!thumb) return;
-  if (dataUrl) {
-    thumb.src = dataUrl;
-    thumb.style.display = 'block';
-    if (empty) empty.style.display = 'none';
-  } else {
-    thumb.src = '';
-    thumb.style.display = 'none';
-    if (empty) empty.style.display = 'flex';
-  }
-}
 
 // ── OPEN SHARE SHEET ──────────────────────────────────────────
 function openShare() {
   var sheet = document.getElementById('shareSheet');
   sheet.classList.add('show');
-  var photo = localStorage.getItem(photoKey());
+  // Check if we have a saved photo
+  var photo = localStorage.getItem(PHOTO_KEY);
   if (!photo) {
-    // First time — prompt and render with initials
-    renderShareCard(null);
-    setTimeout(function() { promptPhoto(); }, 300);
+    // First time — prompt to add photo
+    setTimeout(function() { promptPhoto(); }, 200);
   } else {
     renderShareCard(photo);
   }
@@ -3703,7 +3629,7 @@ function handlePhotoUpload(event) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var b64 = e.target.result;
-    localStorage.setItem(photoKey(), b64);
+    localStorage.setItem(PHOTO_KEY, b64);
     // Remove prompt overlay if present
     var overlay = document.querySelector('.photo-prompt-overlay');
     if (overlay) overlay.remove();
@@ -3746,544 +3672,309 @@ function renderShareCard(photoDataUrl) {
 
 function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg) {
 
-  // ════════════════════════════════════════════════════════════════════
-  // BOOKAWEEK SHARE CARD — MAGAZINE COVER EDITION
-  // Full-dark premium layout. Gold metallic. Billboard-level impact.
-  // Every element engineered to make viewers ask: "How do I join?"
-  // ════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════
+  // BACKGROUND — Cinematic split layout
+  // Top 55% = rich photo/texture area (dark)
+  // Bottom 45% = cream/paper texture
+  // ════════════════════════════════════════════
+  var splitY = H * 0.52;
 
-  var d      = _lastLogData || {};
-  var stats2 = d.stats || stats || [];
-  var title  = String(d.title || 'Session Logged').replace(/[!]/g,'').replace(/\(offline\)/g,'').trim();
-  var isRest = title.toLowerCase().indexOf('rest') !== -1;
-  var now3   = new Date();
+  // ── TOP HALF: Deep editorial dark ──────────
+  var topGrad = ctx.createLinearGradient(0, 0, W, splitY * 1.1);
+  topGrad.addColorStop(0,   '#060E1C');
+  topGrad.addColorStop(0.4, '#0B1F3B');
+  topGrad.addColorStop(1,   '#0D2040');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, W, splitY + 60);
 
-  // ── PALETTE (premium dark) ───────────────────────────────────────────
-  var BG1    = '#04080F';   // Almost-black base
-  var BG2    = '#071526';   // Deep navy
-  var BG3    = '#0A1E3A';   // Mid navy
-  var GOLD   = '#C9A227';   // Main gold
-  var GOLD_L = '#F5C842';   // Light gold
-  var GOLD_D = '#8B6914';   // Dark gold
-  var GOLD_M = '#E0AE22';   // Mid gold
-  var WHITE  = '#FFFFFF';
-  var OFF_W  = '#F0EBE0';   // Warm white for bottom section
-  var TEAL   = '#0D9E8E';
-  var CREAM  = '#FAF6EE';
+  // ── BOTTOM HALF: Warm cream paper ──────────
+  ctx.fillStyle = '#F5F0E8';
+  ctx.fillRect(0, splitY - 40, W, H - splitY + 40);
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 0 — FULL CANVAS BACKGROUND
-  // ═══════════════════════════════════════════════════════════════════
-  var bgGr = ctx.createLinearGradient(0, 0, 0, H);
-  bgGr.addColorStop(0,   BG1);
-  bgGr.addColorStop(0.3, BG2);
-  bgGr.addColorStop(0.65, BG3);
-  bgGr.addColorStop(1,   BG2);
-  ctx.fillStyle = bgGr;
-  ctx.fillRect(0, 0, W, H);
-
-  // ── Diagonal beam (upper right warm glow) ────────────────────────
-  var beam = ctx.createRadialGradient(W*0.9, 0, 0, W*0.9, 0, W*1.1);
-  beam.addColorStop(0,   'rgba(201,162,39,0.13)');
-  beam.addColorStop(0.4, 'rgba(201,162,39,0.05)');
-  beam.addColorStop(1,   'transparent');
-  ctx.fillStyle = beam;
-  ctx.fillRect(0, 0, W, H*0.7);
-
-  // ── Lower teal glow ─────────────────────────────────────────────
-  var tealGlow = ctx.createRadialGradient(W*0.1, H*0.85, 0, W*0.1, H*0.85, W*0.6);
-  tealGlow.addColorStop(0,   'rgba(13,158,142,0.09)');
-  tealGlow.addColorStop(1,   'transparent');
-  ctx.fillStyle = tealGlow;
-  ctx.fillRect(0, H*0.5, W, H*0.5);
-
-  // ── Fine dot-grid pattern overlay ────────────────────────────────
+  // ── NOISE texture on top (simulate grain) ──
   ctx.save();
-  ctx.globalAlpha = 0.04;
-  for (var dx = 30; dx < W; dx += 40) {
-    for (var dy = 30; dy < H*0.7; dy += 40) {
-      ctx.beginPath();
-      ctx.arc(dx, dy, 1.2, 0, Math.PI*2);
-      ctx.fillStyle = GOLD;
-      ctx.fill();
+  ctx.globalAlpha = 0.035;
+  for (var gx = 0; gx < W; gx += 3) {
+    for (var gy = 0; gy < splitY; gy += 3) {
+      var v = Math.random();
+      ctx.fillStyle = v > 0.5 ? '#fff' : '#000';
+      ctx.fillRect(gx, gy, 1.5, 1.5);
     }
   }
   ctx.restore();
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 1 — LEFT GOLD SPINE + TOP BORDER
-  // ═══════════════════════════════════════════════════════════════════
-  // Left spine — gradient from bright to muted
-  var spineGr = ctx.createLinearGradient(0, 0, 0, H);
-  spineGr.addColorStop(0,   GOLD_L);
-  spineGr.addColorStop(0.4, GOLD);
-  spineGr.addColorStop(1,   GOLD_D);
-  ctx.fillStyle = spineGr;
+  // ── GOLD accent lines ───────────────────────
+  // Left vertical accent
+  ctx.fillStyle = '#C9A227';
   ctx.fillRect(0, 0, 7, H);
+  // Top horizontal
+  ctx.fillRect(0, 0, W, 7);
 
-  // Top border full width
-  var topBdr = ctx.createLinearGradient(0, 0, W, 0);
-  topBdr.addColorStop(0,   GOLD_L);
-  topBdr.addColorStop(0.5, GOLD);
-  topBdr.addColorStop(1,   'transparent');
-  ctx.fillStyle = topBdr;
-  ctx.fillRect(0, 0, W, 6);
-
-  // Bottom border
-  var botBdr = ctx.createLinearGradient(0, 0, W, 0);
-  botBdr.addColorStop(0,   GOLD_L);
-  botBdr.addColorStop(0.5, GOLD);
-  botBdr.addColorStop(1,   'transparent');
-  ctx.fillStyle = botBdr;
-  ctx.fillRect(0, H-7, W, 7);
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 2 — DECORATIVE GEOMETRY
-  // ═══════════════════════════════════════════════════════════════════
-
-  // Large hollow circle — upper right (barely visible)
+  // ── LARGE DECORATIVE CIRCLE (background) ────
   ctx.save();
-  ctx.globalAlpha = 0.07;
-  ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(W*0.82, H*0.13, 260, 0, Math.PI*2); ctx.stroke();
-  ctx.globalAlpha = 0.035;
-  ctx.beginPath(); ctx.arc(W*0.82, H*0.13, 310, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 0.055;
+  ctx.beginPath();
+  ctx.arc(W * 0.82, H * 0.23, 340, 0, Math.PI*2);
+  ctx.fillStyle = '#C9A227';
+  ctx.fill();
   ctx.restore();
 
-  // Small accent circle — lower left
   ctx.save();
-  ctx.globalAlpha = 0.06;
-  ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(W*0.08, H*0.78, 120, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 0.04;
+  ctx.beginPath();
+  ctx.arc(W * 0.15, H * 0.38, 200, 0, Math.PI*2);
+  ctx.fillStyle = '#1547B0';
+  ctx.fill();
   ctx.restore();
 
-  // Diagonal slash lines (top-right corner)
+  // ════════════════════════════════════════════
+  // TOP SECTION — Brand + Date
+  // ════════════════════════════════════════════
   ctx.save();
-  ctx.globalAlpha = 0.06;
-  ctx.strokeStyle = GOLD; ctx.lineWidth = 1;
-  for (var sl = 0; sl < 7; sl++) {
-    ctx.beginPath();
-    ctx.moveTo(W*0.55 + sl*55, 0);
-    ctx.lineTo(W + sl*55 - 180, H*0.35);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 3 — TOP BRAND BAR
-  // ═══════════════════════════════════════════════════════════════════
-  var brandY = 74;
-
-  ctx.save();
-  // BOOKAWEEK logo text
-  ctx.font = '900 32px Georgia, serif';
-  ctx.fillStyle = GOLD_L;
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText('BOOK', 52, brandY);
-  var bkW = ctx.measureText('BOOK').width;
-
-  // thin gold divider between BOOK and AWEEK
-  ctx.fillStyle = GOLD_D;
-  ctx.fillRect(52 + bkW + 3, brandY - 22, 2, 26);
-
-  ctx.font = '300 32px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.42)';
-  ctx.fillText('AWEEK', 52 + bkW + 10, brandY);
-
-  // Season badge (right side)
-  ctx.textAlign = 'right';
-  ctx.font = '700 13px sans-serif';
-  ctx.fillStyle = GOLD;
-  ctx.letterSpacing = '0.14em';
-  ctx.fillText('SEASON ONE · 2026', W - 52, brandY - 14);
-  ctx.font = '400 13px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
-  ctx.fillText(dayName + '  ·  ' + dateFmt, W - 52, brandY + 8);
-  ctx.textAlign = 'left';
-
-  // Gold rule under brand
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(52, brandY + 14, W - 104, 1);
-  ctx.globalAlpha = 1;
-  ctx.restore();
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 4 — HERO PHOTO + NAME
-  // ═══════════════════════════════════════════════════════════════════
-  var photoR  = 130;   // radius
-  var photoCX = 52 + photoR;
-  var photoCY = brandY + 60 + photoR;
-
-  // Outer glow halos
-  var haloColors = [
-    [photoR + 60, 0.04],
-    [photoR + 40, 0.07],
-    [photoR + 22, 0.12],
-    [photoR + 10, 0.20],
-  ];
-  haloColors.forEach(function(h) {
-    ctx.save();
-    ctx.globalAlpha = h[1];
-    var hGr = ctx.createRadialGradient(photoCX, photoCY, photoR, photoCX, photoCY, h[0]);
-    hGr.addColorStop(0, GOLD);
-    hGr.addColorStop(1, 'transparent');
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, h[0], 0, Math.PI*2);
-    ctx.fillStyle = hGr; ctx.fill();
-    ctx.restore();
-  });
-
-  if (photoImg) {
-    // ── USER PHOTO ────────────────────────────────────────────────
-    // Clip and draw photo
-    ctx.save();
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
-    ctx.closePath(); ctx.clip();
-    var iw = photoImg.width, ih = photoImg.height;
-    var sc = Math.max((photoR*2)/iw, (photoR*2)/ih);
-    ctx.drawImage(photoImg, photoCX - iw*sc/2, photoCY - ih*sc/2, iw*sc, ih*sc);
-    ctx.restore();
-
-    // Gold ring (double)
-    ctx.save();
-    ctx.strokeStyle = GOLD_L; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 4, 0, Math.PI*2); ctx.stroke();
-    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 12, 0, Math.PI*2); ctx.stroke();
-    ctx.restore();
-
-  } else {
-    // ── INITIALS CIRCLE ────────────────────────────────────────────
-    ctx.save();
-    // Glassmorphism dark fill
-    var circGr = ctx.createRadialGradient(photoCX - 40, photoCY - 40, 0, photoCX, photoCY, photoR);
-    circGr.addColorStop(0, '#1A3D70');
-    circGr.addColorStop(0.6, '#0B1F3B');
-    circGr.addColorStop(1, '#06111F');
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR, 0, Math.PI*2);
-    ctx.fillStyle = circGr; ctx.fill();
-
-    // Gold ring
-    ctx.strokeStyle = GOLD_L; ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(photoCX, photoCY, photoR + 12, 0, Math.PI*2); ctx.stroke();
-
-    // Initials
-    var ini = getInitials(name);
-    ctx.font = '700 ' + (ini.length > 1 ? '80' : '100') + 'px Georgia, serif';
-    ctx.fillStyle = GOLD_L;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = GOLD; ctx.shadowBlur = 30;
-    ctx.fillText(ini, photoCX, photoCY);
-    ctx.shadowBlur = 0;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
-  }
-
-  // ── NAME BLOCK (right of photo) ────────────────────────────────
-  var nameStartX = photoCX + photoR + 48;
-  var nameStartY = photoCY - photoR + 10;
-  var nameW = W - nameStartX - 52;
-
-  ctx.save();
-
-  // "TODAY'S LOG" micro label
-  ctx.font = '800 15px sans-serif';
-  ctx.fillStyle = GOLD;
-  ctx.fillText("TODAY'S LOG", nameStartX, nameStartY + 18);
-
-  // Thin gold rule
-  ctx.fillStyle = GOLD_D;
-  ctx.globalAlpha = 0.5;
-  ctx.fillRect(nameStartX, nameStartY + 26, 160, 1);
-  ctx.globalAlpha = 1;
-
-  // FIRST NAME — massive
-  var fnLen = fname.length;
-  var fnSize = fnLen > 10 ? 70 : fnLen > 7 ? 82 : fnLen > 5 ? 94 : 106;
-  ctx.font = '900 ' + fnSize + 'px Georgia, serif';
-  ctx.fillStyle = WHITE;
-  ctx.shadowColor = 'rgba(201,162,39,0.3)';
-  ctx.shadowBlur = 35;
-  // Clip name to card width
-  var displayFirst = fname;
-  while (ctx.measureText(displayFirst).width > nameW && displayFirst.length > 4) {
-    displayFirst = displayFirst.slice(0, -1);
-  }
-  ctx.fillText(displayFirst, nameStartX, nameStartY + 36 + fnSize);
-  ctx.shadowBlur = 0;
-
-  // Last name (if exists) — lighter
-  var lname = name !== fname ? name.replace(fname,'').trim() : '';
-  if (lname) {
-    ctx.font = '300 38px Georgia, serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.32)';
-    var displayLast = lname.length > 13 ? lname.slice(0,12)+'…' : lname;
-    ctx.fillText(displayLast, nameStartX, nameStartY + 42 + fnSize + 44);
-  }
-
-  // BookWarrior + Season chip
-  var chipY = nameStartY + 50 + fnSize + (lname ? 58 : 14);
-  ctx.font = '700 15px sans-serif';
-  ctx.fillStyle = TEAL;
-  ctx.fillText('BOOKWARRIOR  ·  S1\'26', nameStartX, chipY);
-
-  ctx.restore();
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 5 — STREAK BADGE (below photo)
-  // ═══════════════════════════════════════════════════════════════════
-  var sbY = photoCY + photoR + 36;
-  var sbX = 52;
-
-  if (streak > 0) {
-    var sbW = Math.min(320, W - sbX - 52), sbH = 64;
-
-    // Shadow
-    ctx.save();
-    ctx.shadowColor = 'rgba(201,162,39,0.5)'; ctx.shadowBlur = 28;
-    // Metallic gold gradient fill
-    var strGr = ctx.createLinearGradient(sbX, sbY, sbX + sbW, sbY + sbH);
-    strGr.addColorStop(0,    '#7A5200');
-    strGr.addColorStop(0.15, GOLD_L);
-    strGr.addColorStop(0.5,  GOLD);
-    strGr.addColorStop(0.85, GOLD_M);
-    strGr.addColorStop(1,    '#9A6A00');
-    ctx.fillStyle = strGr;
-    _roundRect(ctx, sbX, sbY, sbW, sbH, 32); ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Shine overlay
-    ctx.globalAlpha = 0.18;
-    var shineGr = ctx.createLinearGradient(sbX, sbY, sbX, sbY + sbH);
-    shineGr.addColorStop(0, WHITE);
-    shineGr.addColorStop(0.5, 'transparent');
-    ctx.fillStyle = shineGr;
-    _roundRect(ctx, sbX, sbY, sbW, sbH/2, 32); ctx.fill();
-    ctx.globalAlpha = 1;
-
-    ctx.font = '800 26px sans-serif';
-    ctx.fillStyle = BG1;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    var streakEmoji = streak >= 90 ? '🏆' : streak >= 30 ? '👑' : streak >= 14 ? '⚡' : '🔥';
-    ctx.fillText(streakEmoji + '  ' + streak + ' DAY STREAK', sbX + sbW/2, sbY + sbH/2);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
-
-  } else {
-    // First session badge
-    ctx.save();
-    ctx.strokeStyle = GOLD_D; ctx.lineWidth = 1.5;
-    var d1W = 220, d1H = 50;
-    ctx.beginPath(); _roundRect(ctx, sbX, sbY, d1W, d1H, 25); ctx.stroke();
-    ctx.font = '700 20px sans-serif';
-    ctx.fillStyle = GOLD;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('✨  FIRST SESSION', sbX + d1W/2, sbY + d1H/2);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
-  }
-
-  // ── Book tag ───────────────────────────────────────────────────────
-  var bookStat2 = stats2.find(function(r){ return String(r[0]).toLowerCase() === 'book'; });
-  var tagY = sbY + (streak > 0 ? 82 : 68);
-
-  if (bookStat2 && !isRest) {
-    var btTxt = '📖  ' + String(bookStat2[1]).slice(0,26) + (bookStat2[1].length > 26 ? '…' : '');
-    ctx.save();
-    ctx.font = '600 16px sans-serif';
-    var btW2 = Math.min(ctx.measureText(btTxt).width + 28, W - sbX - 52);
-    // Glass pill
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1;
-    _roundRect(ctx, sbX, tagY, btW2, 44, 22); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    ctx.textBaseline = 'middle'; ctx.fillText(btTxt, sbX + 14, tagY + 22);
-    ctx.textBaseline = 'alphabetic'; ctx.restore();
-    tagY += 62;
-  }
-
-  if (isRest) {
-    ctx.save();
-    ctx.font = '700 18px sans-serif';
-    ctx.fillStyle = 'rgba(167,139,250,0.85)';
-    ctx.fillText('😴  REST & RECOVERY — DISCIPLINE INCLUDES REST', sbX, tagY + 28);
-    ctx.restore();
-    tagY += 52;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 6 — ACHIEVEMENT HEADLINE (centered below everything)
-  // ═══════════════════════════════════════════════════════════════════
-  var achY = tagY + 44;
-
-  // Achievement label
-  var achText = isRest ? 'REST DAY LOGGED' : title.toUpperCase();
-
-  ctx.save();
-  // Gold metallic headline text
-  var achGr = ctx.createLinearGradient(0, achY - 60, 0, achY);
-  achGr.addColorStop(0, GOLD_L);
-  achGr.addColorStop(0.5, GOLD_M);
-  achGr.addColorStop(1, GOLD_D);
-  var achSize = achText.length > 20 ? 54 : achText.length > 14 ? 62 : 72;
-  ctx.font = '900 ' + achSize + 'px Georgia, serif';
-  ctx.fillStyle = achGr;
-  ctx.textAlign = 'center';
-  ctx.shadowColor = 'rgba(201,162,39,0.35)'; ctx.shadowBlur = 22;
-  ctx.fillText(achText, W/2, achY);
-  ctx.shadowBlur = 0;
-
-  // Creed line
-  ctx.font = '700 20px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  // BOOKAWEEK brand — small caps, tight tracking
+  ctx.font = '700 28px Georgia, serif';
+  ctx.fillStyle = '#C9A227';
   ctx.letterSpacing = '0.2em';
-  ctx.fillText('READ · REFLECT · EXECUTE', W/2, achY + 36);
+  ctx.fillText('BOOK', 60, 75);
+  ctx.font = '300 28px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillText('AWEEK', 60 + ctx.measureText('BOOK').width + 3, 75);
+
+  // Day + date top right
+  ctx.textAlign = 'right';
+  ctx.font = '700 20px DM Sans, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillText(dayName, W - 60, 60);
+  ctx.font = '400 18px DM Sans, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillText(dateFmt, W - 60, 84);
   ctx.textAlign = 'left';
   ctx.restore();
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 7 — STAT BLOCKS
-  // ═══════════════════════════════════════════════════════════════════
-  var statY = achY + 72;
-  var validStats = stats2.filter(function(r){
-    var v = String(r[1]||'');
-    return v && v !== '0 min' && v !== '0' && r[0] !== 'Book';
-  });
-  if (!validStats.length) validStats = stats2.slice(0,3);
-  var nSt = Math.min(validStats.length, 3);
-  var sPad = 52, sGap = 16;
-  var sW = nSt > 0 ? Math.floor((W - sPad*2 - sGap*(nSt-1)) / nSt) : 300;
-  var sH = 210;
+  // ════════════════════════════════════════════
+  // PHOTO + NAME SECTION — Hero
+  // ════════════════════════════════════════════
+  var photoSize = 170;
+  var photoX = 60;
+  var photoY = 130;
 
-  validStats.slice(0, nSt).forEach(function(row, i) {
-    var sx = sPad + i*(sW + sGap);
-
-    // Glassmorphism card
+  // Photo circle with multi-ring aura
+  if (photoImg) {
+    // Outer glow rings
+    [42, 28, 14].forEach(function(expand, i) {
+      ctx.save();
+      ctx.globalAlpha = [0.08, 0.13, 0.2][i];
+      ctx.beginPath();
+      ctx.arc(photoX + photoSize/2, photoY + photoSize/2, photoSize/2 + expand, 0, Math.PI*2);
+      ctx.fillStyle = '#C9A227';
+      ctx.fill();
+      ctx.restore();
+    });
+    // Photo clipped to circle
     ctx.save();
-    // Card background
-    var cBg = ctx.createLinearGradient(sx, statY, sx, statY + sH);
-    cBg.addColorStop(0, 'rgba(255,255,255,0.09)');
-    cBg.addColorStop(1, 'rgba(255,255,255,0.04)');
-    ctx.fillStyle = cBg;
-    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1;
-    _roundRect(ctx, sx, statY, sW, sH, 20); ctx.fill(); ctx.stroke();
-
-    // Top gold accent bar
-    var tGr = ctx.createLinearGradient(sx, statY, sx + sW, statY);
-    tGr.addColorStop(0, GOLD_L); tGr.addColorStop(1, GOLD_D);
-    ctx.fillStyle = tGr;
-    _roundRect(ctx, sx, statY, sW, 5, 3); ctx.fill();
-
-    // Shine
-    ctx.globalAlpha = 0.08;
-    var shGr2 = ctx.createLinearGradient(sx, statY, sx, statY + sH*0.4);
-    shGr2.addColorStop(0, WHITE); shGr2.addColorStop(1, 'transparent');
-    ctx.fillStyle = shGr2;
-    _roundRect(ctx, sx + 1, statY + 5, sW - 2, sH * 0.35, 18); ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // Stat value — massive gold
-    var valStr = String(row[1]);
-    var valSize = valStr.length > 7 ? 46 : valStr.length > 5 ? 58 : valStr.length > 3 ? 72 : 88;
-    var valGr = ctx.createLinearGradient(sx, statY + sH*0.3, sx, statY + sH*0.7);
-    valGr.addColorStop(0, GOLD_L);
-    valGr.addColorStop(0.5, GOLD_M);
-    valGr.addColorStop(1, GOLD_D);
-    ctx.font = '900 ' + valSize + 'px Georgia, serif';
-    ctx.fillStyle = valGr;
+    ctx.beginPath();
+    ctx.arc(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+    var iw = photoImg.width, ih = photoImg.height;
+    var sc = Math.max(photoSize/iw, photoSize/ih);
+    ctx.drawImage(photoImg,
+      photoX + photoSize/2 - iw*sc/2,
+      photoY + photoSize/2 - ih*sc/2,
+      iw*sc, ih*sc);
+    ctx.restore();
+    // Gold ring
+    ctx.save();
+    ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(photoX + photoSize/2, photoY + photoSize/2, photoSize/2 + 3, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    // Initials — styled
+    ctx.save();
+    var igr = ctx.createRadialGradient(
+      photoX + photoSize/2, photoY + photoSize/2, 0,
+      photoX + photoSize/2, photoY + photoSize/2, photoSize/2);
+    igr.addColorStop(0, '#1A3460');
+    igr.addColorStop(1, '#0B1F3B');
+    ctx.beginPath();
+    ctx.arc(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 0, Math.PI*2);
+    ctx.fillStyle = igr; ctx.fill();
+    ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 5;
+    ctx.stroke();
+    ctx.font = '700 64px Georgia, serif';
+    ctx.fillStyle = '#C9A227';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(201,162,39,0.4)'; ctx.shadowBlur = 16;
-    ctx.fillText(valStr, sx + sW/2, statY + sH * 0.49);
-    ctx.shadowBlur = 0;
+    ctx.fillText(getInitials(name), photoX + photoSize/2, photoY + photoSize/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
 
-    // Label
-    ctx.font = '700 15px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.fillText(String(row[0]).toUpperCase(), sx + sW/2, statY + sH - 26);
+  // NAME — large, editorial
+  var nameX = photoX + photoSize + 40;
+  var nameTopY = photoY + 30;
+
+  ctx.save();
+  // "TODAY" micro-label
+  ctx.font = '700 18px DM Sans, sans-serif';
+  ctx.fillStyle = '#C9A227';
+  ctx.letterSpacing = '0.18em';
+  ctx.fillText('TODAY\'S SESSION', nameX, nameTopY);
+
+  // First name — massive
+  ctx.font = '900 ' + (fname.length > 9 ? '74' : '90') + 'px Georgia, serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowColor = 'rgba(201,162,39,0.25)';
+  ctx.shadowBlur = 30;
+  ctx.fillText(fname, nameX, nameTopY + 85);
+  ctx.shadowBlur = 0;
+
+  // Last name / full if different
+  if (name !== fname) {
+    var lname = name.replace(fname, '').trim();
+    ctx.font = '300 44px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.fillText(lname, nameX, nameTopY + 135);
+  }
+  ctx.restore();
+
+  // ── STREAK BADGE ─────────────────────────────
+  if (streak > 0) {
+    var sBy = photoY + photoSize + 30;
+    var sBx = photoX;
+    var sBw = 260, sBh = 62;
+
+    ctx.save();
+    var sGrad = ctx.createLinearGradient(sBx, sBy, sBx+sBw, sBy+sBh);
+    sGrad.addColorStop(0, '#B8860B');
+    sGrad.addColorStop(0.5, '#F5C842');
+    sGrad.addColorStop(1, '#C9A227');
+    ctx.fillStyle = sGrad;
+    _roundRect(ctx, sBx, sBy, sBw, sBh, 31);
+    ctx.font = '800 26px DM Sans, sans-serif';
+    ctx.fillStyle = '#0B1F3B';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🔥  ' + streak + ' DAY STREAK', sBx + sBw/2, sBy + sBh/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
+
+  // ════════════════════════════════════════════
+  // SPLIT DIVIDER — angled diagonal
+  // ════════════════════════════════════════════
+  ctx.save();
+  ctx.fillStyle = '#C9A227';
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(0, splitY - 10);
+  ctx.lineTo(W, splitY - 50);
+  ctx.lineTo(W, splitY - 44);
+  ctx.lineTo(0, splitY - 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ════════════════════════════════════════════
+  // BOTTOM CREAM SECTION — Stats + Quote + CTA
+  // ════════════════════════════════════════════
+  var botY = splitY + 20;
+
+  // ── ACHIEVEMENT TITLE ───────────────────────
+  ctx.save();
+  ctx.font = '800 52px Georgia, serif';
+  ctx.fillStyle = '#0B1F3B';
+  ctx.textAlign = 'center';
+  ctx.fillText(title.toUpperCase(), W/2, botY + 65);
+  ctx.restore();
+
+  // ── STAT BLOCKS ─────────────────────────────
+  var showStats = stats.slice(0, 3).filter(function(r){ return r[1] && r[1] !== '0 min'; });
+  if (!showStats.length) showStats = stats.slice(0, 3);
+  var numStats = Math.min(showStats.length, 3);
+  var statW    = Math.floor((W - 120 - (numStats-1)*24) / Math.max(numStats,1));
+  var statY    = botY + 110;
+  var statH    = 200;
+
+  showStats.slice(0, numStats).forEach(function(row, i) {
+    var sx = 60 + i*(statW+24);
+
+    // Card — white with shadow
+    ctx.save();
+    ctx.shadowColor = 'rgba(11,31,59,0.10)';
+    ctx.shadowBlur  = 20;
+    ctx.shadowOffsetY = 8;
+    ctx.fillStyle = '#FFFFFF';
+    _roundRect(ctx, sx, statY, statW, statH, 20);
+    ctx.restore();
+
+    // Gold top accent on card
+    ctx.save();
+    ctx.fillStyle = '#C9A227';
+    _roundRect(ctx, sx, statY, statW, 6, 3);
+    ctx.restore();
+
+    // Stat value — massive
+    ctx.save();
+    var valStr = String(row[1]);
+    var valSize = valStr.length > 5 ? 54 : valStr.length > 3 ? 66 : 80;
+    ctx.font = '900 ' + valSize + 'px Georgia, serif';
+    ctx.fillStyle = '#0B1F3B';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(valStr, sx + statW/2, statY + statH*0.48);
+
+    // Stat label
+    ctx.font = '700 20px DM Sans, sans-serif';
+    ctx.fillStyle = 'rgba(11,31,59,0.38)';
+    ctx.fillText(String(row[0]).toUpperCase(), sx + statW/2, statY + statH - 28);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.restore();
   });
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 8 — QUOTE
-  // ═══════════════════════════════════════════════════════════════════
-  var qY = statY + sH + 50;
-  var qList = [
+  // ── QUOTE ───────────────────────────────────
+  var quoteY = statY + statH + 55;
+  var qs = [
     '"Not all readers are leaders — but all leaders are readers."',
-    '"The person you\'ll be in 5 years is in the books you read today."',
-    '"Reading is the gym for the mind. Show up daily."',
-    '"One book at a time. One warrior at a time."',
-    '"The edge you seek is on pages you have not yet read."',
-    '"A reader lives a thousand lives. The non-reader lives only one."',
-    '"Leaders are readers who act on what they read."'
+    '"The person you\'ll be in 5 years is shaped by the books you read today."',
+    '"Reading is the gym for the mind. Show up every day."',
+    '"One book at a time. One warrior at a time. One life transformed."',
+    '"The edge you seek is on the pages you haven\'t read yet."'
   ];
-  var qText = qList[now3.getDay() % qList.length];
+  var q = qs[now.getDay() % qs.length];
+
   ctx.save();
-  ctx.font = 'italic 26px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.font = 'italic 30px Georgia, serif';
+  ctx.fillStyle = 'rgba(11,31,59,0.5)';
   ctx.textAlign = 'center';
-  _wrapText(ctx, qText, W/2, qY, W - 120, 40);
+  _wrapText(ctx, q, W/2, quoteY, W - 140, 44);
   ctx.textAlign = 'left';
   ctx.restore();
 
-  // ═══════════════════════════════════════════════════════════════════
-  // LAYER 9 — VIRAL CTA BLOCK (bottom)
-  // Design principle: Make it feel exclusive and urgent.
-  // People must feel FOMO reading this.
-  // ═══════════════════════════════════════════════════════════════════
-  var ctaH3 = 165;
-  var ctaY4 = H - ctaH3 - 8;
-
+  // ── CTA BANNER — the part that makes people join ──
+  var ctaY = H - 190;
   ctx.save();
+  var ctaGrad = ctx.createLinearGradient(0, ctaY, W, ctaY+110);
+  ctaGrad.addColorStop(0, '#0B1F3B');
+  ctaGrad.addColorStop(1, '#1547B0');
+  ctx.fillStyle = ctaGrad;
+  ctx.fillRect(0, ctaY, W, 110);
 
-  // CTA background: premium dark glass with gold shimmer border
-  var ctaBg = ctx.createLinearGradient(0, ctaY4, W, ctaY4 + ctaH3);
-  ctaBg.addColorStop(0,   'rgba(201,162,39,0.14)');
-  ctaBg.addColorStop(0.5, 'rgba(10,26,60,0.85)');
-  ctaBg.addColorStop(1,   'rgba(4,8,15,0.95)');
-  ctx.fillStyle = ctaBg;
-  ctx.fillRect(0, ctaY4, W, ctaH3);
-
-  // Gold shimmer top edge
-  var edgeGr = ctx.createLinearGradient(0, ctaY4, W, ctaY4);
-  edgeGr.addColorStop(0,    'transparent');
-  edgeGr.addColorStop(0.2,  GOLD_L);
-  edgeGr.addColorStop(0.5,  GOLD_M);
-  edgeGr.addColorStop(0.8,  GOLD_L);
-  edgeGr.addColorStop(1,    'transparent');
-  ctx.fillStyle = edgeGr;
-  ctx.fillRect(0, ctaY4, W, 2.5);
-
-  // Main CTA text
-  ctx.font = '900 34px Georgia, serif';
-  var ctaHeadGr = ctx.createLinearGradient(0, ctaY4 + 20, 0, ctaY4 + 60);
-  ctaHeadGr.addColorStop(0, GOLD_L);
-  ctaHeadGr.addColorStop(1, GOLD_M);
-  ctx.fillStyle = ctaHeadGr;
+  ctx.font = '700 26px DM Sans, sans-serif';
+  ctx.fillStyle = '#C9A227';
   ctx.textAlign = 'center';
-  ctx.shadowColor = 'rgba(201,162,39,0.5)'; ctx.shadowBlur = 18;
-  ctx.fillText('24 BOOKS. 6 MONTHS. 1 IDENTITY.', W/2, ctaY4 + 50);
-  ctx.shadowBlur = 0;
-
-  // Sub-line
-  ctx.font = '500 22px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillText('Season 1 is LIVE. Spots are limited.', W/2, ctaY4 + 84);
-
-  // URL pill
-  ctx.font = '700 18px sans-serif';
-  ctx.fillStyle = GOLD_L;
-  ctx.fillText('→  selar.com/bookaweekchallenge', W/2, ctaY4 + 118);
-
-  // Hashtags
-  ctx.font = '600 16px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillText('#BookAWeek  ·  #BookWarrior  ·  #ReadReflectExecute', W/2, ctaY4 + 148);
+  ctx.fillText('JOIN THE CHALLENGE', W/2, ctaY + 42);
+  ctx.font = '400 22px DM Sans, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillText('bookaweekchallenge.vercel.app  ·  #BookAWeek', W/2, ctaY + 76);
   ctx.textAlign = 'left';
   ctx.restore();
 
+  // ── BOTTOM GOLD BAR ─────────────────────────
+  ctx.fillStyle = '#C9A227';
+  ctx.fillRect(0, H-8, W, 8);
+
+  // Done — update blob
   updateShareBlob(document.getElementById('shareCanvas'));
 }
 
@@ -4378,279 +4069,37 @@ function downloadShareCard() {
   link.click();
 }
 
-// ── PLATFORM-SPECIFIC SHARE ───────────────────────────────────
-function _shareCaption() {
-  var streak  = getStreak();
-  var n       = String((_lastLogData||{}).member || member || 'BookWarrior');
-  return '📚 ' + n + ' just logged a reading session on BOOKAWEEK!' +
-    (streak > 0 ? '\n\n🔥 ' + streak + '-day streak and counting.' : '') +
-    '\n\n24 books · 6 months · 1 identity shift.' +
-    '\nJoin Season 1 → selar.com/bookaweekchallenge' +
-    '\n\n#BookAWeek #BookWarrior #ReadingChallenge #ReadReflectExecute';
-}
-
-function shareToWhatsApp() {
-  // Save image first, then open WhatsApp
-  downloadShareCard();
-  setTimeout(function() {
-    var caption = encodeURIComponent(_shareCaption());
-    window.open('https://wa.me/?text=' + caption, '_blank');
-  }, 600);
-}
-
-function shareToInstagram() {
-  // Instagram doesn't support direct share via URL — save image + guide user
-  downloadShareCard();
-  setTimeout(function() {
-    toast('Image saved! Open Instagram and post from your gallery 📸');
-  }, 400);
-}
-
-function shareToTwitter() {
-  var streak = getStreak();
-  var n = String((_lastLogData||{}).member || member || 'BookWarrior');
-  var text = '📚 Just logged my reading session! ' +
-    (streak > 0 ? '🔥 ' + streak + ' day streak! ' : '') +
-    'Building the reading edge one session at a time. ' +
-    'Join me → selar.com/bookaweekchallenge ' +
-    '#BookAWeek #BookWarrior';
-  downloadShareCard();
-  setTimeout(function() {
-    window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
-  }, 600);
-}
-
 </script>
 
-<!-- SHARE SHEET — PREMIUM DARK EDITION -->
-<style>
-/* ════════════════════════════════════════════
-   SHARE SHEET — full dark, matches card aesthetic
-   ════════════════════════════════════════════ */
-.share-sheet {
-  position:fixed;inset:0;z-index:900;display:none;
-  align-items:flex-end;justify-content:center;
-}
-.share-sheet.show { display:flex;animation:fadeIn .2s ease; }
-
-.share-backdrop {
-  position:absolute;inset:0;
-  background:rgba(4,8,15,.85);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-}
-
-.share-panel {
-  position:relative;width:100%;max-width:440px;
-  background:linear-gradient(160deg,#0A1624 0%,#06100A 50%,#080D1C 100%);
-  border-radius:28px 28px 0 0;
-  border-top:1px solid rgba(201,162,39,0.25);
-  border-left:1px solid rgba(201,162,39,0.08);
-  border-right:1px solid rgba(201,162,39,0.08);
-  padding:0 0 env(safe-area-inset-bottom,28px);
-  overflow:hidden;
-  animation:slideUp .35s cubic-bezier(.34,1.1,.64,1);
-  max-height:94vh;overflow-y:auto;
-  box-shadow:0 -20px 80px rgba(4,8,15,.7), 0 0 0 1px rgba(201,162,39,0.12);
-}
-
-/* Gold shimmer at top of panel */
-.share-panel::before {
-  content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent 0%,#F5C842 40%,#C9A227 60%,transparent 100%);
-}
-
-@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-
-/* Handle */
-.sht-handle {
-  width:36px;height:4px;
-  background:rgba(201,162,39,0.25);
-  border-radius:2px;margin:14px auto 0;
-}
-
-/* Header */
-.sht-head {
-  padding:12px 22px 0;
-  display:flex;align-items:center;justify-content:space-between;
-}
-.sht-head-label {
-  font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;
-  color:rgba(201,162,39,0.5);
-}
-.sht-head-close {
-  width:32px;height:32px;border-radius:50%;
-  background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.08);
-  cursor:pointer;color:rgba(255,255,255,0.4);font-size:15px;
-  display:flex;align-items:center;justify-content:center;
-  -webkit-tap-highlight-color:transparent;transition:background .15s;
-}
-.sht-head-close:active { background:rgba(255,255,255,0.1); }
-
-/* Preview canvas */
-.sht-preview { padding:14px 18px 0;position:relative; }
-.sht-canvas-wrap {
-  border-radius:16px;overflow:hidden;position:relative;
-  box-shadow:0 12px 50px rgba(0,0,0,.6), 0 0 0 1px rgba(201,162,39,0.18);
-}
-.sht-canvas-wrap canvas { display:block;width:100%;height:auto; }
-
-/* Photo row */
-.sht-photo-row {
-  display:flex;align-items:center;gap:12px;
-  padding:14px 20px 0;
-}
-.sht-avatar {
-  width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;
-  border:2px solid rgba(201,162,39,0.6);
-  box-shadow:0 0 16px rgba(201,162,39,0.25);
-}
-.sht-avatar-empty {
-  width:42px;height:42px;border-radius:50%;flex-shrink:0;
-  background:rgba(201,162,39,0.08);
-  border:2px dashed rgba(201,162,39,0.3);
-  display:flex;align-items:center;justify-content:center;font-size:17px;
-  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s;
-}
-.sht-avatar-empty:active { background:rgba(201,162,39,0.14); }
-.sht-photo-info { flex:1;min-width:0; }
-.sht-photo-name { font-size:13px;font-weight:700;color:#fff; }
-.sht-photo-sub  { font-size:11px;color:rgba(255,255,255,0.28);margin-top:2px;line-height:1.4; }
-.sht-photo-change {
-  font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-  color:rgba(201,162,39,0.8);cursor:pointer;flex-shrink:0;
-  padding:7px 14px;
-  background:rgba(201,162,39,0.08);
-  border:1px solid rgba(201,162,39,0.2);
-  border-radius:20px;
-  -webkit-tap-highlight-color:transparent;transition:all .15s;
-}
-.sht-photo-change:active { background:rgba(201,162,39,0.16); }
-
-/* Actions area */
-.sht-actions { padding:14px 18px 0;display:flex;flex-direction:column;gap:10px; }
-
-/* Primary CTA — gold metallic */
-.sht-btn-native {
-  width:100%;height:60px;
-  background:linear-gradient(135deg,#7A5200 0%,#F5C842 40%,#C9A227 60%,#9A6A00 100%);
-  border:none;border-radius:18px;
-  color:#04080F;
-  font-family:'DM Sans',sans-serif;font-size:16px;font-weight:900;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
-  -webkit-tap-highlight-color:transparent;letter-spacing:.04em;
-  box-shadow:0 6px 32px rgba(201,162,39,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
-  transition:opacity .12s,transform .12s;
-  position:relative;overflow:hidden;
-}
-.sht-btn-native::before {
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(255,255,255,0.2) 0%,transparent 50%);
-  pointer-events:none;
-}
-.sht-btn-native:active { opacity:.88;transform:scale(.98); }
-
-/* Platform row */
-.sht-platforms { display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px; }
-.sht-plat-btn {
-  height:58px;border-radius:14px;
-  background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.08);
-  cursor:pointer;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:4px;
-  -webkit-tap-highlight-color:transparent;transition:all .15s;
-}
-.sht-plat-btn:active { background:rgba(255,255,255,0.1);transform:scale(.96); }
-.sht-plat-icon { font-size:24px;line-height:1; }
-.sht-plat-label {
-  font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-  color:rgba(255,255,255,0.3);
-}
-
-/* Save/download button */
-.sht-btn-save {
-  width:100%;height:48px;
-  background:rgba(255,255,255,0.04);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:14px;color:rgba(255,255,255,0.45);
-  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
-  -webkit-tap-highlight-color:transparent;transition:background .15s;
-}
-.sht-btn-save:active { background:rgba(255,255,255,0.08); }
-
-.sht-divider {
-  height:1px;
-  background:linear-gradient(90deg,transparent,rgba(201,162,39,0.15),transparent);
-  margin:4px 0;
-}
-.sht-spacer { height:16px; }
-</style>
-
+<!-- SHARE SHEET -->
 <div class="share-sheet" id="shareSheet">
   <div class="share-backdrop" onclick="closeShare()"></div>
   <div class="share-panel">
-    <div class="sht-handle"></div>
-
-    <div class="sht-head">
-      <div class="sht-head-label">📤 &nbsp;Share Your Progress</div>
-      <button class="sht-head-close" onclick="closeShare()">&#x2715;</button>
+    <div class="share-handle"></div>
+    <div style="text-align:center;padding:10px 20px 0;">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(11,31,59,.35);">Share Your Progress</div>
     </div>
-
-    <!-- Card preview -->
-    <div class="sht-preview">
-      <div class="sht-canvas-wrap">
-        <canvas id="shareCanvas" width="1080" height="1350"></canvas>
+    <div class="share-preview-wrap">
+      <div class="share-canvas-wrap">
+        <canvas id="shareCanvas" width="1080" height="1080"></canvas>
       </div>
     </div>
-
-    <!-- Photo row -->
-    <div class="sht-photo-row" id="sharePhotoRow">
-      <img class="sht-avatar" id="sharePhotoThumb" src="" alt="" style="display:none" onclick="changeProfilePhoto()">
-      <div class="sht-avatar-empty" id="shareAvatarEmpty" onclick="changeProfilePhoto()">📷</div>
-      <div class="sht-photo-info">
-        <div class="sht-photo-name" id="sharePhotoName"></div>
-        <div class="sht-photo-sub">Add your photo once — appears on every card automatically</div>
+    <div class="share-photo-row" id="sharePhotoRow" style="margin-top:14px;">
+      <img class="share-photo-avatar" id="sharePhotoThumb" src="" alt="">
+      <div class="share-photo-info">
+        <div class="share-photo-name" id="sharePhotoName"></div>
+        <div class="share-photo-sub">Your profile photo · used on every share card</div>
       </div>
-      <span class="sht-photo-change" onclick="changeProfilePhoto()">Change</span>
+      <span class="share-photo-change" onclick="changeProfilePhoto()">Change</span>
     </div>
-
-    <!-- Share actions -->
-    <div class="sht-actions">
-
-      <!-- Gold CTA: native share (best on mobile) -->
-      <button class="sht-btn-native" id="shareNativeBtn" onclick="doNativeShare()">
-        <span style="font-size:22px;">&#x2197;</span>
-        Share to Any App
+    <div class="share-actions">
+      <button class="share-btn-primary" id="shareNativeBtn" onclick="doNativeShare()">
+        <span style="font-size:18px;">&#x2197;</span> Share to WhatsApp / Instagram / X
       </button>
-
-      <div class="sht-divider"></div>
-
-      <!-- Platform row -->
-      <div class="sht-platforms">
-        <button class="sht-plat-btn" onclick="shareToWhatsApp()">
-          <span class="sht-plat-icon">💬</span>
-          <span class="sht-plat-label">WhatsApp</span>
-        </button>
-        <button class="sht-plat-btn" onclick="shareToInstagram()">
-          <span class="sht-plat-icon">📸</span>
-          <span class="sht-plat-label">Instagram</span>
-        </button>
-        <button class="sht-plat-btn" onclick="shareToTwitter()">
-          <span class="sht-plat-icon">&#x1D54F;</span>
-          <span class="sht-plat-label">X / Twitter</span>
-        </button>
-      </div>
-
-      <!-- Save image -->
-      <button class="sht-btn-save" onclick="downloadShareCard()">
-        <span style="font-size:17px;">&#x2B07;</span>
-        Save Image to Gallery
+      <button class="share-btn-secondary" onclick="downloadShareCard()">
+        <span style="font-size:15px;">&#x2B07;</span> Save Image to Phone
       </button>
-
     </div>
-
-    <div class="sht-spacer"></div>
     <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
   </div>
 </div>
