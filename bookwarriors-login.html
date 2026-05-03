@@ -2095,7 +2095,7 @@ async function finalizeRegistration() {
   try {
     var _rmPayload = {action:'registerMember',member:cand,date:dateStr(),
       joinedAt:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
-    var _rmResp = await _gasJSONP(_rmPayload);
+    var _rmResp = await _gasFetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now());
   } catch(e) { /* registration still works locally */ }
   // Log in
   sessionStorage.setItem(PRE+'member', cand);
@@ -2541,8 +2541,7 @@ async function submitBook(){
   setBL(true);
   try{
     var _abPayload={action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat};
-    var _abResp = await _gasJSONP(_abPayload);
-    console.log('[BAW] addBook:', JSON.stringify(_abResp));
+    var _abResp = await _gasFetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now()).then(function(r){return r.json();}).then(function(j){console.log('[BAW] addBook:',JSON.stringify(j));return j;});
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
     document.getElementById('b-goal').value='';
@@ -2574,64 +2573,58 @@ function prog(){
   if(el){el.addEventListener('input',prog);el.addEventListener('change',prog);}
 });
 
-// ══════════════════════════════════════════════════════════
-// GAS SEND — JSONP (script-tag injection)
-// ══════════════════════════════════════════════════════════
-// WHY JSONP not fetch:
-//   The Service Worker (sw.js) intercepts ALL fetch() calls — including
-//   GAS writes — and returns a stale cached {success:true} before the
-//   request ever reaches Google. fetch() is completely unreliable here.
-//
-//   <script> tag injection is NOT intercepted by Service Workers.
-//   The browser loads it as a resource, bypassing the SW fetch handler.
-//   GAS supports ?callback= for JSONP responses natively.
-//
-// HOW IT WORKS:
-//   1. We create a unique global callback name (e.g. _baw_cb_1234)
-//   2. Inject <script src="GAS_URL?...&callback=_baw_cb_1234">
-//   3. GAS wraps its JSON in _baw_cb_1234({...}) and returns it
-//   4. Browser executes the script → our callback fires with the data
-//   5. We resolve the Promise with real GAS data
-// ══════════════════════════════════════════════════════════
-function _gasJSONP(params) {
-  return new Promise(function(resolve, reject) {
-    var cbName = '_baw_cb_' + Date.now() + '_' + Math.floor(Math.random() * 99999);
-    var qs = Object.keys(params).map(function(k) {
-      return encodeURIComponent(k) + '=' + encodeURIComponent(
-        typeof params[k] === 'object' ? JSON.stringify(params[k]) : String(params[k])
-      );
-    }).join('&');
-    var url = GAS_URL + '?' + qs + '&callback=' + cbName + '&t=' + Date.now();
 
-    var timer = setTimeout(function() {
-      delete window[cbName];
-      if (sc && sc.parentNode) sc.parentNode.removeChild(sc);
-      reject(new Error('GAS timeout — no response in 20s'));
-    }, 20000);
-
-    window[cbName] = function(data) {
-      clearTimeout(timer);
-      delete window[cbName];
-      try { if (sc && sc.parentNode) sc.parentNode.removeChild(sc); } catch(e) {}
-      resolve(data);
-    };
-
-    var sc = document.createElement('script');
-    sc.src = url;
-    sc.onerror = function() {
-      clearTimeout(timer);
-      delete window[cbName];
-      reject(new Error('Script load failed — check GAS URL or network'));
-    };
-    document.head.appendChild(sc);
+// ══════════════════════════════════════════════════════════
+// GAS SEND — SW-bypass fetch
+// ══════════════════════════════════════════════════════════
+// THE PROBLEM: The Service Worker intercepts ALL fetch() calls and
+// returns stale cached responses for GAS URLs, so writes never reach
+// Google. We bypass this by:
+//   1. Deleting any cached GAS response before every request
+//   2. Using fetch() with cache:'no-store' AND credentials:'omit'
+//   3. The SW's fetch handler checks for these and passes through
+// This is simpler and more reliable than JSONP (which GAS doesn't
+// natively support without a custom wrapper).
+// ══════════════════════════════════════════════════════════
+async function _gasFetch(url) {
+  // Step 1: Nuke any cached GAS entry so SW cannot serve stale data
+  if (window.caches) {
+    try {
+      var keys = await caches.keys();
+      for (var i = 0; i < keys.length; i++) {
+        var cache = await caches.open(keys[i]);
+        var cacheKeys = await cache.keys();
+        for (var j = 0; j < cacheKeys.length; j++) {
+          if (cacheKeys[j].url && cacheKeys[j].url.includes('script.google.com')) {
+            await cache.delete(cacheKeys[j]);
+          }
+        }
+      }
+    } catch(e) { /* cache API not available — ignore */ }
+  }
+  // Step 2: Fetch — SW will see cache:no-store and pass through to network
+  return fetch(url, {
+    method: 'GET',
+    mode: 'cors',
+    cache: 'no-store',
+    credentials: 'omit',
+    redirect: 'follow'
   });
 }
 
 async function sendToGAS(payload) {
   if (!payload.member) payload.member = member || '';
-  console.log('[BAW] → sending via JSONP:', payload.action, 'member:', payload.member);
+
+  var url = GAS_URL
+    + '?action=' + encodeURIComponent(payload.action)
+    + '&data='   + encodeURIComponent(JSON.stringify(payload))
+    + '&t='      + Date.now();
+
+  console.log('[BAW] → sendToGAS:', payload.action, 'member:', payload.member);
+
   try {
-    var json = await _gasJSONP(payload);
+    var resp = await _gasFetch(url);
+    var json = await resp.json();
     console.log('[BAW] ✅ GAS confirmed:', payload.action, JSON.stringify(json));
     if (json && json.success === false) {
       console.error('[BAW] ❌ GAS sheet error:', json.error || 'unknown');
@@ -2646,6 +2639,7 @@ async function sendToGAS(payload) {
     throw e;
   }
 }
+
 
 // Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
 function _showSyncBadge(confirmed, errMsg) {
@@ -2772,7 +2766,8 @@ function setupWeekly(){
   }
   if(sun||force){
     ['w-days','w-mins','w-pages'].forEach(function(id){document.getElementById(id).textContent='...';});
-    _gasJSONP({action:'getWeekStats', member:member})
+    _gasFetch(GAS_URL+'?action=getWeekStats&member='+encodeURIComponent(member)+'&t='+Date.now())
+      .then(function(r){return r.json();})
       .then(function(d){
         if(d&&d.success){
           document.getElementById('w-days').textContent=d.daysRead||0;
@@ -3113,8 +3108,7 @@ async function submitComplete() {
   };
 
   try {
-    var _cbResp = await _gasJSONP(payload);
-    console.log('[BAW] completeBook:', JSON.stringify(_cbResp));
+    var _cbResp = await _gasFetch(GAS_URL+'?action='+encodeURIComponent(payload.action)+'&data='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now()).then(function(r){return r.json();}).then(function(j){console.log('[BAW] completeBook:',JSON.stringify(j));return j;});
     closeCompleteModal();
     renderLib();
     dropBooks();
@@ -3231,8 +3225,9 @@ function startKeepalive() {
 }
 
 function _pingGAS() {
-  // JSONP ping — SW cannot intercept script tags
-  _gasJSONP({action:'ping'}).catch(function() {}); // silently ignore errors
+  // Throwaway ping — we only care that it keeps GAS warm
+  _gasFetch(GAS_URL + '?action=ping&t=' + Date.now())
+    .catch(function() {}); // silently ignore all errors
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -3302,7 +3297,11 @@ function fetchLiveBoard(forceRender) {
   _inFlight = true;
 
   var t0 = Date.now();
-  _gasJSONP({action:'getDashboard', t:t0})
+  _gasFetch(GAS_URL + '?action=getDashboard&t=' + t0)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(function(d) {
       _inFlight  = false;
       _failCount = 0;
