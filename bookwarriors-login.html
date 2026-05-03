@@ -2095,8 +2095,7 @@ async function finalizeRegistration() {
   try {
     var _rmPayload = {action:'registerMember',member:cand,date:dateStr(),
       joinedAt:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
-    var _rmResp = await fetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now(),
-      {mode:'cors',cache:'no-store'}).catch(function(){ return fetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now(),{mode:'no-cors',cache:'no-store'}); });
+    var _rmResp = await _gasJSONP(_rmPayload);
   } catch(e) { /* registration still works locally */ }
   // Log in
   sessionStorage.setItem(PRE+'member', cand);
@@ -2542,8 +2541,8 @@ async function submitBook(){
   setBL(true);
   try{
     var _abPayload={action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat};
-    var _abResp = await fetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now(),
-      {mode:'cors',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){console.log('[BAW] addBook:',JSON.stringify(j));return j;}).catch(function(e){console.warn('[BAW] addBook cors fail:',e.message);return fetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now(),{mode:'no-cors',cache:'no-store'});});
+    var _abResp = await _gasJSONP(_abPayload);
+    console.log('[BAW] addBook:', JSON.stringify(_abResp));
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
     document.getElementById('b-goal').value='';
@@ -2576,52 +2575,75 @@ function prog(){
 });
 
 // ══════════════════════════════════════════════════════════
-// GAS SEND + OFFLINE QUEUE
-// sendToGAS: fires fetch, queues on fail, retries on reconnect
+// GAS SEND — JSONP (script-tag injection)
 // ══════════════════════════════════════════════════════════
+// WHY JSONP not fetch:
+//   The Service Worker (sw.js) intercepts ALL fetch() calls — including
+//   GAS writes — and returns a stale cached {success:true} before the
+//   request ever reaches Google. fetch() is completely unreliable here.
+//
+//   <script> tag injection is NOT intercepted by Service Workers.
+//   The browser loads it as a resource, bypassing the SW fetch handler.
+//   GAS supports ?callback= for JSONP responses natively.
+//
+// HOW IT WORKS:
+//   1. We create a unique global callback name (e.g. _baw_cb_1234)
+//   2. Inject <script src="GAS_URL?...&callback=_baw_cb_1234">
+//   3. GAS wraps its JSON in _baw_cb_1234({...}) and returns it
+//   4. Browser executes the script → our callback fires with the data
+//   5. We resolve the Promise with real GAS data
+// ══════════════════════════════════════════════════════════
+function _gasJSONP(params) {
+  return new Promise(function(resolve, reject) {
+    var cbName = '_baw_cb_' + Date.now() + '_' + Math.floor(Math.random() * 99999);
+    var qs = Object.keys(params).map(function(k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(
+        typeof params[k] === 'object' ? JSON.stringify(params[k]) : String(params[k])
+      );
+    }).join('&');
+    var url = GAS_URL + '?' + qs + '&callback=' + cbName + '&t=' + Date.now();
+
+    var timer = setTimeout(function() {
+      delete window[cbName];
+      if (sc && sc.parentNode) sc.parentNode.removeChild(sc);
+      reject(new Error('GAS timeout — no response in 20s'));
+    }, 20000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timer);
+      delete window[cbName];
+      try { if (sc && sc.parentNode) sc.parentNode.removeChild(sc); } catch(e) {}
+      resolve(data);
+    };
+
+    var sc = document.createElement('script');
+    sc.src = url;
+    sc.onerror = function() {
+      clearTimeout(timer);
+      delete window[cbName];
+      reject(new Error('Script load failed — check GAS URL or network'));
+    };
+    document.head.appendChild(sc);
+  });
+}
+
 async function sendToGAS(payload) {
-  // ═══════════════════════════════════════════════════════════════════
-  // WHY GET: GAS /exec 302-redirects. Browsers drop POST body on 302.
-  // doPost() never fires from browser. We send as GET with ?data= param.
-  //
-  // WHY cors (not no-cors): no-cors makes every response opaque — we
-  // can NEVER see if GAS returned {success:false}. The green badge was
-  // firing from the PING (always pong:true), not from the actual write.
-  // cors mode lets us READ the real GAS JSON and catch real errors.
-  // GAS sets Access-Control-Allow-Origin:* for GET requests — it works.
-  // ═══════════════════════════════════════════════════════════════════
   if (!payload.member) payload.member = member || '';
-
-  var url = GAS_URL
-    + '?action=' + encodeURIComponent(payload.action)
-    + '&data='   + encodeURIComponent(JSON.stringify(payload))
-    + '&t='      + Date.now();
-
+  console.log('[BAW] → sending via JSONP:', payload.action, 'member:', payload.member);
   try {
-    var resp = await fetch(url, { mode: 'cors', cache: 'no-store' });
-    var json = await resp.json();
-    console.log('[BAW] ✅ GAS response for', payload.action + ':', JSON.stringify(json));
-    if (json.success === false) {
-      // GAS explicitly rejected — log the error and let user know
-      console.error('[BAW] ❌ GAS error:', json.error || 'unknown');
+    var json = await _gasJSONP(payload);
+    console.log('[BAW] ✅ GAS confirmed:', payload.action, JSON.stringify(json));
+    if (json && json.success === false) {
+      console.error('[BAW] ❌ GAS sheet error:', json.error || 'unknown');
       _showSyncBadge(false, json.error);
-      // Still don't throw — record locally and show success to user
       return json;
     }
     _showSyncBadge(true);
-    return json;
+    return json || {};
   } catch(e) {
-    // Network failure OR CORS blocked — fall back to no-cors (blind send)
-    console.warn('[BAW] ⚠ CORS blocked, falling back to no-cors:', e.message);
-    try {
-      await fetch(url, { mode: 'no-cors', cache: 'no-store' });
-      console.log('[BAW] no-cors fallback sent for', payload.action);
-      _showSyncBadge(null);
-    } catch(e2) {
-      console.error('[BAW] Network error - queuing:', e2.message);
-      throw e2; // Truly offline — caller queues
-    }
-    return {};
+    console.error('[BAW] ❌ sendToGAS failed:', e.message);
+    _showSyncBadge(false, e.message);
+    throw e;
   }
 }
 
@@ -2750,8 +2772,7 @@ function setupWeekly(){
   }
   if(sun||force){
     ['w-days','w-mins','w-pages'].forEach(function(id){document.getElementById(id).textContent='...';});
-    fetch(GAS_URL+'?action=getWeekStats&member='+encodeURIComponent(member))
-      .then(function(r){return r.json();})
+    _gasJSONP({action:'getWeekStats', member:member})
       .then(function(d){
         if(d&&d.success){
           document.getElementById('w-days').textContent=d.daysRead||0;
@@ -3092,8 +3113,8 @@ async function submitComplete() {
   };
 
   try {
-    var _cbResp = await fetch(GAS_URL+'?action='+encodeURIComponent(payload.action)+'&data='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now(),
-      {mode:'cors',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){console.log('[BAW] completeBook:',JSON.stringify(j));return j;}).catch(function(e){console.warn('[BAW] completeBook cors fail:',e.message);return fetch(GAS_URL+'?action='+encodeURIComponent(payload.action)+'&data='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now(),{mode:'no-cors',cache:'no-store'});});
+    var _cbResp = await _gasJSONP(payload);
+    console.log('[BAW] completeBook:', JSON.stringify(_cbResp));
     closeCompleteModal();
     renderLib();
     dropBooks();
@@ -3210,9 +3231,8 @@ function startKeepalive() {
 }
 
 function _pingGAS() {
-  // Throwaway ping — we only care that it keeps GAS warm
-  fetch(GAS_URL + '?action=ping&t=' + Date.now(), { cache: 'no-store', mode: 'cors' })
-    .catch(function() {}); // silently ignore all errors
+  // JSONP ping — SW cannot intercept script tags
+  _gasJSONP({action:'ping'}).catch(function() {}); // silently ignore errors
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -3282,11 +3302,7 @@ function fetchLiveBoard(forceRender) {
   _inFlight = true;
 
   var t0 = Date.now();
-  fetch(GAS_URL + '?action=getDashboard&t=' + t0, { cache: 'no-store' })
-    .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
+  _gasJSONP({action:'getDashboard', t:t0})
     .then(function(d) {
       _inFlight  = false;
       _failCount = 0;
