@@ -2573,46 +2573,45 @@ function prog(){
   if(el){el.addEventListener('input',prog);el.addEventListener('change',prog);}
 });
 
+// ══════════════════════════════════════════════════════════
+// GAS SEND + OFFLINE QUEUE
 
 // ══════════════════════════════════════════════════════════
-// GAS SEND — SW-bypass fetch
-// ══════════════════════════════════════════════════════════
-// THE PROBLEM: The Service Worker intercepts ALL fetch() calls and
-// returns stale cached responses for GAS URLs, so writes never reach
-// Google. We bypass this by:
-//   1. Deleting any cached GAS response before every request
-//   2. Using fetch() with cache:'no-store' AND credentials:'omit'
-//   3. The SW's fetch handler checks for these and passes through
-// This is simpler and more reliable than JSONP (which GAS doesn't
-// natively support without a custom wrapper).
+// _gasFetch — SW-bypass fetch for all GAS calls
+// Deletes cached GAS entries before every request so the
+// Service Worker cannot serve stale cached responses.
 // ══════════════════════════════════════════════════════════
 async function _gasFetch(url) {
-  // Step 1: Nuke any cached GAS entry so SW cannot serve stale data
   if (window.caches) {
     try {
       var keys = await caches.keys();
       for (var i = 0; i < keys.length; i++) {
         var cache = await caches.open(keys[i]);
-        var cacheKeys = await cache.keys();
-        for (var j = 0; j < cacheKeys.length; j++) {
-          if (cacheKeys[j].url && cacheKeys[j].url.includes('script.google.com')) {
-            await cache.delete(cacheKeys[j]);
+        var reqs  = await cache.keys();
+        for (var j = 0; j < reqs.length; j++) {
+          if (reqs[j].url && reqs[j].url.includes('script.google.com')) {
+            await cache.delete(reqs[j]);
           }
         }
       }
-    } catch(e) { /* cache API not available — ignore */ }
+    } catch(e) {}
   }
-  // Step 2: Fetch — SW will see cache:no-store and pass through to network
-  return fetch(url, {
-    method: 'GET',
-    mode: 'cors',
-    cache: 'no-store',
-    credentials: 'omit',
-    redirect: 'follow'
-  });
+  return fetch(url, { method:'GET', mode:'cors', cache:'no-store', credentials:'omit', redirect:'follow' });
 }
 
+// sendToGAS: fires fetch, queues on fail, retries on reconnect
+// ══════════════════════════════════════════════════════════
 async function sendToGAS(payload) {
+  // ═══════════════════════════════════════════════════════════════════
+  // WHY GET: GAS /exec 302-redirects. Browsers drop POST body on 302.
+  // doPost() never fires from browser. We send as GET with ?data= param.
+  //
+  // WHY cors (not no-cors): no-cors makes every response opaque — we
+  // can NEVER see if GAS returned {success:false}. The green badge was
+  // firing from the PING (always pong:true), not from the actual write.
+  // cors mode lets us READ the real GAS JSON and catch real errors.
+  // GAS sets Access-Control-Allow-Origin:* for GET requests — it works.
+  // ═══════════════════════════════════════════════════════════════════
   if (!payload.member) payload.member = member || '';
 
   var url = GAS_URL
@@ -2620,26 +2619,33 @@ async function sendToGAS(payload) {
     + '&data='   + encodeURIComponent(JSON.stringify(payload))
     + '&t='      + Date.now();
 
-  console.log('[BAW] → sendToGAS:', payload.action, 'member:', payload.member);
-
   try {
     var resp = await _gasFetch(url);
     var json = await resp.json();
-    console.log('[BAW] ✅ GAS confirmed:', payload.action, JSON.stringify(json));
-    if (json && json.success === false) {
-      console.error('[BAW] ❌ GAS sheet error:', json.error || 'unknown');
+    console.log('[BAW] ✅ GAS response for', payload.action + ':', JSON.stringify(json));
+    if (json.success === false) {
+      // GAS explicitly rejected — log the error and let user know
+      console.error('[BAW] ❌ GAS error:', json.error || 'unknown');
       _showSyncBadge(false, json.error);
+      // Still don't throw — record locally and show success to user
       return json;
     }
     _showSyncBadge(true);
-    return json || {};
+    return json;
   } catch(e) {
-    console.error('[BAW] ❌ sendToGAS failed:', e.message);
-    _showSyncBadge(false, e.message);
-    throw e;
+    // Network failure OR CORS blocked — fall back to no-cors (blind send)
+    console.warn('[BAW] ⚠ CORS blocked, falling back to no-cors:', e.message);
+    try {
+      await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+      console.log('[BAW] no-cors fallback sent for', payload.action);
+      _showSyncBadge(null);
+    } catch(e2) {
+      console.error('[BAW] Network error - queuing:', e2.message);
+      throw e2; // Truly offline — caller queues
+    }
+    return {};
   }
 }
-
 
 // Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
 function _showSyncBadge(confirmed, errMsg) {
