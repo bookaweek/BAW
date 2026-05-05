@@ -2182,10 +2182,17 @@ function login(name) {
       } else {
         navigator.serviceWorker.addEventListener('controllerchange', function handler() {
           navigator.serviceWorker.removeEventListener('controllerchange', handler);
-          scheduleViaSW();
+          scheduleViaSW();function login(m) {
+  member = m;
+  // ... existing code ...
+  
+  // Always re-send schedule to SW on every login
+  setTimeout(function() { scheduleViaSW(); }, 1000);
+}
         });
         // Also try after a delay as backup
         setTimeout(scheduleViaSW, 2500);
+        
       }
     }
   }
