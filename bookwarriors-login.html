@@ -2282,13 +2282,18 @@ function initAuthScreen() {
 // ══ PUBLIC SCREEN ══════════════════════════════════════════
 function showPublicScreen() {
   document.getElementById('publicScreen').style.display = 'flex';
-  document.getElementById('memberScreen').style.display  = 'none';
+  var ms = document.getElementById('memberScreen');
+  ms.classList.add('hidden');
+  ms.style.display = '';  // clear inline style so class controls
   loadPublicLeaderboard();
 }
 
 function showMemberScreen() {
   document.getElementById('publicScreen').style.display = 'none';
-  document.getElementById('memberScreen').style.display  = 'flex';
+  // Use classList to stay consistent with login() which uses classList.add('hidden')
+  var ms = document.getElementById('memberScreen');
+  ms.classList.remove('hidden');
+  ms.style.display = '';  // clear any inline style so CSS class controls it
   setTimeout(function() {
     var el = document.getElementById('nameInput');
     if (el) el.focus();
@@ -2297,7 +2302,8 @@ function showMemberScreen() {
 
 function loadPublicLeaderboard() {
   var el = document.getElementById('pubLeaderboard');
-  _gasFetch(GAS_URL + '?action=getDashboard&t=' + Date.now())
+  // Use plain fetch with cors — public read, no SW cache issue
+  fetch(GAS_URL + '?action=getDashboard&t=' + Date.now(), { mode:'cors', cache:'no-store' })
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (!d || !d.success || !d.board || !d.board.length) {
