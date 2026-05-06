@@ -2310,6 +2310,12 @@ function loadPublicLeaderboard() {
         el.innerHTML = '<div class="pub-loading">No data yet — warriors are warming up! 🔥</div>';
         return;
       }
+      // Sort by booksCompleted desc, then totalMins desc, then daysLogged desc
+      d.board.sort(function(a, b) {
+        if (b.booksCompleted !== a.booksCompleted) return b.booksCompleted - a.booksCompleted;
+        if (b.totalMins      !== a.totalMins)      return b.totalMins      - a.totalMins;
+        return (b.daysLogged || 0) - (a.daysLogged || 0);
+      });
       var medals = ['🥇','🥈','🥉'];
       el.innerHTML = d.board.map(function(w, i) {
         var rankClass = i === 0 ? 'pub-rank-1' : i === 1 ? 'pub-rank-2' : i === 2 ? 'pub-rank-3' : 'pub-rank-n';
@@ -3336,15 +3342,14 @@ var _bgPoll      = null;        // slow background poll — always running after
 var _keepalive   = null;        // GAS warm-ping interval
 var _onStatsTab  = false;       // true only when Stats mode is visible
 
-// ── SEED DATA — renders instantly, real data overwrites in background ──
-// Col C=NAME, Col D=BOOKS, Col E=DAYS, Col F=MINS, Col G=PAGES
+// ── SEED DATA — empty until live fetch arrives so stale numbers never show ──
 _board = [
-  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:4,  daysLogged:18, totalMins:1360, totalPages:969  },
-  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:2,  daysLogged:23, totalMins:2390, totalPages:1137 },
-  { name:'Juliet',     nameLo:'juliet',     booksCompleted:1,  daysLogged:16, totalMins:2141, totalPages:956  },
-  { name:'Motolani',   nameLo:'motolani',   booksCompleted:1,  daysLogged:12, totalMins:1180, totalPages:575  },
-  { name:'EA',         nameLo:'ea',         booksCompleted:1,  daysLogged:2,  totalMins:300,  totalPages:26   },
-  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
+  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'Juliet',     nameLo:'juliet',     booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'Motolani',   nameLo:'motolani',   booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'EA',         nameLo:'ea',         booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 }
 ];
 
 function sortBoard(b) {
