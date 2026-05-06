@@ -839,110 +839,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 /* ══ SHARE SYSTEM ══ */
 /* share-sheet CSS moved to bottom of file */
 
-
-/* ══ PUBLIC LANDING SCREEN ══ */
-#publicScreen {
-  display:flex;flex-direction:column;align-items:center;
-  min-height:100vh;padding:0 0 40px;
-}
-.pub-hero {
-  width:100%;padding:44px 22px 28px;text-align:center;
-  border-bottom:1px solid rgba(242,183,5,.15);
-}
-.pub-hero-title {
-  font-family:'Playfair Display',serif;font-size:28px;font-weight:900;
-  color:#fff;margin-bottom:6px;
-}
-.pub-hero-sub {
-  font-size:13px;color:rgba(255,255,255,.45);margin-bottom:20px;
-}
-.pub-upgrade-btn {
-  display:inline-flex;align-items:center;gap:8px;
-  padding:14px 28px;background:linear-gradient(135deg,var(--gold),#E8A800);
-  color:var(--navy);border:none;border-radius:14px;
-  font-family:'Playfair Display',serif;font-size:16px;font-weight:700;
-  cursor:pointer;text-decoration:none;
-  box-shadow:0 6px 24px rgba(242,183,5,.4);
-  -webkit-tap-highlight-color:transparent;
-}
-.pub-upgrade-btn:hover { opacity:.92; }
-.pub-login-link {
-  display:block;margin-top:12px;font-size:12px;
-  color:rgba(255,255,255,.3);cursor:pointer;text-align:center;
-  background:none;border:none;font-family:'DM Sans',sans-serif;
-  -webkit-tap-highlight-color:transparent;
-}
-.pub-login-link:hover { color:rgba(255,255,255,.6); }
-.pub-board-wrap {
-  width:100%;max-width:480px;padding:20px 16px 0;
-}
-.pub-board-title {
-  font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-  color:rgba(255,255,255,.35);margin-bottom:12px;text-align:center;
-}
-.pub-board-card {
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
-  border-radius:14px;padding:14px 16px;margin-bottom:8px;
-  display:flex;align-items:center;gap:12px;
-}
-.pub-rank-badge {
-  width:32px;height:32px;border-radius:8px;display:flex;align-items:center;
-  justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;
-}
-.pub-rank-1 { background:rgba(242,183,5,.2);color:var(--gold); }
-.pub-rank-2 { background:rgba(192,192,192,.15);color:#C0C0C0; }
-.pub-rank-3 { background:rgba(205,127,50,.15);color:#CD7F32; }
-.pub-rank-n { background:rgba(255,255,255,.07);color:rgba(255,255,255,.4); }
-.pub-member-info { flex:1;min-width:0; }
-.pub-member-name { font-size:15px;font-weight:700;color:#fff;margin-bottom:3px; }
-.pub-member-stats { font-size:11px;color:rgba(255,255,255,.4);display:flex;gap:10px;flex-wrap:wrap; }
-.pub-member-stats span { color:rgba(255,255,255,.65); }
-.pub-books-count {
-  font-size:22px;font-weight:900;color:var(--gold);
-  font-family:'Playfair Display',serif;flex-shrink:0;text-align:right;
-}
-.pub-books-label { font-size:10px;color:rgba(255,255,255,.3);text-align:right;margin-top:1px; }
-.pub-loading {
-  text-align:center;padding:40px 20px;
-  color:rgba(255,255,255,.3);font-size:13px;
-}
 </style>
 </head>
 <body>
-
-
-<!-- ══ PUBLIC LANDING SCREEN ══ -->
-<div id="publicScreen" style="display:none;">
-  <div class="pub-hero">
-    <div class="ms-logo-wrap" style="justify-content:center;margin-bottom:16px;">
-      <img src="icon-192.png" class="logo-img" alt="BookAWeek" onerror="this.style.display='none'">
-    </div>
-    <div class="pub-hero-title">📚 BookAWeek</div>
-    <div class="pub-hero-sub">The covenant of warriors who read every week</div>
-    <a href="https://selar.com/m/bookaweek" target="_blank" class="pub-upgrade-btn">
-      🚀 Become a BookWarrior
-    </a>
-    <button class="pub-login-link" onclick="showMemberScreen()">
-      Already a warrior? Sign in →
-    </button>
-  </div>
-  <div class="pub-board-wrap">
-    <div class="pub-board-title">🏆 Live Leaderboard</div>
-    <div id="pubLeaderboard">
-      <div class="pub-loading">
-        <div style="width:24px;height:24px;border:2px solid rgba(242,183,5,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;"></div>
-        Loading warriors...
-      </div>
-    </div>
-    <div style="margin-top:20px;padding:16px;background:rgba(242,183,5,.06);border:1px solid rgba(242,183,5,.15);border-radius:14px;text-align:center;">
-      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:6px;">Want to be on this board?</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:12px;line-height:1.5;">Join BookAWeek and commit to reading one book every week. Track your progress. Build the habit.</div>
-      <a href="https://selar.com/m/bookaweek" target="_blank" class="pub-upgrade-btn" style="font-size:14px;padding:12px 24px;">
-        Join Now →
-      </a>
-    </div>
-  </div>
-</div>
 
 <div id="offline-bar">You are offline. Sessions will sync when you reconnect.</div>
 
@@ -2088,31 +1987,17 @@ function proceedWithName() {
     document.getElementById('nameHint').style.color = 'rgba(192,57,43,.9)';
     return;
   }
-  // Only the 6 BookWarriors can log in — everyone else sees the upgrade page
-  var knownWarriors = ['Dorcas','Haliyah','Jesulayomi','Juliet','Motolani','EA'];
-  var isWarrior = knownWarriors.some(function(w) {
-    return w.toLowerCase() === name.toLowerCase();
-  });
-  if (!isWarrior) {
-    document.getElementById('nameHint').innerHTML =
-      'This name is not a registered BookWarrior.<br>' +
-      '<a href="https://selar.com/m/bookaweek" target="_blank" ' +
-      'style="color:var(--gold);font-weight:700;text-decoration:underline;">Join BookAWeek to get access →</a>';
-    document.getElementById('nameHint').style.color = 'rgba(192,57,43,.9)';
-    return;
-  }
-  // Normalise to correct casing
-  cand = knownWarriors.find(function(w) { return w.toLowerCase() === name.toLowerCase(); });
-  if (isRegistered(cand)) {
-    // Returning warrior — go to PIN entry
-    document.getElementById('pinName').textContent = cand.split(' ')[0];
+  cand = name;
+  if (isRegistered(name)) {
+    // Returning member — go to PIN entry
+    document.getElementById('pinName').textContent = name.split(' ')[0];
     buf = '';
     updateDots('dot', buf);
     document.getElementById('pinError').textContent = '';
     goToStep('stepPin');
   } else {
-    // First time — go to PIN setup
-    document.getElementById('setPinName').textContent = cand.split(' ')[0];
+    // New member — go to PIN setup
+    document.getElementById('setPinName').textContent = name.split(' ')[0];
     setPinBuf = '';
     updateDots('sdot', setPinBuf);
     document.getElementById('setPinError').textContent = '';
@@ -2270,78 +2155,13 @@ function initAuthScreen() {
     // This means existing warriors keep their PINs and don't get reset
   }
   renderRecentMembers();
-  // Show public landing screen first — warriors click "Sign in" to get to login
-  showPublicScreen();
+  document.getElementById('nameInput').focus();
   // Handle Enter key on name input
   document.getElementById('nameInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); proceedWithName(); }
   });
 }
 
-
-// ══ PUBLIC SCREEN ══════════════════════════════════════════
-function showPublicScreen() {
-  document.getElementById('publicScreen').style.display = 'flex';
-  var ms = document.getElementById('memberScreen');
-  ms.classList.add('hidden');
-  ms.style.display = '';  // clear inline style so class controls
-  loadPublicLeaderboard();
-}
-
-function showMemberScreen() {
-  document.getElementById('publicScreen').style.display = 'none';
-  // Use classList to stay consistent with login() which uses classList.add('hidden')
-  var ms = document.getElementById('memberScreen');
-  ms.classList.remove('hidden');
-  ms.style.display = '';  // clear any inline style so CSS class controls it
-  setTimeout(function() {
-    var el = document.getElementById('nameInput');
-    if (el) el.focus();
-  }, 200);
-}
-
-function loadPublicLeaderboard() {
-  var el = document.getElementById('pubLeaderboard');
-  // Use plain fetch with cors — public read, no SW cache issue
-  fetch(GAS_URL + '?action=getDashboard&t=' + Date.now(), { mode:'cors', cache:'no-store' })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (!d || !d.success || !d.board || !d.board.length) {
-        el.innerHTML = '<div class="pub-loading">No data yet — warriors are warming up! 🔥</div>';
-        return;
-      }
-      // Sort by booksCompleted desc, then totalMins desc, then daysLogged desc
-      d.board.sort(function(a, b) {
-        if (b.booksCompleted !== a.booksCompleted) return b.booksCompleted - a.booksCompleted;
-        if (b.totalMins      !== a.totalMins)      return b.totalMins      - a.totalMins;
-        return (b.daysLogged || 0) - (a.daysLogged || 0);
-      });
-      var medals = ['🥇','🥈','🥉'];
-      el.innerHTML = d.board.map(function(w, i) {
-        var rankClass = i === 0 ? 'pub-rank-1' : i === 1 ? 'pub-rank-2' : i === 2 ? 'pub-rank-3' : 'pub-rank-n';
-        var rankLabel = i < 3 ? medals[i] : (i + 1);
-        return '<div class="pub-board-card">' +
-          '<div class="pub-rank-badge ' + rankClass + '">' + rankLabel + '</div>' +
-          '<div class="pub-member-info">' +
-            '<div class="pub-member-name">' + w.name + '</div>' +
-            '<div class="pub-member-stats">' +
-              '<span>' + (w.daysLogged || 0) + '</span> days &nbsp;' +
-              '<span>' + (w.totalMins || 0) + '</span> mins &nbsp;' +
-              '<span>' + (w.totalPages || 0) + '</span> pages' +
-            '</div>' +
-          '</div>' +
-          '<div>' +
-            '<div class="pub-books-count">' + (w.booksCompleted || 0) + '</div>' +
-            '<div class="pub-books-label">books</div>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-    })
-    .catch(function() {
-      el.innerHTML = '<div class="pub-loading">Could not load leaderboard. Check connection.</div>';
-    });
-}
-// ═══════════════════════════════════════════════════════════
 // ── LOGIN ──
 function login(name) {
   member=name;
@@ -2362,10 +2182,17 @@ function login(name) {
       } else {
         navigator.serviceWorker.addEventListener('controllerchange', function handler() {
           navigator.serviceWorker.removeEventListener('controllerchange', handler);
-          scheduleViaSW();
+          scheduleViaSW();function login(m) {
+  member = m;
+  // ... existing code ...
+  
+  // Always re-send schedule to SW on every login
+  setTimeout(function() { scheduleViaSW(); }, 1000);
+}
         });
         // Also try after a delay as backup
         setTimeout(scheduleViaSW, 2500);
+        
       }
     }
   }
@@ -2755,6 +2582,30 @@ function prog(){
 
 // ══════════════════════════════════════════════════════════
 // GAS SEND + OFFLINE QUEUE
+
+// ══════════════════════════════════════════════════════════
+// _gasFetch — SW-bypass fetch for all GAS calls
+// Deletes cached GAS entries before every request so the
+// Service Worker cannot serve stale cached responses.
+// ══════════════════════════════════════════════════════════
+async function _gasFetch(url) {
+  if (window.caches) {
+    try {
+      var keys = await caches.keys();
+      for (var i = 0; i < keys.length; i++) {
+        var cache = await caches.open(keys[i]);
+        var reqs  = await cache.keys();
+        for (var j = 0; j < reqs.length; j++) {
+          if (reqs[j].url && reqs[j].url.includes('script.google.com')) {
+            await cache.delete(reqs[j]);
+          }
+        }
+      }
+    } catch(e) {}
+  }
+  return fetch(url, { method:'GET', mode:'cors', cache:'no-store', credentials:'omit', redirect:'follow' });
+}
+
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
 async function sendToGAS(payload) {
@@ -3342,14 +3193,15 @@ var _bgPoll      = null;        // slow background poll — always running after
 var _keepalive   = null;        // GAS warm-ping interval
 var _onStatsTab  = false;       // true only when Stats mode is visible
 
-// ── SEED DATA — empty until live fetch arrives so stale numbers never show ──
+// ── SEED DATA — renders instantly, real data overwrites in background ──
+// Col C=NAME, Col D=BOOKS, Col E=DAYS, Col F=MINS, Col G=PAGES
 _board = [
-  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'Juliet',     nameLo:'juliet',     booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'Motolani',   nameLo:'motolani',   booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'EA',         nameLo:'ea',         booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 }
+  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:4,  daysLogged:18, totalMins:1360, totalPages:969  },
+  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:2,  daysLogged:23, totalMins:2390, totalPages:1137 },
+  { name:'Juliet',     nameLo:'juliet',     booksCompleted:1,  daysLogged:16, totalMins:2141, totalPages:956  },
+  { name:'Motolani',   nameLo:'motolani',   booksCompleted:1,  daysLogged:12, totalMins:1180, totalPages:575  },
+  { name:'EA',         nameLo:'ea',         booksCompleted:1,  daysLogged:2,  totalMins:300,  totalPages:26   },
+  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
 ];
 
 function sortBoard(b) {
