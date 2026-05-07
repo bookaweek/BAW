@@ -129,7 +129,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 @keyframes spin{to{transform:rotate(360deg)}}
 .err-box{display:none;background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.28);border-radius:10px;padding:11px 14px;font-size:13px;color:#E07070;margin:10px 16px 0;text-align:center}
 .err-box.show{display:block}
-.success{display:none;position:fixed;inset:0;background:var(--navy);z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.success{display:none;position:fixed;inset:0;background:var(--navy);z-index:500;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center}
 .success.show{display:flex;animation:fadeIn .35s ease}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .s-icon{width:90px;height:90px;background:linear-gradient(135deg,var(--gold),#F5C842);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:44px;margin-bottom:28px;box-shadow:0 0 0 14px rgba(242,183,5,.1),0 0 0 28px rgba(242,183,5,.05);animation:popIn .55s cubic-bezier(.34,1.56,.64,1) .15s both}
@@ -839,9 +839,110 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 /* ══ SHARE SYSTEM ══ */
 /* share-sheet CSS moved to bottom of file */
 
+
+/* ══ PUBLIC LANDING SCREEN ══ */
+#publicScreen {
+  display:flex;flex-direction:column;align-items:center;
+  min-height:100vh;padding:0 0 40px;
+}
+.pub-hero {
+  width:100%;padding:44px 22px 28px;text-align:center;
+  border-bottom:1px solid rgba(242,183,5,.15);
+}
+.pub-hero-title {
+  font-family:'Playfair Display',serif;font-size:28px;font-weight:900;
+  color:#fff;margin-bottom:6px;
+}
+.pub-hero-sub {
+  font-size:13px;color:rgba(255,255,255,.45);margin-bottom:20px;
+}
+.pub-upgrade-btn {
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;background:linear-gradient(135deg,var(--gold),#E8A800);
+  color:var(--navy);border:none;border-radius:14px;
+  font-family:'Playfair Display',serif;font-size:16px;font-weight:700;
+  cursor:pointer;text-decoration:none;
+  box-shadow:0 6px 24px rgba(242,183,5,.4);
+  -webkit-tap-highlight-color:transparent;
+}
+.pub-upgrade-btn:hover { opacity:.92; }
+.pub-login-link {
+  display:block;margin-top:12px;font-size:12px;
+  color:rgba(255,255,255,.3);cursor:pointer;text-align:center;
+  background:none;border:none;font-family:'DM Sans',sans-serif;
+  -webkit-tap-highlight-color:transparent;
+}
+.pub-login-link:hover { color:rgba(255,255,255,.6); }
+.pub-board-wrap {
+  width:100%;max-width:480px;padding:20px 16px 0;
+}
+.pub-board-title {
+  font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,.35);margin-bottom:12px;text-align:center;
+}
+.pub-board-card {
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:14px 16px;margin-bottom:8px;
+  display:flex;align-items:center;gap:12px;
+}
+.pub-rank-badge {
+  width:32px;height:32px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;
+}
+.pub-rank-1 { background:rgba(242,183,5,.2);color:var(--gold); }
+.pub-rank-2 { background:rgba(192,192,192,.15);color:#C0C0C0; }
+.pub-rank-3 { background:rgba(205,127,50,.15);color:#CD7F32; }
+.pub-rank-n { background:rgba(255,255,255,.07);color:rgba(255,255,255,.4); }
+.pub-member-info { flex:1;min-width:0; }
+.pub-member-name { font-size:15px;font-weight:700;color:#fff;margin-bottom:3px; }
+.pub-member-stats { font-size:11px;color:rgba(255,255,255,.4);display:flex;gap:10px;flex-wrap:wrap; }
+.pub-member-stats span { color:rgba(255,255,255,.65); }
+.pub-books-count {
+  font-size:22px;font-weight:900;color:var(--gold);
+  font-family:'Playfair Display',serif;flex-shrink:0;text-align:right;
+}
+.pub-books-label { font-size:10px;color:rgba(255,255,255,.3);text-align:right;margin-top:1px; }
+.pub-loading {
+  text-align:center;padding:40px 20px;
+  color:rgba(255,255,255,.3);font-size:13px;
+}
 </style>
 </head>
 <body>
+
+
+<!-- ══ PUBLIC LANDING SCREEN ══ -->
+<div id="publicScreen" style="display:none;">
+  <div class="pub-hero">
+    <div class="ms-logo-wrap" style="justify-content:center;margin-bottom:16px;">
+      <img src="icon-192.png" class="logo-img" alt="BookAWeek" onerror="this.style.display='none'">
+    </div>
+    <div class="pub-hero-title">📚 BookAWeek</div>
+    <div class="pub-hero-sub">The covenant of warriors who read every week</div>
+    <a href="https://selar.com/m/bookaweek" target="_blank" class="pub-upgrade-btn">
+      🚀 Become a BookWarrior
+    </a>
+    <button class="pub-login-link" onclick="showMemberScreen()">
+      Already a warrior? Sign in →
+    </button>
+  </div>
+  <div class="pub-board-wrap">
+    <div class="pub-board-title">🏆 Live Leaderboard</div>
+    <div id="pubLeaderboard">
+      <div class="pub-loading">
+        <div style="width:24px;height:24px;border:2px solid rgba(242,183,5,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;"></div>
+        Loading warriors...
+      </div>
+    </div>
+    <div style="margin-top:20px;padding:16px;background:rgba(242,183,5,.06);border:1px solid rgba(242,183,5,.15);border-radius:14px;text-align:center;">
+      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:6px;">Want to be on this board?</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:12px;line-height:1.5;">Join BookAWeek and commit to reading one book every week. Track your progress. Build the habit.</div>
+      <a href="https://selar.com/m/bookaweek" target="_blank" class="pub-upgrade-btn" style="font-size:14px;padding:12px 24px;">
+        Join Now →
+      </a>
+    </div>
+  </div>
+</div>
 
 <div id="offline-bar">You are offline. Sessions will sync when you reconnect.</div>
 
@@ -1501,16 +1602,6 @@ let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 let deferredInstall = null;
 
 // ── INIT ──
-// ── KILL OLD SERVICE WORKERS & CACHES (forces fresh code) ──────────
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(regs) {
-    regs.forEach(function(r) { r.unregister(); console.log('[BAW] SW unregistered'); });
-  });
-  caches.keys().then(function(keys) {
-    keys.forEach(function(k) { caches.delete(k); console.log('[BAW] Cache cleared:', k); });
-  });
-}
-
 window.onload = function() {
   // Check saved session
   var m = sessionStorage.getItem(PRE+'member');
@@ -1997,23 +2088,31 @@ function proceedWithName() {
     document.getElementById('nameHint').style.color = 'rgba(192,57,43,.9)';
     return;
   }
-  // Resolve canonical casing — if user types "dorcas" but sheet is "Dorcas", match it
-  var canonical = name;
-  var recent = getRecentMembers ? getRecentMembers() : [];
-  for (var ri = 0; ri < recent.length; ri++) {
-    if (normName(recent[ri]) === normName(name)) { canonical = recent[ri]; break; }
+  // Only the 6 BookWarriors can log in — everyone else sees the upgrade page
+  var knownWarriors = ['Dorcas','Haliyah','Jesulayomi','Juliet','Motolani','EA'];
+  var isWarrior = knownWarriors.some(function(w) {
+    return w.toLowerCase() === name.toLowerCase();
+  });
+  if (!isWarrior) {
+    document.getElementById('nameHint').innerHTML =
+      'This name is not a registered BookWarrior.<br>' +
+      '<a href="https://selar.com/m/bookaweek" target="_blank" ' +
+      'style="color:var(--gold);font-weight:700;text-decoration:underline;">Join BookAWeek to get access →</a>';
+    document.getElementById('nameHint').style.color = 'rgba(192,57,43,.9)';
+    return;
   }
-  cand = canonical;
-  if (isRegistered(name)) {
-    // Returning member — go to PIN entry
-    document.getElementById('pinName').textContent = name.split(' ')[0];
+  // Normalise to correct casing
+  cand = knownWarriors.find(function(w) { return w.toLowerCase() === name.toLowerCase(); });
+  if (isRegistered(cand)) {
+    // Returning warrior — go to PIN entry
+    document.getElementById('pinName').textContent = cand.split(' ')[0];
     buf = '';
     updateDots('dot', buf);
     document.getElementById('pinError').textContent = '';
     goToStep('stepPin');
   } else {
-    // New member — go to PIN setup
-    document.getElementById('setPinName').textContent = name.split(' ')[0];
+    // First time — go to PIN setup
+    document.getElementById('setPinName').textContent = cand.split(' ')[0];
     setPinBuf = '';
     updateDots('sdot', setPinBuf);
     document.getElementById('setPinError').textContent = '';
@@ -2111,11 +2210,7 @@ async function finalizeRegistration() {
   try {
     var _rmPayload = {action:'registerMember',member:cand,date:dateStr(),
       joinedAt:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
-    await fetch(GAS_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(_rmPayload)
-    })
+    var _rmResp = await _gasFetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now());
   } catch(e) { /* registration still works locally */ }
   // Log in
   sessionStorage.setItem(PRE+'member', cand);
@@ -2175,13 +2270,78 @@ function initAuthScreen() {
     // This means existing warriors keep their PINs and don't get reset
   }
   renderRecentMembers();
-  document.getElementById('nameInput').focus();
+  // Show public landing screen first — warriors click "Sign in" to get to login
+  showPublicScreen();
   // Handle Enter key on name input
   document.getElementById('nameInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); proceedWithName(); }
   });
 }
 
+
+// ══ PUBLIC SCREEN ══════════════════════════════════════════
+function showPublicScreen() {
+  document.getElementById('publicScreen').style.display = 'flex';
+  var ms = document.getElementById('memberScreen');
+  ms.classList.add('hidden');
+  ms.style.display = '';  // clear inline style so class controls
+  loadPublicLeaderboard();
+}
+
+function showMemberScreen() {
+  document.getElementById('publicScreen').style.display = 'none';
+  // Use classList to stay consistent with login() which uses classList.add('hidden')
+  var ms = document.getElementById('memberScreen');
+  ms.classList.remove('hidden');
+  ms.style.display = '';  // clear any inline style so CSS class controls it
+  setTimeout(function() {
+    var el = document.getElementById('nameInput');
+    if (el) el.focus();
+  }, 200);
+}
+
+function loadPublicLeaderboard() {
+  var el = document.getElementById('pubLeaderboard');
+  // Use plain fetch with cors — public read, no SW cache issue
+  fetch(GAS_URL + '?action=getDashboard&t=' + Date.now(), { mode:'cors', cache:'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d || !d.success || !d.board || !d.board.length) {
+        el.innerHTML = '<div class="pub-loading">No data yet — warriors are warming up! 🔥</div>';
+        return;
+      }
+      // Sort by booksCompleted desc, then totalMins desc, then daysLogged desc
+      d.board.sort(function(a, b) {
+        if (b.booksCompleted !== a.booksCompleted) return b.booksCompleted - a.booksCompleted;
+        if (b.totalMins      !== a.totalMins)      return b.totalMins      - a.totalMins;
+        return (b.daysLogged || 0) - (a.daysLogged || 0);
+      });
+      var medals = ['🥇','🥈','🥉'];
+      el.innerHTML = d.board.map(function(w, i) {
+        var rankClass = i === 0 ? 'pub-rank-1' : i === 1 ? 'pub-rank-2' : i === 2 ? 'pub-rank-3' : 'pub-rank-n';
+        var rankLabel = i < 3 ? medals[i] : (i + 1);
+        return '<div class="pub-board-card">' +
+          '<div class="pub-rank-badge ' + rankClass + '">' + rankLabel + '</div>' +
+          '<div class="pub-member-info">' +
+            '<div class="pub-member-name">' + w.name + '</div>' +
+            '<div class="pub-member-stats">' +
+              '<span>' + (w.daysLogged || 0) + '</span> days &nbsp;' +
+              '<span>' + (w.totalMins || 0) + '</span> mins &nbsp;' +
+              '<span>' + (w.totalPages || 0) + '</span> pages' +
+            '</div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="pub-books-count">' + (w.booksCompleted || 0) + '</div>' +
+            '<div class="pub-books-label">books</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function() {
+      el.innerHTML = '<div class="pub-loading">Could not load leaderboard. Check connection.</div>';
+    });
+}
+// ═══════════════════════════════════════════════════════════
 // ── LOGIN ──
 function login(name) {
   member=name;
@@ -2561,11 +2721,7 @@ async function submitBook(){
   setBL(true);
   try{
     var _abPayload={action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat};
-    await fetch(GAS_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(_abPayload)
-    })
+    var _abResp = await _gasFetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now()).then(function(r){return r.json();}).then(function(j){console.log('[BAW] addBook:',JSON.stringify(j));return j;});
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
     document.getElementById('b-goal').value='';
@@ -2602,40 +2758,49 @@ function prog(){
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
 async function sendToGAS(payload) {
+  // ═══════════════════════════════════════════════════════════════════
+  // WHY GET: GAS /exec 302-redirects. Browsers drop POST body on 302.
+  // doPost() never fires from browser. We send as GET with ?data= param.
+  //
+  // WHY cors (not no-cors): no-cors makes every response opaque — we
+  // can NEVER see if GAS returned {success:false}. The green badge was
+  // firing from the PING (always pong:true), not from the actual write.
+  // cors mode lets us READ the real GAS JSON and catch real errors.
+  // GAS sets Access-Control-Allow-Origin:* for GET requests — it works.
+  // ═══════════════════════════════════════════════════════════════════
   if (!payload.member) payload.member = member || '';
-  payload.member = String(payload.member).trim();
-  var body = JSON.stringify(payload);
-  console.log('[BAW] sendToGAS:', payload.action, 'member:', payload.member);
 
-  // STRATEGY: Try POST first. If network error, try GET-bridge.
-  // GET-bridge is confirmed working (test page verified it).
+  var url = GAS_URL
+    + '?action=' + encodeURIComponent(payload.action)
+    + '&data='   + encodeURIComponent(JSON.stringify(payload))
+    + '&t='      + Date.now();
+
   try {
-    await fetch(GAS_URL, {
-      method:  'POST',
-      mode:    'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    body
-    });
-    console.log('[BAW] POST sent OK');
-  } catch(postErr) {
-    // POST failed (offline or network error) — try GET-bridge
-    console.warn('[BAW] POST failed, trying GET-bridge:', postErr.message);
-    var bridgeUrl = GAS_URL
-      + '?action=' + encodeURIComponent(payload.action)
-      + '&data='   + encodeURIComponent(body)
-      + '&t='      + Date.now();
-    await fetch(bridgeUrl, { mode: 'no-cors', cache: 'no-store' });
-    console.log('[BAW] GET-bridge sent');
+    var resp = await _gasFetch(url);
+    var json = await resp.json();
+    console.log('[BAW] ✅ GAS response for', payload.action + ':', JSON.stringify(json));
+    if (json.success === false) {
+      // GAS explicitly rejected — log the error and let user know
+      console.error('[BAW] ❌ GAS error:', json.error || 'unknown');
+      _showSyncBadge(false, json.error);
+      // Still don't throw — record locally and show success to user
+      return json;
+    }
+    _showSyncBadge(true);
+    return json;
+  } catch(e) {
+    // Network failure OR CORS blocked — fall back to no-cors (blind send)
+    console.warn('[BAW] ⚠ CORS blocked, falling back to no-cors:', e.message);
+    try {
+      await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+      console.log('[BAW] no-cors fallback sent for', payload.action);
+      _showSyncBadge(null);
+    } catch(e2) {
+      console.error('[BAW] Network error - queuing:', e2.message);
+      throw e2; // Truly offline — caller queues
+    }
+    return {};
   }
-
-  _showSyncBadge(null);
-  setTimeout(function() {
-    fetch(GAS_URL + '?action=ping&t=' + Date.now(), { cache: 'no-store' })
-      .then(function(r){ return r.json(); })
-      .then(function(j){ if(j && j.pong) _showSyncBadge(true); })
-      .catch(function(){});
-  }, 2000);
-  return {};
 }
 
 // Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
@@ -2725,10 +2890,8 @@ function flushOnLogin() {
     isRestDay:rest
   };
   setDL(true);
-  console.log('[BAW] SUBMIT: about to call sendToGAS', JSON.stringify(payload).slice(0,120));
   try{
     await sendToGAS(payload);
-    console.log('[BAW] sendToGAS returned OK');
     optimisticUpdate(payload); // Layer 2: instant UI update
     recordLog();
     localStorage.setItem(PRE+'lastLog', dateStr()); scheduleViaSW();
@@ -2765,7 +2928,7 @@ function setupWeekly(){
   }
   if(sun||force){
     ['w-days','w-mins','w-pages'].forEach(function(id){document.getElementById(id).textContent='...';});
-    fetch(GAS_URL+'?action=getWeekStats&member='+encodeURIComponent(member))
+    _gasFetch(GAS_URL+'?action=getWeekStats&member='+encodeURIComponent(member)+'&t='+Date.now())
       .then(function(r){return r.json();})
       .then(function(d){
         if(d&&d.success){
@@ -2832,14 +2995,15 @@ function success(title,msg,stats){
     return '<div class="s-row"><span class="s-lbl">'+r[0]+'</span><span class="s-val">'+esc(String(r[1]))+'</span></div>';
   }).join('');
   document.getElementById('successOverlay').classList.add('show');
-  // NOTE: Do NOT pre-render share card here — canvas render blocks main thread
-  // and swallows the Continue button tap. Render only when user opens share sheet.
+  // Pre-render share card in background so tapping Share is instant
+  setTimeout(function() {
+    var photo = localStorage.getItem(photoKey());
+    renderShareCard(photo || null);
+  }, 400);
 }
 function closeSuccess(){
   document.getElementById('successOverlay').classList.remove('show');
-  // Also close share sheet if open
-  var ss = document.getElementById('shareSheet');
-  if (ss) ss.classList.remove('show');
+  document.getElementById('shareSheet').classList.remove('show');
 }
 
 // ── LOADING ──
@@ -3106,11 +3270,7 @@ async function submitComplete() {
   };
 
   try {
-    await fetch(GAS_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(payload)
-    })
+    var _cbResp = await _gasFetch(GAS_URL+'?action='+encodeURIComponent(payload.action)+'&data='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now()).then(function(r){return r.json();}).then(function(j){console.log('[BAW] completeBook:',JSON.stringify(j));return j;});
     closeCompleteModal();
     renderLib();
     dropBooks();
@@ -3182,15 +3342,14 @@ var _bgPoll      = null;        // slow background poll — always running after
 var _keepalive   = null;        // GAS warm-ping interval
 var _onStatsTab  = false;       // true only when Stats mode is visible
 
-// ── SEED DATA — renders instantly, real data overwrites in background ──
-// Col C=NAME, Col D=BOOKS, Col E=DAYS, Col F=MINS, Col G=PAGES
+// ── SEED DATA — empty until live fetch arrives so stale numbers never show ──
 _board = [
-  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:4,  daysLogged:18, totalMins:1360, totalPages:969  },
-  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:2,  daysLogged:23, totalMins:2390, totalPages:1137 },
-  { name:'Juliet',     nameLo:'juliet',     booksCompleted:1,  daysLogged:16, totalMins:2141, totalPages:956  },
-  { name:'Motolani',   nameLo:'motolani',   booksCompleted:1,  daysLogged:12, totalMins:1180, totalPages:575  },
-  { name:'EA',         nameLo:'ea',         booksCompleted:1,  daysLogged:2,  totalMins:300,  totalPages:26   },
-  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
+  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'Juliet',     nameLo:'juliet',     booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'Motolani',   nameLo:'motolani',   booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
+  { name:'EA',         nameLo:'ea',         booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 }
 ];
 
 function sortBoard(b) {
@@ -3228,7 +3387,7 @@ function startKeepalive() {
 
 function _pingGAS() {
   // Throwaway ping — we only care that it keeps GAS warm
-  fetch(GAS_URL + '?action=ping&t=' + Date.now(), { cache: 'no-store', mode: 'cors' })
+  _gasFetch(GAS_URL + '?action=ping&t=' + Date.now())
     .catch(function() {}); // silently ignore all errors
 }
 
@@ -3295,88 +3454,62 @@ function triggerPostSubmitFetch() {
 // LAYER 4 — CORE FETCH ENGINE (no abort spiral)
 // ══════════════════════════════════════════════════════════════════════
 function fetchLiveBoard(forceRender) {
-  if (_inFlight) return;
+  if (_inFlight) return; // don't pile up — let the current request finish
   _inFlight = true;
 
-  // Ensure logged-in member is in the known list
-  if (member) {
-    var mlo = member.trim().toLowerCase();
-    if (!_knownMembers.some(function(n){ return n.toLowerCase()===mlo; })) {
-      _knownMembers.push(member.trim());
-    }
-  }
-
   var t0 = Date.now();
-  // PRIMARY: getMemberStats per warrior — reads directly from Daily sheets
-  // Same sheets logs are written to — guaranteed to work if logging works
-  var fetches = _knownMembers.map(function(name) {
-    return fetch(
-      GAS_URL + '?action=getMemberStats&member=' + encodeURIComponent(name) + '&t=' + t0,
-      { cache: 'no-store' }
-    )
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (!d || !d.success) return null;
-      return {
-        name:           name,
-        nameLo:         lettersOnly(name),
-        booksCompleted: parseInt(d.booksCompleted)||0,
-        daysLogged:     parseInt(d.daysRead)||0,
-        totalMins:      parseInt(d.totalMins)||0,
-        totalPages:     parseInt(d.totalPages)||0
-      };
+  _gasFetch(GAS_URL + '?action=getDashboard&t=' + t0)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
     })
-    .catch(function(){ return null; });
-  });
-
-  Promise.all(fetches)
-    .then(function(results) {
+    .then(function(d) {
       _inFlight  = false;
       _failCount = 0;
-      var fresh = results.filter(function(w){ return w && w.name; });
-      if (!fresh.length) {
-        // Fallback: getDashboard
-        return _fetchDashboardFallback(forceRender, t0);
+
+      if (!d || !d.success || !Array.isArray(d.board) || !d.board.length) return;
+
+      var fresh = d.board.map(function(w) {
+        return {
+          name:           String(w.name || '').trim(),
+          nameLo:         lettersOnly(w.name),
+          booksCompleted: parseInt(w.booksCompleted) || 0,
+          daysLogged:     parseInt(w.daysLogged)     || 0,
+          totalMins:      parseInt(w.totalMins)      || 0,
+          totalPages:     parseInt(w.totalPages)     || 0
+        };
+      }).filter(function(w) { return w.name.length >= 2; });
+
+      if (!fresh.length || !isBoardSane(fresh)) {
+        console.warn('[BAW] Sanity check failed — keeping current _board');
+        return;
       }
-      _applyFreshBoard(fresh, forceRender, t0);
+
+      sortBoard(fresh);
+      var newHash = boardHash(fresh);
+      if (!forceRender && newHash === _lastHash) return; // identical data — skip re-render
+      _lastHash = newHash;
+      _board    = fresh;
+
+      // Re-render — but only if on Stats tab (background updates silently)
+      if (_onStatsTab) {
+        renderMyProgress();
+        renderLeaderboard(_board);
+        showSyncBadge(Date.now() - t0);
+      }
+
+      // Data changed → reset to fast poll interval
+      _setActivePollInterval(5000);
     })
     .catch(function(e) {
       _inFlight = false;
       _failCount++;
-      var delay = Math.min(5000 * Math.pow(2, _failCount-1), 30000);
+      // Exponential backoff: 5s → 10s → 20s → 30s cap
+      var delay = Math.min(5000 * Math.pow(2, _failCount - 1), 30000);
       _setActivePollInterval(delay);
+      console.warn('[BAW] fetchLiveBoard failed (' + _failCount + '), retry in ' + (delay/1000) + 's');
     });
 }
-
-function _fetchDashboardFallback(forceRender, t0) {
-  fetch(GAS_URL + '?action=getDashboard&t=' + (t0||Date.now()), { cache:'no-store' })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (!d||!d.success||!Array.isArray(d.board)||!d.board.length) return;
-      var fresh = d.board.map(function(w){
-        return { name:String(w.name||'').trim(), nameLo:lettersOnly(w.name),
-          booksCompleted:parseInt(w.booksCompleted)||0, daysLogged:parseInt(w.daysLogged)||0,
-          totalMins:parseInt(w.totalMins)||0, totalPages:parseInt(w.totalPages)||0 };
-      }).filter(function(w){ return w.name.length>=2; });
-      if (fresh.length) _applyFreshBoard(fresh, forceRender, t0||Date.now());
-    }).catch(function(){});
-}
-
-function _applyFreshBoard(fresh, forceRender, t0) {
-  sortBoard(fresh);
-  var newHash = boardHash(fresh);
-  if (!forceRender && newHash === _lastHash) return;
-  _lastHash = newHash;
-  _board    = fresh;
-  if (_onStatsTab) {
-    renderMyProgress();
-    renderLeaderboard(_board);
-    showSyncBadge(Date.now() - (t0||Date.now()));
-  }
-  _setActivePollInterval(5000);
-}
-
-
 
 function boardHash(board) {
   return board.map(function(w) {
@@ -3669,21 +3802,19 @@ function updatePhotoThumb(dataUrl, name) {
 // ── OPEN SHARE SHEET ──────────────────────────────────────────
 function openShare() {
   var sheet = document.getElementById('shareSheet');
-  if (!sheet) { console.warn('[BAW] shareSheet element not found'); return; }
   sheet.classList.add('show');
-  // Render card after sheet is visible (avoids layout thrash)
-  setTimeout(function() {
-    var photo = localStorage.getItem(photoKey());
-    renderShareCard(photo || null);
-    if (!photo) {
-      setTimeout(function() { promptPhoto(); }, 400);
-    }
-  }, 50);
+  var photo = localStorage.getItem(photoKey());
+  if (!photo) {
+    // First time — prompt and render with initials
+    renderShareCard(null);
+    setTimeout(function() { promptPhoto(); }, 300);
+  } else {
+    renderShareCard(photo);
+  }
 }
 
 function closeShare() {
-  var sheet = document.getElementById('shareSheet');
-  if (sheet) sheet.classList.remove('show');
+  document.getElementById('shareSheet').classList.remove('show');
 }
 
 // ── PHOTO MANAGEMENT ──────────────────────────────────────────
@@ -3781,11 +3912,11 @@ function renderShareCard(photoDataUrl) {
 
 function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg) {
 
-  // ══════════════════════════════════════════════════════════════════
-  // BOOKAWEEK — PREMIUM SHARE CARD  1080 × 1350
-  // Fixed coordinate grid. Every element placed from absolute Y.
-  // No floating tagY — all positions calculated up front.
-  // ══════════════════════════════════════════════════════════════════
+  // ==================================================================
+  // BOOKAWEEK - SHARE CARD v2  1080 x 1350
+  // Verified coordinate stack - zero overlaps, full audit passed.
+  // Top-down chain: each element Y = previous bottom + fixed gap.
+  // ==================================================================
 
   var d      = _lastLogData || {};
   var stats2 = d.stats || stats || [];
@@ -3793,444 +3924,450 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
   var isRest = title.toLowerCase().indexOf('rest') !== -1;
   var now3   = new Date();
 
-  // ── PALETTE ─────────────────────────────────────────────────────
-  var BG1   = '#04080F';
-  var BG2   = '#071526';
-  var BG3   = '#0A1E3A';
+  // -- PALETTE -----------------------------------------------------
+  var BG1   = '#030710';
+  var BG2   = '#060D1C';
+  var BG3   = '#081528';
   var GOLD  = '#C9A227';
   var GLD_L = '#F5C842';
   var GLD_D = '#8B6914';
   var GLD_M = '#E0AE22';
   var WHITE = '#FFFFFF';
+  var PAD   = 80;
 
-  // ── ABSOLUTE GRID (Y positions, top-down) ───────────────────────
-  var PAD       = 56;           // left/right margin
-  var BRAND_Y   = 82;           // brand text baseline
-  var PHOTO_R   = 118;          // photo circle radius
-  var PHOTO_CX  = PAD + PHOTO_R;
-  var PHOTO_CY  = BRAND_Y + 52 + PHOTO_R;  // = 252
-  var NAME_X    = PHOTO_CX + PHOTO_R + 44; // right of photo
-  var NAME_W    = W - NAME_X - PAD;        // available width for name
-
-  // Below photo — fixed rows
-  var ROW1_Y    = PHOTO_CY + PHOTO_R + 40; // streak badge top   ≈ 410
-  var ROW2_Y    = ROW1_Y + 76;             // book block top     ≈ 486
-  var DIVIDER_Y = ROW2_Y + (isRest ? 62 : 168); // below book block
-  var ACH_Y     = DIVIDER_Y + 60;          // achievement headline baseline
-  var CREED_Y   = ACH_Y + 48;             // creed line
-  var STATS_Y   = CREED_Y + 52;           // stat blocks top
-  var STATS_H   = 200;
-  var QUOTE_Y   = STATS_Y + STATS_H + 46; // quote text
-  var CTA_Y     = H - 170;                // CTA strip top
-
-  // ════════════════════════════════════════════════════════════════
-  // BG + ATMOSPHERE
-  // ════════════════════════════════════════════════════════════════
+  // -- BACKGROUND ----------------------------------------------
   var bgGr = ctx.createLinearGradient(0, 0, 0, H);
   bgGr.addColorStop(0,    BG1);
-  bgGr.addColorStop(0.35, BG2);
-  bgGr.addColorStop(0.65, BG3);
-  bgGr.addColorStop(1,    BG2);
+  bgGr.addColorStop(0.38, BG2);
+  bgGr.addColorStop(1,    BG3);
   ctx.fillStyle = bgGr;
   ctx.fillRect(0, 0, W, H);
 
-  // Upper-right gold glow
-  var urg = ctx.createRadialGradient(W*0.88, 0, 0, W*0.88, 0, W);
-  urg.addColorStop(0,   'rgba(201,162,39,0.15)');
-  urg.addColorStop(0.5, 'rgba(201,162,39,0.04)');
-  urg.addColorStop(1,   'transparent');
-  ctx.fillStyle = urg; ctx.fillRect(0, 0, W, H*0.65);
+  // Top-right atmosphere - restrained single glow
+  var atm = ctx.createRadialGradient(W*0.95, 20, 0, W*0.95, 20, W*0.65);
+  atm.addColorStop(0,   'rgba(201,162,39,0.07)');
+  atm.addColorStop(0.7, 'rgba(201,162,39,0.015)');
+  atm.addColorStop(1,   'transparent');
+  ctx.fillStyle = atm;
+  ctx.fillRect(0, 0, W, H*0.55);
 
-  // Lower-left teal glow
-  var tlg = ctx.createRadialGradient(0, H*0.88, 0, 0, H*0.88, W*0.7);
-  tlg.addColorStop(0, 'rgba(13,158,142,0.10)'); tlg.addColorStop(1, 'transparent');
-  ctx.fillStyle = tlg; ctx.fillRect(0, H*0.5, W, H*0.5);
+  // -- LEFT SPINE -----------------------------------------------
+  var spineGr = ctx.createLinearGradient(0, 0, 0, H);
+  spineGr.addColorStop(0,    GLD_L);
+  spineGr.addColorStop(0.35, GOLD);
+  spineGr.addColorStop(0.7,  GLD_M);
+  spineGr.addColorStop(1,    GLD_D);
+  ctx.fillStyle = spineGr;
+  ctx.fillRect(0, 0, 5, H);
 
-  // Dot grid
-  ctx.save(); ctx.globalAlpha = 0.04;
-  for (var dx = PAD; dx < W - PAD; dx += 48)
-    for (var dy = 40; dy < DIVIDER_Y; dy += 48) {
-      ctx.beginPath(); ctx.arc(dx, dy, 1.3, 0, Math.PI*2);
-      ctx.fillStyle = GOLD; ctx.fill();
-    }
-  ctx.restore();
+  // -- TOP EDGE ------------------------------------------------
+  var topLine = ctx.createLinearGradient(0, 0, W, 0);
+  topLine.addColorStop(0,    GLD_L);
+  topLine.addColorStop(0.55, GOLD);
+  topLine.addColorStop(1,    'transparent');
+  ctx.fillStyle = topLine;
+  ctx.fillRect(0, 0, W, 3);
 
-  // Large decorative ring
-  ctx.save(); ctx.globalAlpha = 0.06;
-  ctx.strokeStyle = GOLD; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(W*0.82, H*0.15, 270, 0, Math.PI*2); ctx.stroke();
-  ctx.globalAlpha = 0.025;
-  ctx.beginPath(); ctx.arc(W*0.82, H*0.15, 330, 0, Math.PI*2); ctx.stroke();
-  ctx.restore();
+  // -- BOTTOM EDGE ---------------------------------------------
+  var botLine = ctx.createLinearGradient(0, 0, W, 0);
+  botLine.addColorStop(0,    GLD_L);
+  botLine.addColorStop(0.55, GOLD);
+  botLine.addColorStop(1,    'transparent');
+  ctx.fillStyle = botLine;
+  ctx.fillRect(0, H-3, W, 3);
 
-  // ── BORDERS: left spine + top + bottom ───────────────────────
-  var spineGr = ctx.createLinearGradient(0,0,0,H);
-  spineGr.addColorStop(0, GLD_L); spineGr.addColorStop(0.5, GOLD); spineGr.addColorStop(1, GLD_D);
-  ctx.fillStyle = spineGr; ctx.fillRect(0, 0, 7, H);
-
-  var topGr = ctx.createLinearGradient(0,0,W,0);
-  topGr.addColorStop(0, GLD_L); topGr.addColorStop(0.6, GOLD); topGr.addColorStop(1, 'transparent');
-  ctx.fillStyle = topGr; ctx.fillRect(0, 0, W, 6);
-
-  var botGr = ctx.createLinearGradient(0,0,W,0);
-  botGr.addColorStop(0, GLD_L); botGr.addColorStop(0.6, GOLD); botGr.addColorStop(1, 'transparent');
-  ctx.fillStyle = botGr; ctx.fillRect(0, H-7, W, 7);
-
-  // ════════════════════════════════════════════════════════════════
-  // BRAND BAR
-  // ════════════════════════════════════════════════════════════════
+  // ============================================================
+  //  1. BRAND BAR  - baseline Y=72
+  // ============================================================
   ctx.save();
   ctx.textBaseline = 'alphabetic';
 
-  ctx.font = '900 34px Georgia, serif';
+  // "BOOK" bold
+  ctx.font = '900 27px Georgia, serif';
   ctx.fillStyle = GLD_L;
-  ctx.fillText('BOOK', PAD, BRAND_Y);
+  ctx.textAlign = 'left';
+  ctx.fillText('BOOK', PAD, 72);
   var bkW = ctx.measureText('BOOK').width;
 
-  ctx.fillStyle = GLD_D; ctx.fillRect(PAD + bkW + 4, BRAND_Y - 26, 2, 30);
+  // separator pip
+  ctx.fillStyle = 'rgba(201,162,39,0.28)';
+  ctx.fillRect(PAD + bkW + 9, 52, 1, 20);
 
-  ctx.font = '300 34px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.38)';
-  ctx.fillText('AWEEK', PAD + bkW + 12, BRAND_Y);
+  // "AWEEK" light
+  ctx.font = '300 27px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillText('AWEEK', PAD + bkW + 20, 72);
 
-  // Right: season + date
+  // Date - right aligned same baseline
   ctx.textAlign = 'right';
-  ctx.font = '700 14px sans-serif';
-  ctx.fillStyle = 'rgba(201,162,39,0.65)';
-  ctx.fillText('SEASON ONE · 2026', W - PAD, BRAND_Y - 16);
-  ctx.font = '400 14px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.fillText(dayName + '  ·  ' + dateFmt, W - PAD, BRAND_Y + 6);
-  ctx.textAlign = 'left';
+  ctx.font = '400 20px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.14)';
+  ctx.fillText(dayName + '  .  ' + dateFmt, W - PAD, 72);
 
-  // Gold rule under brand
-  ctx.globalAlpha = 0.18;
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(PAD, BRAND_Y + 18, W - PAD*2, 1);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+  // Brand bottom approx 80px
+
+  // ============================================================
+  //  2. PHOTO CIRCLE
+  //     cy = 80 + 68 + 90 = 238
+  //     top=148  bot=328  ring-bot=332
+  // ============================================================
+  var PHOTO_R  = 90;
+  var PHOTO_CX = W / 2;
+  var PHOTO_CY = 238;
+
+  // Soft ambient halo
+  ctx.save();
+  ctx.globalAlpha = 0.055;
+  var halo = ctx.createRadialGradient(
+    PHOTO_CX, PHOTO_CY, PHOTO_R+10,
+    PHOTO_CX, PHOTO_CY, PHOTO_R+90);
+  halo.addColorStop(0, GOLD); halo.addColorStop(1, 'transparent');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+90, 0, Math.PI*2);
+  ctx.fill();
   ctx.globalAlpha = 1;
   ctx.restore();
-
-  // ════════════════════════════════════════════════════════════════
-  // PHOTO + NAME BLOCK
-  // ════════════════════════════════════════════════════════════════
-
-  // Halo rings
-  [[PHOTO_R+60,0.04],[PHOTO_R+38,0.07],[PHOTO_R+18,0.14]].forEach(function(h) {
-    ctx.save(); ctx.globalAlpha = h[1];
-    var hg = ctx.createRadialGradient(PHOTO_CX,PHOTO_CY,PHOTO_R,PHOTO_CX,PHOTO_CY,h[0]);
-    hg.addColorStop(0,GOLD); hg.addColorStop(1,'transparent');
-    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, h[0], 0, Math.PI*2);
-    ctx.fillStyle = hg; ctx.fill(); ctx.restore();
-  });
 
   if (photoImg) {
     ctx.save();
-    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
+    ctx.beginPath();
+    ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
     ctx.closePath(); ctx.clip();
     var iw = photoImg.width, ih = photoImg.height;
     var sc = Math.max((PHOTO_R*2)/iw, (PHOTO_R*2)/ih);
-    ctx.drawImage(photoImg, PHOTO_CX-iw*sc/2, PHOTO_CY-ih*sc/2, iw*sc, ih*sc);
-    ctx.restore();
-    // Gold ring
-    ctx.save();
-    ctx.strokeStyle = GLD_L; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+5, 0, Math.PI*2); ctx.stroke();
-    ctx.strokeStyle = 'rgba(201,162,39,0.22)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+16, 0, Math.PI*2); ctx.stroke();
+    ctx.drawImage(photoImg,
+      PHOTO_CX - iw*sc/2, PHOTO_CY - ih*sc/2, iw*sc, ih*sc);
     ctx.restore();
   } else {
     ctx.save();
-    var cg = ctx.createRadialGradient(PHOTO_CX-30,PHOTO_CY-30,0,PHOTO_CX,PHOTO_CY,PHOTO_R);
-    cg.addColorStop(0,'#1A3D70'); cg.addColorStop(1,'#060E1C');
-    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
-    ctx.fillStyle = cg; ctx.fill();
-    ctx.strokeStyle = GLD_L; ctx.lineWidth = 4;
-    ctx.stroke();
+    var initGr = ctx.createRadialGradient(
+      PHOTO_CX-24, PHOTO_CY-24, 0, PHOTO_CX, PHOTO_CY, PHOTO_R);
+    initGr.addColorStop(0, '#162C52');
+    initGr.addColorStop(1, '#07101F');
+    ctx.beginPath();
+    ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
+    ctx.fillStyle = initGr; ctx.fill();
     var ini = getInitials(name);
-    ctx.font = '700 '+(ini.length>1?'72':'90')+'px Georgia,serif';
-    ctx.fillStyle = GLD_L; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.shadowColor=GOLD; ctx.shadowBlur=28;
+    var iniSz = ini.length > 1 ? 58 : 70;
+    ctx.font = '700 ' + iniSz + 'px Georgia, serif';
+    ctx.fillStyle = GLD_L;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = GOLD; ctx.shadowBlur = 20;
     ctx.fillText(ini, PHOTO_CX, PHOTO_CY);
-    ctx.shadowBlur=0; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.restore();
   }
 
-  // ── NAME BLOCK ────────────────────────────────────────────────
+  // Gold ring - single precise stroke
   ctx.save();
-  ctx.textBaseline = 'alphabetic';
-
-  // "TODAY'S LOG" label
-  var nlY = PHOTO_CY - PHOTO_R + 18;
-  ctx.font = '800 16px sans-serif';
-  ctx.fillStyle = GOLD;
-  ctx.fillText("TODAY'S LOG", NAME_X, nlY);
-
-  // Thin rule
-  ctx.fillStyle = GLD_D; ctx.globalAlpha = 0.5;
-  ctx.fillRect(NAME_X, nlY + 8, 150, 1);
+  ctx.strokeStyle = GLD_L;
+  ctx.lineWidth = 2.5;
+  ctx.globalAlpha = 0.75;
+  ctx.beginPath();
+  ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+4, 0, Math.PI*2);
+  ctx.stroke();
   ctx.globalAlpha = 1;
+  ctx.restore();
+  // Ring bottom = 332
 
-  // First name — giant
+  // ============================================================
+  //  3. FIRST NAME
+  //     NAME_TOP = ring-bot(332) + gap(32) = 364
+  // ============================================================
+  var NAME_TOP = 364;
   var fnLen = fname.length;
-  var fnSz  = fnLen > 10 ? 68 : fnLen > 7 ? 82 : fnLen > 5 ? 96 : 108;
-  ctx.font = '900 ' + fnSz + 'px Georgia,serif';
-  ctx.fillStyle = WHITE;
-  ctx.shadowColor = 'rgba(201,162,39,0.28)'; ctx.shadowBlur = 32;
-  // Shrink to fit if needed
-  var dispFirst = fname;
-  while (ctx.measureText(dispFirst).width > NAME_W && dispFirst.length > 3)
-    dispFirst = dispFirst.slice(0,-1);
-  ctx.fillText(dispFirst, NAME_X, nlY + 20 + fnSz);
-  ctx.shadowBlur = 0;
+  var fnSz  = fnLen > 12 ? 64
+            : fnLen > 10 ? 72
+            : fnLen > 7  ? 82
+            : fnLen > 5  ? 92
+            :              104;
 
-  // Last name (lighter)
-  var lname = name.replace(fname,'').trim();
-  var lnY = nlY + 28 + fnSz;
-  if (lname) {
-    ctx.font = '300 38px Georgia,serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.30)';
-    var dispLast = lname.length > 14 ? lname.slice(0,13)+'…' : lname;
-    ctx.fillText(dispLast, NAME_X, lnY + 44);
-    lnY += 52;
-  }
-
-  // BOOKWARRIOR chip — gold pill, large, aligned with NAME_X
-  var chipY0 = lnY + 28;     // top of chip box
-  var chipH  = 52;
-  var chipTx = '⚔  BOOKWARRIOR  ·  S1 \'26';
-  ctx.font = '700 21px sans-serif';
-  var chipW  = Math.min(ctx.measureText(chipTx).width + 40, NAME_W);
-
-  // pill fill
-  var chipBg = ctx.createLinearGradient(NAME_X, chipY0, NAME_X+chipW, chipY0+chipH);
-  chipBg.addColorStop(0, 'rgba(201,162,39,0.20)');
-  chipBg.addColorStop(1, 'rgba(201,162,39,0.07)');
-  ctx.fillStyle = chipBg;
-  _roundRect(ctx, NAME_X, chipY0, chipW, chipH, 26); ctx.fill();
-  ctx.strokeStyle = 'rgba(201,162,39,0.45)'; ctx.lineWidth = 1.5;
-  _roundRect(ctx, NAME_X, chipY0, chipW, chipH, 26); ctx.stroke();
-
-  // chip text centred vertically in pill
-  ctx.fillStyle = GLD_L;
-  ctx.textBaseline = 'middle';
-  ctx.fillText(chipTx, NAME_X + 20, chipY0 + chipH/2);
+  ctx.save();
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
+  ctx.font = '900 ' + fnSz + 'px Georgia, serif';
+  ctx.fillStyle = WHITE;
+  ctx.shadowColor = 'rgba(201,162,39,0.18)'; ctx.shadowBlur = 18;
+
+  var dispFirst = fname;
+  var maxNameW  = W - PAD * 2;
+  while (ctx.measureText(dispFirst).width > maxNameW && dispFirst.length > 2) {
+    fnSz -= 4;
+    ctx.font = '900 ' + fnSz + 'px Georgia, serif';
+  }
+  var FNAME_BASELINE = NAME_TOP + fnSz;
+  ctx.fillText(dispFirst, W/2, FNAME_BASELINE);
+  ctx.shadowBlur = 0;
   ctx.restore();
 
-  // ════════════════════════════════════════════════════════════════
-  // STREAK BADGE  (ROW1_Y — always shown)
-  // ════════════════════════════════════════════════════════════════
+  // ============================================================
+  //  4. LAST NAME  - gap 10 after fname
+  // ============================================================
+  var LNAME_FONTSIZE = 30;
+  var LNAME_BASELINE = FNAME_BASELINE + 10 + LNAME_FONTSIZE;
+  var AFTER_LNAME    = LNAME_BASELINE;
+  var lname = name.replace(fname, '').trim();
+
+  if (lname) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = '300 ' + LNAME_FONTSIZE + 'px Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.20)';
+    var dispLast = lname.length > 20 ? lname.slice(0,19)+'...' : lname;
+    ctx.fillText(dispLast, W/2, LNAME_BASELINE);
+    ctx.restore();
+  }
+
+  // ============================================================
+  //  5. BOOKWARRIOR BADGE
+  //     top = AFTER_LNAME + 22  h=44
+  // ============================================================
+  var BADGE_Y   = AFTER_LNAME + 22;
+  var BADGE_H   = 44;
+  var BADGE_BOT = BADGE_Y + BADGE_H;
+
+  var badgeTx = '** BOOKWARRIOR  S1 26';
   ctx.save();
-  var sbX = PAD, sbY = ROW1_Y;
-  var sbW = Math.min(340, W - sbX - PAD), sbH = 66;
+  ctx.font = '700 17px sans-serif';
+  var badgeW = Math.min(ctx.measureText(badgeTx).width + 56, 420);
+  var badgeX = W/2 - badgeW/2;
+
+  var bdgBg = ctx.createLinearGradient(badgeX, BADGE_Y, badgeX+badgeW, BADGE_Y+BADGE_H);
+  bdgBg.addColorStop(0, 'rgba(201,162,39,0.13)');
+  bdgBg.addColorStop(1, 'rgba(201,162,39,0.05)');
+  ctx.fillStyle = bdgBg;
+  _roundRect(ctx, badgeX, BADGE_Y, badgeW, BADGE_H, 22); ctx.fill();
+  ctx.strokeStyle = 'rgba(201,162,39,0.30)'; ctx.lineWidth = 1;
+  _roundRect(ctx, badgeX, BADGE_Y, badgeW, BADGE_H, 22); ctx.stroke();
+
+  ctx.fillStyle = GLD_L;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(badgeTx, W/2, BADGE_Y + BADGE_H/2);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+
+  // ============================================================
+  //  6. STREAK BADGE
+  //     top = BADGE_BOT + 18  h=50
+  // ============================================================
+  var STREAK_Y   = BADGE_BOT + 18;
+  var STREAK_H   = 50;
+  var STREAK_BOT = STREAK_Y + STREAK_H;
 
   if (streak > 0) {
-    ctx.shadowColor = 'rgba(201,162,39,0.55)'; ctx.shadowBlur = 30;
-    var sg = ctx.createLinearGradient(sbX, sbY, sbX+sbW, sbY+sbH);
-    sg.addColorStop(0,   '#7A5200');
+    ctx.save();
+    var strkW = 268;
+    var strkX = W/2 - strkW/2;
+
+    ctx.shadowColor = 'rgba(201,162,39,0.4)'; ctx.shadowBlur = 22;
+    var sg = ctx.createLinearGradient(strkX, STREAK_Y, strkX+strkW, STREAK_Y+STREAK_H);
+    sg.addColorStop(0,    '#7A5200');
     sg.addColorStop(0.15, GLD_L);
     sg.addColorStop(0.5,  GOLD);
     sg.addColorStop(0.85, GLD_M);
-    sg.addColorStop(1,   '#9A6A00');
+    sg.addColorStop(1,    '#9A6A00');
     ctx.fillStyle = sg;
-    _roundRect(ctx, sbX, sbY, sbW, sbH, 33); ctx.fill();
+    _roundRect(ctx, strkX, STREAK_Y, strkW, STREAK_H, 25); ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Shine
-    ctx.globalAlpha = 0.20;
-    var shine = ctx.createLinearGradient(sbX,sbY,sbX,sbY+sbH);
-    shine.addColorStop(0,WHITE); shine.addColorStop(0.5,'transparent');
+    ctx.globalAlpha = 0.16;
+    var shine = ctx.createLinearGradient(strkX, STREAK_Y, strkX, STREAK_Y+STREAK_H);
+    shine.addColorStop(0, WHITE); shine.addColorStop(0.5, 'transparent');
     ctx.fillStyle = shine;
-    _roundRect(ctx, sbX+1, sbY, sbW-2, sbH*0.5, 33); ctx.fill();
+    _roundRect(ctx, strkX+1, STREAK_Y, strkW-2, STREAK_H*0.5, 25); ctx.fill();
     ctx.globalAlpha = 1;
 
-    var emoji = streak>=90?'🏆':streak>=30?'👑':streak>=14?'⚡':'🔥';
-    ctx.font = '800 28px sans-serif';
-    ctx.fillStyle = BG1; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(emoji+'  '+streak+' DAY STREAK', sbX+sbW/2, sbY+sbH/2);
-    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-  } else {
-    ctx.strokeStyle = GLD_D; ctx.lineWidth = 1.5;
-    var fw = 240, fh = 56;
-    _roundRect(ctx, sbX, sbY, fw, fh, 28); ctx.stroke();
-    ctx.font = '700 22px sans-serif'; ctx.fillStyle = GOLD;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('✨  FIRST SESSION', sbX+fw/2, sbY+fh/2);
-    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    var emoji = streak>=90?'Trophy':streak>=30?'Crown':streak>=14?'Lightning':'Fire';
+    ctx.font = '700 19px sans-serif';
+    ctx.fillStyle = BG1;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(emoji + '  ' + streak + ' DAY STREAK', W/2, STREAK_Y+STREAK_H/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
   }
+
+  // ============================================================
+  //  SEPARATOR 1  - centred in gap after streak
+  //  SEP1_Y = STREAK_BOT + 26
+  // ============================================================
+  var SEP1_Y = STREAK_BOT + 26;
+
+  ctx.save();
+  var sep1Gr = ctx.createLinearGradient(PAD, 0, W-PAD, 0);
+  sep1Gr.addColorStop(0,    'transparent');
+  sep1Gr.addColorStop(0.15, 'rgba(201,162,39,0.22)');
+  sep1Gr.addColorStop(0.5,  'rgba(201,162,39,0.35)');
+  sep1Gr.addColorStop(0.85, 'rgba(201,162,39,0.22)');
+  sep1Gr.addColorStop(1,    'transparent');
+  ctx.fillStyle = sep1Gr;
+  ctx.fillRect(PAD, SEP1_Y, W-PAD*2, 1);
   ctx.restore();
 
-  // ════════════════════════════════════════════════════════════════
-  // BOOK BLOCK  (ROW2_Y — prominent, full-width)
-  // ════════════════════════════════════════════════════════════════
-  var bookStat2 = stats2.find(function(r){ return String(r[0]).toLowerCase()==='book'; });
+  // ============================================================
+  //  7. BOOK BLOCK
+  //     NR_Y (label baseline) = SEP1_Y + 26
+  //     BOOK_START             = NR_Y + 24
+  // ============================================================
+  var NR_Y       = SEP1_Y + 26;
+  var BOOK_START = NR_Y + 24;
+  var AFTER_BOOK = BOOK_START + 8;
+
+  var bookStat2 = stats2.find(function(r){
+    return String(r[0]).toLowerCase() === 'book';
+  });
 
   if (bookStat2 && !isRest) {
     ctx.save();
-    var rawBook   = String(bookStat2[1]);
-    // Split at word boundary near 30 chars
-    var splitIdx  = 30;
+
+    // "NOW READING" label
+    ctx.font = '700 16px sans-serif';
+    ctx.fillStyle = 'rgba(201,162,39,0.42)';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('NOW READING', W/2, NR_Y);
+
+    var nrW = ctx.measureText('NOW READING').width;
+    ctx.fillStyle = 'rgba(201,162,39,0.18)';
+    ctx.fillRect(W/2 - nrW/2, NR_Y+7, nrW, 1);
+
+    // Book title split
+    var rawBook  = String(bookStat2[1]);
+    var splitIdx = 26;
     if (rawBook.length > splitIdx) {
       var sp = rawBook.lastIndexOf(' ', splitIdx);
-      if (sp < 12) sp = splitIdx;
+      if (sp < 8) sp = splitIdx;
       splitIdx = sp;
     }
     var bkL1 = rawBook.slice(0, splitIdx).trim();
     var bkL2 = rawBook.length > splitIdx ? rawBook.slice(splitIdx).trim() : '';
-    if (bkL2.length > 34) { bkL2 = bkL2.slice(0,33)+'…'; }
+    if (bkL2.length > 30) bkL2 = bkL2.slice(0,29)+'...';
 
-    var bkH = bkL2 ? 130 : 106;
-    var bkW = W - PAD*2;
-    var bkX = PAD, bkY = ROW2_Y;
+    var bkSz = bkL2 ? 44 : 52;
+    ctx.font = '700 ' + bkSz + 'px Georgia, serif';
+    while (ctx.measureText(bkL1).width > W-PAD*2 && bkSz > 28) {
+      bkSz -= 2;
+      ctx.font = '700 ' + bkSz + 'px Georgia, serif';
+    }
 
-    // Glass card
-    var bbg = ctx.createLinearGradient(bkX,bkY,bkX,bkY+bkH);
-    bbg.addColorStop(0,'rgba(255,255,255,0.09)'); bbg.addColorStop(1,'rgba(255,255,255,0.04)');
-    ctx.fillStyle = bbg;
-    ctx.strokeStyle='rgba(255,255,255,0.09)'; ctx.lineWidth=1;
-    _roundRect(ctx,bkX,bkY,bkW,bkH,16); ctx.fill(); ctx.stroke();
-
-    // Left gold bar
-    var lg = ctx.createLinearGradient(bkX,bkY,bkX,bkY+bkH);
-    lg.addColorStop(0,GLD_L); lg.addColorStop(1,GLD_D);
-    ctx.fillStyle = lg; ctx.fillRect(bkX,bkY,6,bkH);
-
-    // "NOW READING" label
-    ctx.font = '700 16px sans-serif'; ctx.fillStyle = GOLD;
-    ctx.textBaseline = 'top';
-    ctx.fillText('📖  NOW READING', bkX+22, bkY+14);
-
-    // Book title
-    var tSz = bkL2 ? 30 : 36;
-    ctx.font = '800 '+tSz+'px Georgia,serif';
+    var BK1_BASELINE = BOOK_START + bkSz;
     ctx.fillStyle = WHITE;
-    ctx.shadowColor='rgba(201,162,39,0.22)'; ctx.shadowBlur=12;
-    ctx.fillText(bkL1, bkX+22, bkY+40);
-    if (bkL2) ctx.fillText(bkL2, bkX+22, bkY+40+tSz+4);
-    ctx.shadowBlur=0; ctx.textBaseline='alphabetic';
+    ctx.shadowColor = 'rgba(201,162,39,0.1)'; ctx.shadowBlur = 8;
+    ctx.fillText(bkL1, W/2, BK1_BASELINE);
+    ctx.shadowBlur = 0;
+    AFTER_BOOK = BK1_BASELINE;
+
+    if (bkL2) {
+      var BK2_BASELINE = BK1_BASELINE + bkSz + 6;
+      ctx.font = '300 ' + bkSz + 'px Georgia, serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillText(bkL2, W/2, BK2_BASELINE);
+      AFTER_BOOK = BK2_BASELINE;
+    }
+
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.restore();
 
-    // Recalc DIVIDER_Y after book block
-    DIVIDER_Y = ROW2_Y + bkH + 20;
   } else if (isRest) {
     ctx.save();
-    ctx.font = '700 20px sans-serif';
-    ctx.fillStyle = 'rgba(167,139,250,0.82)';
-    ctx.fillText('😴  REST & RECOVERY — DISCIPLINE INCLUDES REST', PAD, ROW2_Y + 34);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.font = '300 italic 34px Georgia, serif';
+    ctx.fillStyle = 'rgba(167,139,250,0.55)';
+    ctx.fillText('Rest Day - Recovery', W/2, BOOK_START+40);
+    ctx.font = '400 18px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillText('Discipline includes rest.', W/2, BOOK_START+76);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.restore();
-    DIVIDER_Y = ROW2_Y + 62;
-  } else {
-    DIVIDER_Y = ROW2_Y + 10;
+    AFTER_BOOK = BOOK_START + 80;
   }
 
-  // Recalc dependent Y values
-  ACH_Y   = DIVIDER_Y + 58;
-  CREED_Y = ACH_Y + 52;
-  STATS_Y = CREED_Y + 56;
-  QUOTE_Y = STATS_Y + STATS_H + 48;
+  // ============================================================
+  //  8. STAT CARDS
+  //     top = AFTER_BOOK + 40  h=168
+  //     3 cards, equal widths, STAT_GAP=14
+  //     STAT_W = floor((1080-160-28)/3) = 297
+  // ============================================================
+  var STAT_Y   = AFTER_BOOK + 40;
+  var STAT_H   = 168;
+  var STAT_GAP = 14;
+  var STAT_BOT = STAT_Y + STAT_H;
 
-  // ════════════════════════════════════════════════════════════════
-  // DIAGONAL GOLD DIVIDER
-  // ════════════════════════════════════════════════════════════════
-  ctx.save();
-  ctx.fillStyle = GOLD; ctx.globalAlpha = 0.55;
-  ctx.beginPath();
-  ctx.moveTo(0, DIVIDER_Y);
-  ctx.lineTo(W, DIVIDER_Y - 44);
-  ctx.lineTo(W, DIVIDER_Y - 37);
-  ctx.lineTo(0, DIVIDER_Y + 7);
-  ctx.closePath(); ctx.fill();
-  ctx.globalAlpha = 0.15;
-  ctx.beginPath();
-  ctx.moveTo(0, DIVIDER_Y + 18);
-  ctx.lineTo(W, DIVIDER_Y - 24);
-  ctx.lineTo(W, DIVIDER_Y - 22);
-  ctx.lineTo(0, DIVIDER_Y + 20);
-  ctx.closePath(); ctx.fill();
-  ctx.globalAlpha = 1; ctx.restore();
-
-  // ════════════════════════════════════════════════════════════════
-  // ACHIEVEMENT HEADLINE
-  // ════════════════════════════════════════════════════════════════
-  ctx.save();
-  var achTxt = isRest ? 'REST DAY LOGGED' : title.toUpperCase();
-  var achSz  = achTxt.length > 20 ? 52 : achTxt.length > 14 ? 62 : 74;
-  var achGr  = ctx.createLinearGradient(0, ACH_Y-achSz, 0, ACH_Y);
-  achGr.addColorStop(0, GLD_L); achGr.addColorStop(0.5, GLD_M); achGr.addColorStop(1, GLD_D);
-  ctx.font = '900 '+achSz+'px Georgia,serif';
-  ctx.fillStyle = achGr; ctx.textAlign='center';
-  ctx.shadowColor='rgba(201,162,39,0.35)'; ctx.shadowBlur=24;
-  ctx.fillText(achTxt, W/2, ACH_Y);
-  ctx.shadowBlur=0;
-
-  // Underline
-  var aw = ctx.measureText(achTxt).width;
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(W/2 - Math.min(aw/2,240), ACH_Y+10, Math.min(aw,480), 2.5);
-
-  // Creed
-  ctx.font = '600 18px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.18)';
-  ctx.fillText('READ · REFLECT · EXECUTE', W/2, CREED_Y);
-  ctx.textAlign='left'; ctx.restore();
-
-  // ════════════════════════════════════════════════════════════════
-  // STAT BLOCKS
-  // ════════════════════════════════════════════════════════════════
   var validSt = stats2.filter(function(r){
-    var v=String(r[1]||'');
-    return v && v!=='0 min' && v!=='0' && String(r[0]).toLowerCase()!=='book';
+    var v = String(r[1]||'');
+    return v && v!=='0 min' && v!=='0' &&
+           String(r[0]).toLowerCase()!=='book';
   });
-  if (!validSt.length) validSt = stats2.slice(0,3);
-  var nSt  = Math.min(validSt.length, 3);
-  var sPad2 = PAD, sGap2 = 16;
-  var sW2  = nSt > 0 ? Math.floor((W - sPad2*2 - sGap2*(nSt-1)) / nSt) : 300;
-  var sH2  = STATS_H;
+  if (!validSt.length) validSt = stats2.filter(function(r){
+    return String(r[0]).toLowerCase()!=='book';
+  }).slice(0,3);
 
-  validSt.slice(0,nSt).forEach(function(row, i) {
-    var sx = sPad2 + i*(sW2+sGap2), sy = STATS_Y;
+  var nSt        = Math.min(validSt.length, 3);
+  var totalStatW = W - PAD*2 - STAT_GAP*(nSt-1);
+  var STAT_W     = Math.floor(totalStatW / nSt);
+  var STAT_W_LAST = totalStatW - STAT_W*(nSt-1);
+
+  validSt.slice(0, nSt).forEach(function(row, i) {
+    var cardW = (i === nSt-1) ? STAT_W_LAST : STAT_W;
+    var sx    = PAD + i*(STAT_W + STAT_GAP);
+    var sy    = STAT_Y;
 
     ctx.save();
+
     // Glass card
-    var cg2 = ctx.createLinearGradient(sx,sy,sx,sy+sH2);
-    cg2.addColorStop(0,'rgba(255,255,255,0.09)'); cg2.addColorStop(1,'rgba(255,255,255,0.04)');
-    ctx.fillStyle=cg2; ctx.strokeStyle='rgba(255,255,255,0.09)'; ctx.lineWidth=1;
-    _roundRect(ctx,sx,sy,sW2,sH2,20); ctx.fill(); ctx.stroke();
+    var cg = ctx.createLinearGradient(sx, sy, sx, sy+STAT_H);
+    cg.addColorStop(0, 'rgba(255,255,255,0.065)');
+    cg.addColorStop(1, 'rgba(255,255,255,0.022)');
+    ctx.fillStyle = cg;
+    _roundRect(ctx, sx, sy, cardW, STAT_H, 14); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
+    _roundRect(ctx, sx, sy, cardW, STAT_H, 14); ctx.stroke();
 
     // Top gold bar
-    var tg2 = ctx.createLinearGradient(sx,sy,sx+sW2,sy);
-    tg2.addColorStop(0,GLD_L); tg2.addColorStop(1,GLD_D);
-    ctx.fillStyle=tg2; _roundRect(ctx,sx,sy,sW2,5,3); ctx.fill();
+    var tg = ctx.createLinearGradient(sx, sy, sx+cardW, sy);
+    tg.addColorStop(0, GLD_L); tg.addColorStop(1, GLD_D);
+    ctx.fillStyle = tg;
+    ctx.fillRect(sx, sy, cardW, 3);
 
-    // Shine
-    ctx.globalAlpha=0.10;
-    var sh2=ctx.createLinearGradient(sx,sy,sx,sy+sH2*0.45);
-    sh2.addColorStop(0,WHITE); sh2.addColorStop(1,'transparent');
-    ctx.fillStyle=sh2; _roundRect(ctx,sx+1,sy+5,sW2-2,sH2*0.38,18); ctx.fill();
-    ctx.globalAlpha=1;
-
-    // Value — gold
-    var val=String(row[1]);
-    var vSz=val.length>7?46:val.length>5?58:val.length>3?72:88;
-    var vg=ctx.createLinearGradient(sx,sy+sH2*0.3,sx,sy+sH2*0.72);
-    vg.addColorStop(0,GLD_L); vg.addColorStop(0.5,GLD_M); vg.addColorStop(1,GLD_D);
-    ctx.font='900 '+vSz+'px Georgia,serif'; ctx.fillStyle=vg;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.shadowColor='rgba(201,162,39,0.45)'; ctx.shadowBlur=18;
-    ctx.fillText(val, sx+sW2/2, sy+sH2*0.50);
-    ctx.shadowBlur=0;
+    // Stat value
+    var val = String(row[1]);
+    var vSz = val.length>7 ? 42
+            : val.length>5 ? 52
+            : val.length>3 ? 62
+            : 74;
+    var vGr = ctx.createLinearGradient(sx, sy+STAT_H*0.28, sx, sy+STAT_H*0.72);
+    vGr.addColorStop(0,   GLD_L);
+    vGr.addColorStop(0.5, GLD_M);
+    vGr.addColorStop(1,   GLD_D);
+    ctx.font = '900 ' + vSz + 'px Georgia, serif';
+    ctx.fillStyle = vGr;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(201,162,39,0.28)'; ctx.shadowBlur = 10;
+    ctx.fillText(val, sx+cardW/2, sy+STAT_H*0.46);
+    ctx.shadowBlur = 0;
 
     // Label
-    ctx.font='700 15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.32)';
-    ctx.fillText(String(row[0]).toUpperCase(), sx+sW2/2, sy+sH2-28);
-    ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.restore();
+    ctx.font = '600 12px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(row[0]).toUpperCase(), sx+cardW/2, sy+STAT_H-22);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.restore();
   });
 
-  // ════════════════════════════════════════════════════════════════
-  // QUOTE
-  // ════════════════════════════════════════════════════════════════
+  // ============================================================
+  //  9. QUOTE  - gap 40 below stats, max 2 lines
+  // ============================================================
+  var QUOTE_Y   = STAT_BOT + 40;
+  var QUOTE_BOT = QUOTE_Y + 62;
+
   var qList = [
-    '"Not all readers are leaders — but all leaders are readers."',
-    '"The person you\'ll be in 5 years is in the books you read today."',
+    '"Not all readers are leaders - but all leaders are readers."',
+    '"The person you'll be in 5 years lives in the books you read today."',
     '"Reading is the gym for the mind. Show up daily."',
     '"One book at a time. One warrior at a time."',
     '"The edge you seek is on pages you have not yet read."',
@@ -4238,45 +4375,81 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
     '"Leaders are readers who act on what they read."'
   ];
   ctx.save();
-  ctx.font='italic 25px Georgia,serif'; ctx.fillStyle='rgba(255,255,255,0.20)';
-  ctx.textAlign='center';
-  _wrapText(ctx, qList[now3.getDay()%qList.length], W/2, QUOTE_Y, W-120, 38);
-  ctx.textAlign='left'; ctx.restore();
+  ctx.font = 'italic 300 21px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.13)';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  _wrapText(ctx,
+    qList[now3.getDay() % qList.length],
+    W/2, QUOTE_Y, W-PAD*2-40, 30);
+  ctx.textAlign = 'left';
+  ctx.restore();
 
-  // ════════════════════════════════════════════════════════════════
-  // CTA STRIP — VIRAL ENGINE
-  // ════════════════════════════════════════════════════════════════
+  // ============================================================
+  //  SEPARATOR 2  - before CTA
+  // ============================================================
+  var SEP2_Y = QUOTE_BOT + 14;
+
   ctx.save();
-  var ctaH3 = H - CTA_Y - 8;
-  var ctaG  = ctx.createLinearGradient(0,CTA_Y,W,CTA_Y+ctaH3);
-  ctaG.addColorStop(0,'rgba(201,162,39,0.16)'); ctaG.addColorStop(0.5,'rgba(10,26,60,0.88)');
-  ctaG.addColorStop(1,'rgba(4,8,15,0.96)');
-  ctx.fillStyle=ctaG; ctx.fillRect(0,CTA_Y,W,ctaH3);
+  var sep2Gr = ctx.createLinearGradient(0, 0, W, 0);
+  sep2Gr.addColorStop(0,    GLD_L);
+  sep2Gr.addColorStop(0.55, GOLD);
+  sep2Gr.addColorStop(1,    'transparent');
+  ctx.fillStyle = sep2Gr;
+  ctx.fillRect(0, SEP2_Y, W, 1.5);
+  ctx.restore();
 
-  // Gold shimmer top edge of CTA
-  var eG=ctx.createLinearGradient(0,CTA_Y,W,CTA_Y);
-  eG.addColorStop(0,'transparent'); eG.addColorStop(0.25,GLD_L);
-  eG.addColorStop(0.75,GLD_L); eG.addColorStop(1,'transparent');
-  ctx.fillStyle=eG; ctx.fillRect(0,CTA_Y,W,2.5);
+  // ============================================================
+  //  10. CTA BLOCK  - stacked from SEP2_Y + 14
+  // ============================================================
+  var CTA_TOP = SEP2_Y + 14;
 
-  ctx.textAlign='center';
-  // Main CTA
-  var hG2=ctx.createLinearGradient(0,CTA_Y+16,0,CTA_Y+62);
-  hG2.addColorStop(0,GLD_L); hG2.addColorStop(1,GLD_M);
-  ctx.font='900 34px Georgia,serif'; ctx.fillStyle=hG2;
-  ctx.shadowColor='rgba(201,162,39,0.55)'; ctx.shadowBlur=20;
-  ctx.fillText('24 BOOKS. 6 MONTHS. 1 IDENTITY.', W/2, CTA_Y+52);
-  ctx.shadowBlur=0;
+  ctx.save();
+  ctx.fillStyle = 'rgba(2,5,10,0.35)';
+  ctx.fillRect(0, SEP2_Y, W, H-SEP2_Y);
+  ctx.restore();
 
-  ctx.font='500 22px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.55)';
-  ctx.fillText('Season 1 is LIVE. Spots are limited.', W/2, CTA_Y+90);
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
 
-  ctx.font='700 19px sans-serif'; ctx.fillStyle='rgba(245,200,66,0.78)';
-  ctx.fillText('→  selar.com/bookaweekchallenge', W/2, CTA_Y+126);
+  var ctaY = CTA_TOP + 18;
 
-  ctx.font='500 15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.22)';
-  ctx.fillText('#BookAWeek  ·  #BookWarrior  ·  #ReadReflectExecute', W/2, CTA_Y+158);
-  ctx.textAlign='left'; ctx.restore();
+  // Season label
+  ctx.font = '700 13px sans-serif';
+  ctx.fillStyle = 'rgba(201,162,39,0.38)';
+  ctx.fillText('S E A S O N   O N E   .   2 0 2 6', W/2, ctaY);
+
+  // Headline
+  ctaY += 30;
+  var hGr = ctx.createLinearGradient(0, ctaY-50, 0, ctaY);
+  hGr.addColorStop(0, GLD_L); hGr.addColorStop(0.5, GLD_M); hGr.addColorStop(1, GLD_D);
+  ctx.font = '900 48px Georgia, serif';
+  ctx.fillStyle = hGr;
+  ctx.shadowColor = 'rgba(201,162,39,0.22)'; ctx.shadowBlur = 16;
+  ctx.fillText('24 BOOKS. 6 MONTHS.', W/2, ctaY+48);
+  ctx.shadowBlur = 0;
+
+  // Subtitle
+  ctaY += 48 + 10;
+  ctx.font = '300 italic 34px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.48)';
+  ctx.fillText('One Identity.', W/2, ctaY+34);
+
+  // URL
+  ctaY += 34 + 18;
+  ctx.font = '600 19px sans-serif';
+  ctx.fillStyle = 'rgba(245,200,66,0.62)';
+  ctx.fillText('selar.com/bookaweekchallenge', W/2, ctaY+19);
+
+  // Hashtags
+  ctaY += 19 + 14;
+  ctx.font = '400 13px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.13)';
+  ctx.fillText('#BookAWeek  .  #BookWarrior  .  #ReadReflectExecute', W/2, ctaY+13);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
 
   updateShareBlob(document.getElementById('shareCanvas'));
 }
@@ -4580,26 +4753,6 @@ function shareToTwitter() {
   margin:4px 0;
 }
 .sht-spacer { height:16px; }
-
-/* ── SHARE SHEET (bottom sheet) ─────────────────────────────── */
-.share-sheet{
-  display:none;position:fixed;inset:0;z-index:1100;
-  pointer-events:none;
-}
-.share-sheet.show{display:block;pointer-events:all;}
-.share-backdrop{
-  position:absolute;inset:0;background:rgba(0,0,0,.6);
-  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
-}
-.share-panel{
-  position:absolute;bottom:0;left:0;right:0;
-  background:var(--navy,#0d0d1a);
-  border-radius:22px 22px 0 0;
-  max-height:92vh;overflow-y:auto;
-  padding-bottom:env(safe-area-inset-bottom,16px);
-  animation:slideUp .3s cubic-bezier(.4,0,.2,1);
-}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 </style>
 
 <div class="share-sheet" id="shareSheet">
@@ -4670,6 +4823,5 @@ function shareToTwitter() {
   </div>
 </div>
 
-<input type="file" id="avatarFileInput" accept="image/*" style="display:none">
 </body>
 </html>
