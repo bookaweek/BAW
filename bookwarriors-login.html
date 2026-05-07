@@ -839,110 +839,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 /* ══ SHARE SYSTEM ══ */
 /* share-sheet CSS moved to bottom of file */
 
-
-/* ══ PUBLIC LANDING SCREEN ══ */
-#publicScreen {
-  display:flex;flex-direction:column;align-items:center;
-  min-height:100vh;padding:0 0 40px;
-}
-.pub-hero {
-  width:100%;padding:44px 22px 28px;text-align:center;
-  border-bottom:1px solid rgba(242,183,5,.15);
-}
-.pub-hero-title {
-  font-family:'Playfair Display',serif;font-size:28px;font-weight:900;
-  color:#fff;margin-bottom:6px;
-}
-.pub-hero-sub {
-  font-size:13px;color:rgba(255,255,255,.45);margin-bottom:20px;
-}
-.pub-upgrade-btn {
-  display:inline-flex;align-items:center;gap:8px;
-  padding:14px 28px;background:linear-gradient(135deg,var(--gold),#E8A800);
-  color:var(--navy);border:none;border-radius:14px;
-  font-family:'Playfair Display',serif;font-size:16px;font-weight:700;
-  cursor:pointer;text-decoration:none;
-  box-shadow:0 6px 24px rgba(242,183,5,.4);
-  -webkit-tap-highlight-color:transparent;
-}
-.pub-upgrade-btn:hover { opacity:.92; }
-.pub-login-link {
-  display:block;margin-top:12px;font-size:12px;
-  color:rgba(255,255,255,.3);cursor:pointer;text-align:center;
-  background:none;border:none;font-family:'DM Sans',sans-serif;
-  -webkit-tap-highlight-color:transparent;
-}
-.pub-login-link:hover { color:rgba(255,255,255,.6); }
-.pub-board-wrap {
-  width:100%;max-width:480px;padding:20px 16px 0;
-}
-.pub-board-title {
-  font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-  color:rgba(255,255,255,.35);margin-bottom:12px;text-align:center;
-}
-.pub-board-card {
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
-  border-radius:14px;padding:14px 16px;margin-bottom:8px;
-  display:flex;align-items:center;gap:12px;
-}
-.pub-rank-badge {
-  width:32px;height:32px;border-radius:8px;display:flex;align-items:center;
-  justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;
-}
-.pub-rank-1 { background:rgba(242,183,5,.2);color:var(--gold); }
-.pub-rank-2 { background:rgba(192,192,192,.15);color:#C0C0C0; }
-.pub-rank-3 { background:rgba(205,127,50,.15);color:#CD7F32; }
-.pub-rank-n { background:rgba(255,255,255,.07);color:rgba(255,255,255,.4); }
-.pub-member-info { flex:1;min-width:0; }
-.pub-member-name { font-size:15px;font-weight:700;color:#fff;margin-bottom:3px; }
-.pub-member-stats { font-size:11px;color:rgba(255,255,255,.4);display:flex;gap:10px;flex-wrap:wrap; }
-.pub-member-stats span { color:rgba(255,255,255,.65); }
-.pub-books-count {
-  font-size:22px;font-weight:900;color:var(--gold);
-  font-family:'Playfair Display',serif;flex-shrink:0;text-align:right;
-}
-.pub-books-label { font-size:10px;color:rgba(255,255,255,.3);text-align:right;margin-top:1px; }
-.pub-loading {
-  text-align:center;padding:40px 20px;
-  color:rgba(255,255,255,.3);font-size:13px;
-}
 </style>
 </head>
 <body>
-
-
-<!-- ══ PUBLIC LANDING SCREEN ══ -->
-<div id="publicScreen" style="display:none;">
-  <div class="pub-hero">
-    <div class="ms-logo-wrap" style="justify-content:center;margin-bottom:16px;">
-      <img src="icon-192.png" class="logo-img" alt="BookAWeek" onerror="this.style.display='none'">
-    </div>
-    <div class="pub-hero-title">📚 BookAWeek</div>
-    <div class="pub-hero-sub">The covenant of warriors who read every week</div>
-    <a href="https://selar.com/m/bookaweek" target="_blank" class="pub-upgrade-btn">
-      🚀 Become a BookWarrior
-    </a>
-    <button class="pub-login-link" onclick="showMemberScreen()">
-      Already a warrior? Sign in →
-    </button>
-  </div>
-  <div class="pub-board-wrap">
-    <div class="pub-board-title">🏆 Live Leaderboard</div>
-    <div id="pubLeaderboard">
-      <div class="pub-loading">
-        <div style="width:24px;height:24px;border:2px solid rgba(242,183,5,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;"></div>
-        Loading warriors...
-      </div>
-    </div>
-    <div style="margin-top:20px;padding:16px;background:rgba(242,183,5,.06);border:1px solid rgba(242,183,5,.15);border-radius:14px;text-align:center;">
-      <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:6px;">Want to be on this board?</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:12px;line-height:1.5;">Join BookAWeek and commit to reading one book every week. Track your progress. Build the habit.</div>
-      <a href="https://selar.com/m/bookaweek" target="_blank" class="pub-upgrade-btn" style="font-size:14px;padding:12px 24px;">
-        Join Now →
-      </a>
-    </div>
-  </div>
-</div>
 
 <div id="offline-bar">You are offline. Sessions will sync when you reconnect.</div>
 
@@ -2088,31 +1987,17 @@ function proceedWithName() {
     document.getElementById('nameHint').style.color = 'rgba(192,57,43,.9)';
     return;
   }
-  // Only the 6 BookWarriors can log in — everyone else sees the upgrade page
-  var knownWarriors = ['Dorcas','Haliyah','Jesulayomi','Juliet','Motolani','EA'];
-  var isWarrior = knownWarriors.some(function(w) {
-    return w.toLowerCase() === name.toLowerCase();
-  });
-  if (!isWarrior) {
-    document.getElementById('nameHint').innerHTML =
-      'This name is not a registered BookWarrior.<br>' +
-      '<a href="https://selar.com/m/bookaweek" target="_blank" ' +
-      'style="color:var(--gold);font-weight:700;text-decoration:underline;">Join BookAWeek to get access →</a>';
-    document.getElementById('nameHint').style.color = 'rgba(192,57,43,.9)';
-    return;
-  }
-  // Normalise to correct casing
-  cand = knownWarriors.find(function(w) { return w.toLowerCase() === name.toLowerCase(); });
-  if (isRegistered(cand)) {
-    // Returning warrior — go to PIN entry
-    document.getElementById('pinName').textContent = cand.split(' ')[0];
+  cand = name;
+  if (isRegistered(name)) {
+    // Returning member — go to PIN entry
+    document.getElementById('pinName').textContent = name.split(' ')[0];
     buf = '';
     updateDots('dot', buf);
     document.getElementById('pinError').textContent = '';
     goToStep('stepPin');
   } else {
-    // First time — go to PIN setup
-    document.getElementById('setPinName').textContent = cand.split(' ')[0];
+    // New member — go to PIN setup
+    document.getElementById('setPinName').textContent = name.split(' ')[0];
     setPinBuf = '';
     updateDots('sdot', setPinBuf);
     document.getElementById('setPinError').textContent = '';
@@ -2270,78 +2155,13 @@ function initAuthScreen() {
     // This means existing warriors keep their PINs and don't get reset
   }
   renderRecentMembers();
-  // Show public landing screen first — warriors click "Sign in" to get to login
-  showPublicScreen();
+  document.getElementById('nameInput').focus();
   // Handle Enter key on name input
   document.getElementById('nameInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); proceedWithName(); }
   });
 }
 
-
-// ══ PUBLIC SCREEN ══════════════════════════════════════════
-function showPublicScreen() {
-  document.getElementById('publicScreen').style.display = 'flex';
-  var ms = document.getElementById('memberScreen');
-  ms.classList.add('hidden');
-  ms.style.display = '';  // clear inline style so class controls
-  loadPublicLeaderboard();
-}
-
-function showMemberScreen() {
-  document.getElementById('publicScreen').style.display = 'none';
-  // Use classList to stay consistent with login() which uses classList.add('hidden')
-  var ms = document.getElementById('memberScreen');
-  ms.classList.remove('hidden');
-  ms.style.display = '';  // clear any inline style so CSS class controls it
-  setTimeout(function() {
-    var el = document.getElementById('nameInput');
-    if (el) el.focus();
-  }, 200);
-}
-
-function loadPublicLeaderboard() {
-  var el = document.getElementById('pubLeaderboard');
-  // Use plain fetch with cors — public read, no SW cache issue
-  fetch(GAS_URL + '?action=getDashboard&t=' + Date.now(), { mode:'cors', cache:'no-store' })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (!d || !d.success || !d.board || !d.board.length) {
-        el.innerHTML = '<div class="pub-loading">No data yet — warriors are warming up! 🔥</div>';
-        return;
-      }
-      // Sort by booksCompleted desc, then totalMins desc, then daysLogged desc
-      d.board.sort(function(a, b) {
-        if (b.booksCompleted !== a.booksCompleted) return b.booksCompleted - a.booksCompleted;
-        if (b.totalMins      !== a.totalMins)      return b.totalMins      - a.totalMins;
-        return (b.daysLogged || 0) - (a.daysLogged || 0);
-      });
-      var medals = ['🥇','🥈','🥉'];
-      el.innerHTML = d.board.map(function(w, i) {
-        var rankClass = i === 0 ? 'pub-rank-1' : i === 1 ? 'pub-rank-2' : i === 2 ? 'pub-rank-3' : 'pub-rank-n';
-        var rankLabel = i < 3 ? medals[i] : (i + 1);
-        return '<div class="pub-board-card">' +
-          '<div class="pub-rank-badge ' + rankClass + '">' + rankLabel + '</div>' +
-          '<div class="pub-member-info">' +
-            '<div class="pub-member-name">' + w.name + '</div>' +
-            '<div class="pub-member-stats">' +
-              '<span>' + (w.daysLogged || 0) + '</span> days &nbsp;' +
-              '<span>' + (w.totalMins || 0) + '</span> mins &nbsp;' +
-              '<span>' + (w.totalPages || 0) + '</span> pages' +
-            '</div>' +
-          '</div>' +
-          '<div>' +
-            '<div class="pub-books-count">' + (w.booksCompleted || 0) + '</div>' +
-            '<div class="pub-books-label">books</div>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-    })
-    .catch(function() {
-      el.innerHTML = '<div class="pub-loading">Could not load leaderboard. Check connection.</div>';
-    });
-}
-// ═══════════════════════════════════════════════════════════
 // ── LOGIN ──
 function login(name) {
   member=name;
@@ -2362,10 +2182,17 @@ function login(name) {
       } else {
         navigator.serviceWorker.addEventListener('controllerchange', function handler() {
           navigator.serviceWorker.removeEventListener('controllerchange', handler);
-          scheduleViaSW();
+          scheduleViaSW();function login(m) {
+  member = m;
+  // ... existing code ...
+  
+  // Always re-send schedule to SW on every login
+  setTimeout(function() { scheduleViaSW(); }, 1000);
+}
         });
         // Also try after a delay as backup
         setTimeout(scheduleViaSW, 2500);
+        
       }
     }
   }
@@ -2755,6 +2582,30 @@ function prog(){
 
 // ══════════════════════════════════════════════════════════
 // GAS SEND + OFFLINE QUEUE
+
+// ══════════════════════════════════════════════════════════
+// _gasFetch — SW-bypass fetch for all GAS calls
+// Deletes cached GAS entries before every request so the
+// Service Worker cannot serve stale cached responses.
+// ══════════════════════════════════════════════════════════
+async function _gasFetch(url) {
+  if (window.caches) {
+    try {
+      var keys = await caches.keys();
+      for (var i = 0; i < keys.length; i++) {
+        var cache = await caches.open(keys[i]);
+        var reqs  = await cache.keys();
+        for (var j = 0; j < reqs.length; j++) {
+          if (reqs[j].url && reqs[j].url.includes('script.google.com')) {
+            await cache.delete(reqs[j]);
+          }
+        }
+      }
+    } catch(e) {}
+  }
+  return fetch(url, { method:'GET', mode:'cors', cache:'no-store', credentials:'omit', redirect:'follow' });
+}
+
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
 async function sendToGAS(payload) {
@@ -3342,14 +3193,15 @@ var _bgPoll      = null;        // slow background poll — always running after
 var _keepalive   = null;        // GAS warm-ping interval
 var _onStatsTab  = false;       // true only when Stats mode is visible
 
-// ── SEED DATA — empty until live fetch arrives so stale numbers never show ──
+// ── SEED DATA — renders instantly, real data overwrites in background ──
+// Col C=NAME, Col D=BOOKS, Col E=DAYS, Col F=MINS, Col G=PAGES
 _board = [
-  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'Juliet',     nameLo:'juliet',     booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'Motolani',   nameLo:'motolani',   booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 },
-  { name:'EA',         nameLo:'ea',         booksCompleted:0, daysLogged:0, totalMins:0, totalPages:0 }
+  { name:'Dorcas',     nameLo:'dorcas',     booksCompleted:4,  daysLogged:18, totalMins:1360, totalPages:969  },
+  { name:'Jesulayomi', nameLo:'jesulayomi', booksCompleted:2,  daysLogged:23, totalMins:2390, totalPages:1137 },
+  { name:'Juliet',     nameLo:'juliet',     booksCompleted:1,  daysLogged:16, totalMins:2141, totalPages:956  },
+  { name:'Motolani',   nameLo:'motolani',   booksCompleted:1,  daysLogged:12, totalMins:1180, totalPages:575  },
+  { name:'EA',         nameLo:'ea',         booksCompleted:1,  daysLogged:2,  totalMins:300,  totalPages:26   },
+  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
 ];
 
 function sortBoard(b) {
@@ -3912,11 +3764,155 @@ function renderShareCard(photoDataUrl) {
 
 function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg) {
 
-  // ==================================================================
-  // BOOKAWEEK - SHARE CARD v2  1080 x 1350
-  // Verified coordinate stack - zero overlaps, full audit passed.
-  // Top-down chain: each element Y = previous bottom + fixed gap.
-  // ==================================================================
+ // ══════════════════════════════════════════════════════════════════════
+// BOOKAWEEK SHARE SYSTEM
+// - Canvas-rendered share card (1080×1350) — Instagram/WhatsApp ready
+// - Profile photo stored once in localStorage as base64
+// - Direct native share on mobile (WhatsApp, Instagram, X, etc.)
+// - Download fallback for desktop / platforms that don't support share API
+// ══════════════════════════════════════════════════════════════════════
+
+var PHOTO_KEY = 'baw_profile_photo'; // base key — we append member name below
+var _shareBlob = null; // cached blob from last render
+
+// Member-specific photo key (so each warrior keeps their own photo)
+function photoKey() {
+  return PHOTO_KEY + (member ? '_' + lettersOnly(member) : '');
+}
+
+// ── MISSING FUNCTIONS (called by _drawCard / renderShareCard) ──
+function updateShareBlob(canvas) {
+  try {
+    canvas.toBlob(function(blob) { _shareBlob = blob; }, 'image/png');
+  } catch(e) { _shareBlob = null; }
+}
+
+function updatePhotoThumb(dataUrl, name) {
+  var thumb   = document.getElementById('sharePhotoThumb');
+  var empty   = document.getElementById('shareAvatarEmpty');
+  var nameEl  = document.getElementById('sharePhotoName');
+  if (nameEl) nameEl.textContent = name || member || '';
+  if (!thumb) return;
+  if (dataUrl) {
+    thumb.src = dataUrl;
+    thumb.style.display = 'block';
+    if (empty) empty.style.display = 'none';
+  } else {
+    thumb.src = '';
+    thumb.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+  }
+}
+
+// ── OPEN SHARE SHEET ──────────────────────────────────────────
+function openShare() {
+  var sheet = document.getElementById('shareSheet');
+  sheet.classList.add('show');
+  var photo = localStorage.getItem(photoKey());
+  if (!photo) {
+    renderShareCard(null);
+    setTimeout(function() { promptPhoto(); }, 300);
+  } else {
+    renderShareCard(photo);
+  }
+}
+
+function closeShare() {
+  document.getElementById('shareSheet').classList.remove('show');
+}
+
+// ── PHOTO MANAGEMENT ──────────────────────────────────────────
+function promptPhoto() {
+  var panel = document.getElementById('shareSheet');
+  var existing = panel.querySelector('.photo-prompt-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.className = 'photo-prompt-overlay';
+  overlay.style.cssText = [
+    'position:absolute','top:0','left:0','right:0','bottom:0',
+    'background:#fff','border-radius:28px 28px 0 0','z-index:10',
+    'display:flex','flex-direction:column','align-items:center',
+    'justify-content:center','padding:32px 24px','text-align:center'
+  ].join(';');
+  overlay.innerHTML = [
+    '<div style="font-size:56px;margin-bottom:16px;">📸</div>',
+    '<div style="font-family:\'Playfair Display\',serif;font-size:22px;font-weight:900;color:#0B1F3B;margin-bottom:8px;">Add Your Photo Once</div>',
+    '<div style="font-size:14px;color:rgba(11,31,59,.5);line-height:1.6;max-width:260px;margin-bottom:28px;">',
+      'Your photo will appear on every share card automatically. You only add it once.',
+    '</div>',
+    '<button onclick="triggerPhotoInput()" style="width:100%;max-width:260px;height:52px;background:linear-gradient(135deg,#0B1F3B,#1547B0);border:none;border-radius:16px;color:#fff;font-family:\'DM Sans\',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;">',
+      '📷 Choose Photo from Phone',
+    '</button>',
+    '<button onclick="skipPhoto()" style="background:none;border:none;color:rgba(11,31,59,.4);font-family:\'DM Sans\',sans-serif;font-size:13px;cursor:pointer;text-decoration:underline;">',
+      'Skip — use initials instead',
+    '</button>'
+  ].join('');
+  panel.querySelector('.share-panel').appendChild(overlay);
+}
+
+function triggerPhotoInput() {
+  document.getElementById('photoInput').click();
+}
+
+function changeProfilePhoto() {
+  document.getElementById('photoInput').click();
+}
+
+function skipPhoto() {
+  var overlay = document.querySelector('.photo-prompt-overlay');
+  if (overlay) overlay.remove();
+  renderShareCard(null);
+}
+
+function handlePhotoUpload(event) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result;
+    localStorage.setItem(photoKey(), b64);
+    var overlay = document.querySelector('.photo-prompt-overlay');
+    if (overlay) overlay.remove();
+    renderShareCard(b64);
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+// ── CANVAS CARD RENDERER ──────────────────────────────────────
+function renderShareCard(photoDataUrl) {
+  var canvas = document.getElementById('shareCanvas');
+  var ctx    = canvas.getContext('2d');
+  var W = 1080, H = 1350;
+  canvas.width = W; canvas.height = H;
+
+  var d      = _lastLogData || {};
+  var name   = String(d.member || member || 'BookWarrior').trim();
+  var fname  = name.split(' ')[0];
+  var stats  = d.stats || [];
+  var title  = String(d.title || 'Session Logged!').replace(/[!]/g, '');
+  var streak = getStreak();
+  var now    = new Date();
+  var dayName = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'][now.getDay()];
+  var dateFmt = now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}).toUpperCase();
+
+  if (photoDataUrl) {
+    var img = new Image();
+    img.onload = function() { _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, img); };
+    img.onerror= function() { _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, null); };
+    img.src = photoDataUrl;
+  } else {
+    _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, null);
+  }
+
+  updatePhotoThumb(photoDataUrl, name);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// _drawCard  —  REDESIGNED: Ebook / Library scene with glowing tablet
+// ─────────────────────────────────────────────────────────────────────
+function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg) {
 
   var d      = _lastLogData || {};
   var stats2 = d.stats || stats || [];
@@ -3924,450 +3920,686 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
   var isRest = title.toLowerCase().indexOf('rest') !== -1;
   var now3   = new Date();
 
-  // -- PALETTE -----------------------------------------------------
-  var BG1   = '#030710';
-  var BG2   = '#060D1C';
-  var BG3   = '#081528';
-  var GOLD  = '#C9A227';
-  var GLD_L = '#F5C842';
-  var GLD_D = '#8B6914';
-  var GLD_M = '#E0AE22';
-  var WHITE = '#FFFFFF';
-  var PAD   = 80;
+  // ── PALETTE ─────────────────────────────────────────────────────
+  var NAVY   = '#04080F';
+  var NAVY2  = '#071526';
+  var NAVY3  = '#0A1E3A';
+  var GOLD   = '#C9A227';
+  var GLD_L  = '#F5C842';
+  var GLD_D  = '#8B6914';
+  var GLD_M  = '#E0AE22';
+  var TEAL   = '#0D7A6E';
+  var ORANGE = '#E07B39';
+  var WHITE  = '#FFFFFF';
 
-  // -- BACKGROUND ----------------------------------------------
+  // ── LAYOUT GRID ──────────────────────────────────────────────────
+  var PAD       = 56;
+  var BRAND_Y   = 82;
+
+  // Scene strip — top section with books + tablet illustration
+  var SCENE_TOP = BRAND_Y + 32;
+  var SCENE_H   = 420;         // height of the illustrated scene
+  var SCENE_BOT = SCENE_TOP + SCENE_H;
+
+  // Content below scene
+  var NAME_Y    = SCENE_BOT + 72;   // name baseline
+  var STREAK_Y  = NAME_Y + 70;      // streak badge top
+  var BOOK_Y    = STREAK_Y + 86;    // book block top
+  var DIVIDER_Y = BOOK_Y + 160;
+  var ACH_Y     = DIVIDER_Y + 68;
+  var CREED_Y   = ACH_Y + 52;
+  var STATS_Y   = CREED_Y + 56;
+  var STATS_H   = 190;
+  var QUOTE_Y   = STATS_Y + STATS_H + 48;
+  var CTA_Y     = H - 165;
+
+  // ════════════════════════════════════════════════════════════════
+  // BACKGROUND
+  // ════════════════════════════════════════════════════════════════
   var bgGr = ctx.createLinearGradient(0, 0, 0, H);
-  bgGr.addColorStop(0,    BG1);
-  bgGr.addColorStop(0.38, BG2);
-  bgGr.addColorStop(1,    BG3);
+  bgGr.addColorStop(0,    '#04080F');
+  bgGr.addColorStop(0.3,  '#071526');
+  bgGr.addColorStop(0.6,  '#0A1E3A');
+  bgGr.addColorStop(1,    '#06100D');
   ctx.fillStyle = bgGr;
   ctx.fillRect(0, 0, W, H);
 
-  // Top-right atmosphere - restrained single glow
-  var atm = ctx.createRadialGradient(W*0.95, 20, 0, W*0.95, 20, W*0.65);
-  atm.addColorStop(0,   'rgba(201,162,39,0.07)');
-  atm.addColorStop(0.7, 'rgba(201,162,39,0.015)');
-  atm.addColorStop(1,   'transparent');
-  ctx.fillStyle = atm;
-  ctx.fillRect(0, 0, W, H*0.55);
+  // Ambient glows
+  var urg = ctx.createRadialGradient(W*0.85, 0, 0, W*0.85, 0, W*0.9);
+  urg.addColorStop(0,'rgba(201,162,39,0.13)');
+  urg.addColorStop(0.5,'rgba(201,162,39,0.03)');
+  urg.addColorStop(1,'transparent');
+  ctx.fillStyle = urg; ctx.fillRect(0, 0, W, H*0.6);
 
-  // -- LEFT SPINE -----------------------------------------------
-  var spineGr = ctx.createLinearGradient(0, 0, 0, H);
-  spineGr.addColorStop(0,    GLD_L);
-  spineGr.addColorStop(0.35, GOLD);
-  spineGr.addColorStop(0.7,  GLD_M);
-  spineGr.addColorStop(1,    GLD_D);
-  ctx.fillStyle = spineGr;
-  ctx.fillRect(0, 0, 5, H);
+  var tlg = ctx.createRadialGradient(0, H*0.88, 0, 0, H*0.88, W*0.7);
+  tlg.addColorStop(0,'rgba(13,122,110,0.09)'); tlg.addColorStop(1,'transparent');
+  ctx.fillStyle = tlg; ctx.fillRect(0, H*0.5, W, H*0.5);
 
-  // -- TOP EDGE ------------------------------------------------
-  var topLine = ctx.createLinearGradient(0, 0, W, 0);
-  topLine.addColorStop(0,    GLD_L);
-  topLine.addColorStop(0.55, GOLD);
-  topLine.addColorStop(1,    'transparent');
-  ctx.fillStyle = topLine;
-  ctx.fillRect(0, 0, W, 3);
+  // Dot grid (subtle, only in scene area)
+  ctx.save(); ctx.globalAlpha = 0.035;
+  for (var dx2 = PAD; dx2 < W - PAD; dx2 += 52)
+    for (var dy2 = SCENE_TOP; dy2 < SCENE_BOT; dy2 += 52) {
+      ctx.beginPath(); ctx.arc(dx2, dy2, 1.4, 0, Math.PI*2);
+      ctx.fillStyle = GOLD; ctx.fill();
+    }
+  ctx.restore();
 
-  // -- BOTTOM EDGE ---------------------------------------------
-  var botLine = ctx.createLinearGradient(0, 0, W, 0);
-  botLine.addColorStop(0,    GLD_L);
-  botLine.addColorStop(0.55, GOLD);
-  botLine.addColorStop(1,    'transparent');
-  ctx.fillStyle = botLine;
-  ctx.fillRect(0, H-3, W, 3);
+  // ── BORDERS ─────────────────────────────────────────────────────
+  var spineGr = ctx.createLinearGradient(0,0,0,H);
+  spineGr.addColorStop(0, GLD_L); spineGr.addColorStop(0.5, GOLD); spineGr.addColorStop(1, GLD_D);
+  ctx.fillStyle = spineGr; ctx.fillRect(0, 0, 7, H);
 
-  // ============================================================
-  //  1. BRAND BAR  - baseline Y=72
-  // ============================================================
+  var topGr = ctx.createLinearGradient(0,0,W,0);
+  topGr.addColorStop(0, GLD_L); topGr.addColorStop(0.6, GOLD); topGr.addColorStop(1,'transparent');
+  ctx.fillStyle = topGr; ctx.fillRect(0, 0, W, 6);
+
+  var botGr = ctx.createLinearGradient(0,0,W,0);
+  botGr.addColorStop(0, GLD_L); botGr.addColorStop(0.6, GOLD); botGr.addColorStop(1,'transparent');
+  ctx.fillStyle = botGr; ctx.fillRect(0, H-7, W, 7);
+
+  // ════════════════════════════════════════════════════════════════
+  // BRAND BAR
+  // ════════════════════════════════════════════════════════════════
   ctx.save();
   ctx.textBaseline = 'alphabetic';
 
-  // "BOOK" bold
-  ctx.font = '900 27px Georgia, serif';
+  ctx.font = '900 34px Georgia, serif';
   ctx.fillStyle = GLD_L;
-  ctx.textAlign = 'left';
-  ctx.fillText('BOOK', PAD, 72);
+  ctx.fillText('BOOK', PAD, BRAND_Y);
   var bkW = ctx.measureText('BOOK').width;
 
-  // separator pip
-  ctx.fillStyle = 'rgba(201,162,39,0.28)';
-  ctx.fillRect(PAD + bkW + 9, 52, 1, 20);
+  ctx.fillStyle = GLD_D; ctx.globalAlpha = 0.5;
+  ctx.fillRect(PAD + bkW + 4, BRAND_Y - 26, 2, 30);
+  ctx.globalAlpha = 1;
 
-  // "AWEEK" light
-  ctx.font = '300 27px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
-  ctx.fillText('AWEEK', PAD + bkW + 20, 72);
+  ctx.font = '300 34px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.38)';
+  ctx.fillText('AWEEK', PAD + bkW + 12, BRAND_Y);
 
-  // Date - right aligned same baseline
   ctx.textAlign = 'right';
-  ctx.font = '400 20px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.14)';
-  ctx.fillText(dayName + '  .  ' + dateFmt, W - PAD, 72);
-
+  ctx.font = '700 14px sans-serif';
+  ctx.fillStyle = 'rgba(201,162,39,0.65)';
+  ctx.fillText('SEASON ONE · 2026', W - PAD, BRAND_Y - 16);
+  ctx.font = '400 14px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillText(dayName + '  ·  ' + dateFmt, W - PAD, BRAND_Y + 6);
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.restore();
-  // Brand bottom approx 80px
 
-  // ============================================================
-  //  2. PHOTO CIRCLE
-  //     cy = 80 + 68 + 90 = 238
-  //     top=148  bot=328  ring-bot=332
-  // ============================================================
-  var PHOTO_R  = 90;
-  var PHOTO_CX = W / 2;
-  var PHOTO_CY = 238;
-
-  // Soft ambient halo
-  ctx.save();
-  ctx.globalAlpha = 0.055;
-  var halo = ctx.createRadialGradient(
-    PHOTO_CX, PHOTO_CY, PHOTO_R+10,
-    PHOTO_CX, PHOTO_CY, PHOTO_R+90);
-  halo.addColorStop(0, GOLD); halo.addColorStop(1, 'transparent');
-  ctx.fillStyle = halo;
-  ctx.beginPath();
-  ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+90, 0, Math.PI*2);
-  ctx.fill();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(PAD, BRAND_Y + 18, W - PAD*2, 1);
   ctx.globalAlpha = 1;
   ctx.restore();
+
+  // ════════════════════════════════════════════════════════════════
+  // LIBRARY SCENE — background shelves
+  // ════════════════════════════════════════════════════════════════
+  ctx.save();
+
+  // Scene background: deep blue library glow
+  var sceneBg = ctx.createLinearGradient(0, SCENE_TOP, 0, SCENE_BOT);
+  sceneBg.addColorStop(0, 'rgba(4,8,31,0)');
+  sceneBg.addColorStop(0.4, 'rgba(10,26,70,0.35)');
+  sceneBg.addColorStop(1, 'rgba(4,8,20,0.6)');
+  ctx.fillStyle = sceneBg;
+  ctx.fillRect(0, SCENE_TOP, W, SCENE_H);
+
+  // Shelf books in background — blurred/faded library effect
+  var shelfColors = [
+    '#1547B0','#0D7A6E','#E07B39','#6a1b9a','#2e7d32',
+    '#8B0000','#1565c0','#bf360c','#4CAF50','#0277bd',
+    '#8B4513','#4B0082','#006400','#c62828','#1B5E20',
+    '#0d47a1','#e65100','#558b2f','#4a148c','#01579b'
+  ];
+
+  // Back shelf row (very faint)
+  ctx.globalAlpha = 0.12;
+  var bsx = 20, bsy = SCENE_TOP + 18, bsGap = 0;
+  var backBooks = [11,9,13,8,12,10,9,14,11,8,13,10,12,9,11,14,8,10,13,9,12,11,8,14,10,9,13,12,11,8,10,14,9,13,12,11,10,8,14,13,9,12,11,10,8,13,14,9,12,11];
+  for (var bi = 0; bi < backBooks.length && bsx < W - 20; bi++) {
+    var bh2 = 44 + (bi % 5) * 5;
+    ctx.fillStyle = shelfColors[bi % shelfColors.length];
+    ctx.fillRect(bsx, bsy + (50 - bh2), backBooks[bi], bh2);
+    bsx += backBooks[bi] + bsGap;
+  }
+
+  // Middle shelf row
+  ctx.globalAlpha = 0.18;
+  bsx = 15; bsy = SCENE_TOP + 90;
+  var midBooks = [12,8,11,14,9,13,10,12,8,11,14,9,10,13,12,8,11,14,9,10,13,12,11,8,14,9,13,10,12,8,11,14,9,13,10,12,8,11,14,9,13,12,10,8,14,11,9,13,12,10];
+  for (var mi = 0; mi < midBooks.length && bsx < W - 15; mi++) {
+    var mh = 48 + (mi % 6) * 4;
+    ctx.fillStyle = shelfColors[(mi + 3) % shelfColors.length];
+    ctx.fillRect(bsx, bsy + (58 - mh), midBooks[mi], mh);
+    bsx += midBooks[mi];
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ════════════════════════════════════════════════════════════════
+  // BOOK STACK — CSS art style, centered-left
+  // ════════════════════════════════════════════════════════════════
+  ctx.save();
+
+  var stackCX = W * 0.30;   // horizontal center of stack
+  var stackBY = SCENE_BOT - 18; // bottom of stack
+
+  // Floor glow under stack
+  var floorGlowSt = ctx.createRadialGradient(stackCX, stackBY, 0, stackCX, stackBY, 200);
+  floorGlowSt.addColorStop(0, 'rgba(201,162,39,0.22)');
+  floorGlowSt.addColorStop(1, 'transparent');
+  ctx.fillStyle = floorGlowSt;
+  ctx.fillRect(stackCX - 200, stackBY - 10, 400, 22);
+
+  // Book definitions: [width, height, color1, color2]
+  var books = [
+    [155, 28, '#6a1b9a', '#4a148c'],
+    [168, 26, '#2e7d32', '#1b5e20'],
+    [148, 24, '#1565c0', '#0d47a1'],
+    [172, 30, '#bf360c', '#7f0000'],
+    [160, 26, '#e65100', '#bf360c'],
+    [176, 28, '#2E7D32', '#1b5e20'],
+    [180, 32, '#0277bd', '#01579b']
+  ];
+
+  var curY = stackBY;
+  for (var bi2 = books.length - 1; bi2 >= 0; bi2--) {
+    var bk = books[bi2];
+    var bw = bk[0], bh3 = bk[1], bc1 = bk[2], bc2 = bk[3];
+    var bx = stackCX - bw / 2;
+    var by2 = curY - bh3;
+
+    // Shadow
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(bx + 4, by2 + 4, bw, bh3);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // Book body
+    var bookGr = ctx.createLinearGradient(bx, by2, bx + bw, by2);
+    bookGr.addColorStop(0, bc1);
+    bookGr.addColorStop(1, bc2);
+    ctx.fillStyle = bookGr;
+    _roundRect(ctx, bx, by2, bw, bh3, 3);
+
+    // Spine shadow (left edge)
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(bx, by2, 10, bh3);
+
+    // Shine line on spine
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(bx + 11, by2 + 3, 2, bh3 - 6);
+
+    // Page lines (right side)
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(bx + bw - 4, by2, 4, bh3);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(bx + bw - 8, by2, 2, bh3);
+
+    // Top highlight
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    var topSh = ctx.createLinearGradient(bx, by2, bx, by2 + bh3 * 0.5);
+    topSh.addColorStop(0, WHITE); topSh.addColorStop(1, 'transparent');
+    ctx.fillStyle = topSh;
+    ctx.fillRect(bx, by2, bw, bh3 * 0.5);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    curY = by2;
+  }
+  ctx.restore();
+
+  // ════════════════════════════════════════════════════════════════
+  // TABLET — glowing screen showing progress
+  // ════════════════════════════════════════════════════════════════
+  ctx.save();
+
+  var tabCX  = W * 0.64;      // center x of tablet
+  var tabW   = 200;
+  var tabH   = 272;
+  var tabX   = tabCX - tabW / 2;
+  var tabY   = SCENE_BOT - tabH - 10;
+  var tabR   = 22;             // corner radius
+
+  // Tablet outer glow
+  ctx.globalAlpha = 0.30;
+  var tabOutGlow = ctx.createRadialGradient(tabCX, tabY + tabH * 0.4, 0, tabCX, tabY + tabH * 0.4, tabW * 0.9);
+  tabOutGlow.addColorStop(0, 'rgba(201,162,39,0.6)');
+  tabOutGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = tabOutGlow;
+  ctx.fillRect(tabX - 40, tabY - 20, tabW + 80, tabH + 60);
+  ctx.globalAlpha = 1;
+
+  // Floor glow under tablet
+  var floorGlowTab = ctx.createRadialGradient(tabCX, SCENE_BOT, 0, tabCX, SCENE_BOT, 180);
+  floorGlowTab.addColorStop(0, 'rgba(201,162,39,0.28)');
+  floorGlowTab.addColorStop(1, 'transparent');
+  ctx.fillStyle = floorGlowTab;
+  ctx.fillRect(tabCX - 180, SCENE_BOT - 14, 360, 26);
+
+  // Tablet shadow
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#000';
+  _roundRect(ctx, tabX + 8, tabY + 8, tabW, tabH, tabR);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Tablet body
+  var tabBodyGr = ctx.createLinearGradient(tabX, tabY, tabX + tabW, tabY + tabH);
+  tabBodyGr.addColorStop(0, '#2a2a3e');
+  tabBodyGr.addColorStop(1, '#14142a');
+  ctx.fillStyle = tabBodyGr;
+  _roundRect(ctx, tabX, tabY, tabW, tabH, tabR);
+
+  // Tablet border — gold shimmer
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = GLD_L;
+  ctx.lineWidth = 2.5;
+  _roundRectStroke(ctx, tabX, tabY, tabW, tabH, tabR);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Tablet screen area
+  var scrPad = 10;
+  var scrX   = tabX + scrPad;
+  var scrY   = tabY + scrPad;
+  var scrW   = tabW - scrPad * 2;
+  var scrH   = tabH - scrPad * 2 - 22; // leave room for home bar
+  var scrR   = 14;
+
+  // Screen background
+  ctx.fillStyle = '#0a0a18';
+  _roundRect(ctx, scrX, scrY, scrW, scrH, scrR);
+
+  // Screen content glow
+  var scrGlow = ctx.createRadialGradient(scrX + scrW/2, scrY + scrH * 0.38, 0, scrX + scrW/2, scrY + scrH * 0.38, scrW * 0.65);
+  scrGlow.addColorStop(0, 'rgba(201,162,39,0.22)');
+  scrGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = scrGlow;
+  _roundRect(ctx, scrX, scrY, scrW, scrH, scrR);
+
+  // Screen clip for content
+  ctx.save();
+  ctx.beginPath();
+  _roundRectPath(ctx, scrX, scrY, scrW, scrH, scrR);
+  ctx.clip();
+
+  // "PROGRESS" label on screen
+  ctx.font = '700 16px sans-serif';
+  ctx.fillStyle = 'rgba(201,162,39,0.8)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('PROGRESS', scrX + scrW/2, scrY + 18);
+
+  // Big percentage
+  var d2 = _lastLogData || {};
+  var stats3 = d2.stats || stats || [];
+  var pctStat = stats3.find(function(r){ return String(r[0]).toLowerCase()==='progress' || String(r[0]).toLowerCase()==='%'; });
+  var pctVal = pctStat ? String(pctStat[1]) : (getStreak ? Math.min(100, Math.round(getStreak() * 2.1)) + '%' : '73%');
+  if (pctVal.indexOf('%') === -1) pctVal += '%';
+
+  ctx.font = '900 58px Georgia, serif';
+  ctx.fillStyle = GLD_L;
+  ctx.shadowColor = 'rgba(201,162,39,0.7)';
+  ctx.shadowBlur = 24;
+  ctx.fillText(pctVal, scrX + scrW/2, scrY + 44);
+  ctx.shadowBlur = 0;
+
+  // Progress bar on screen
+  var pbX = scrX + 18, pbY = scrY + 118, pbW = scrW - 36, pbH = 8;
+  // Track
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  _roundRect(ctx, pbX, pbY, pbW, pbH, 4);
+  // Fill (parse percentage)
+  var pctNum = parseFloat(pctVal) || 73;
+  var pbFill = pbW * Math.min(pctNum, 100) / 100;
+  var pbGr = ctx.createLinearGradient(pbX, pbY, pbX + pbW, pbY);
+  pbGr.addColorStop(0, GOLD);
+  pbGr.addColorStop(1, ORANGE);
+  ctx.fillStyle = pbGr;
+  _roundRect(ctx, pbX, pbY, pbFill, pbH, 4);
+
+  // "ebooks" text — matching the image aesthetic
+  ctx.font = '500 22px Georgia, serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.shadowColor = 'rgba(201,162,39,0.4)';
+  ctx.shadowBlur = 10;
+  ctx.fillText('ebooks', scrX + scrW/2, scrY + 148);
+  ctx.shadowBlur = 0;
+
+  // Book count
+  var booksRead = stats3.find(function(r){ return String(r[0]).toLowerCase()==='books' || String(r[0]).toLowerCase()==='read'; });
+  var bkCount = booksRead ? String(booksRead[1]) : (getStreak ? getStreak() + '' : '3') ;
+  ctx.font = '700 15px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillText(bkCount + ' sessions this week', scrX + scrW/2, scrY + 178);
+
+  ctx.restore(); // end screen clip
+
+  // Tablet home bar
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath();
+  ctx.roundRect(tabX + tabW/2 - 26, tabY + tabH - 14, 52, 5, 3);
+  ctx.fill();
+
+  // Tablet camera dot
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath();
+  ctx.arc(tabX + tabW/2, tabY + 6, 3, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // ════════════════════════════════════════════════════════════════
+  // SCENE FADE — blend scene into main content area
+  // ════════════════════════════════════════════════════════════════
+  ctx.save();
+  var sceneFade = ctx.createLinearGradient(0, SCENE_BOT - 80, 0, SCENE_BOT + 40);
+  sceneFade.addColorStop(0, 'transparent');
+  sceneFade.addColorStop(1, NAVY2);
+  ctx.fillStyle = sceneFade;
+  ctx.fillRect(0, SCENE_BOT - 80, W, 120);
+  ctx.restore();
+
+  // ════════════════════════════════════════════════════════════════
+  // PHOTO + NAME BLOCK (below scene)
+  // ════════════════════════════════════════════════════════════════
+  var PHOTO_R   = 88;
+  var PHOTO_CX  = PAD + PHOTO_R;
+  var PHOTO_CY  = SCENE_BOT + 10 + PHOTO_R;
+
+  // Halo rings
+  [[PHOTO_R+50,0.05],[PHOTO_R+30,0.08],[PHOTO_R+14,0.15]].forEach(function(h) {
+    ctx.save(); ctx.globalAlpha = h[1];
+    var hg = ctx.createRadialGradient(PHOTO_CX,PHOTO_CY,PHOTO_R,PHOTO_CX,PHOTO_CY,h[0]);
+    hg.addColorStop(0,GOLD); hg.addColorStop(1,'transparent');
+    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, h[0], 0, Math.PI*2);
+    ctx.fillStyle = hg; ctx.fill(); ctx.restore();
+  });
 
   if (photoImg) {
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
     ctx.closePath(); ctx.clip();
     var iw = photoImg.width, ih = photoImg.height;
     var sc = Math.max((PHOTO_R*2)/iw, (PHOTO_R*2)/ih);
-    ctx.drawImage(photoImg,
-      PHOTO_CX - iw*sc/2, PHOTO_CY - ih*sc/2, iw*sc, ih*sc);
+    ctx.drawImage(photoImg, PHOTO_CX-iw*sc/2, PHOTO_CY-ih*sc/2, iw*sc, ih*sc);
+    ctx.restore();
+    ctx.save();
+    ctx.strokeStyle = GLD_L; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+5, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(201,162,39,0.22)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+16, 0, Math.PI*2); ctx.stroke();
     ctx.restore();
   } else {
     ctx.save();
-    var initGr = ctx.createRadialGradient(
-      PHOTO_CX-24, PHOTO_CY-24, 0, PHOTO_CX, PHOTO_CY, PHOTO_R);
-    initGr.addColorStop(0, '#162C52');
-    initGr.addColorStop(1, '#07101F');
-    ctx.beginPath();
-    ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
-    ctx.fillStyle = initGr; ctx.fill();
+    var cg = ctx.createRadialGradient(PHOTO_CX-24,PHOTO_CY-24,0,PHOTO_CX,PHOTO_CY,PHOTO_R);
+    cg.addColorStop(0,'#1A3D70'); cg.addColorStop(1,'#060E1C');
+    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
+    ctx.fillStyle = cg; ctx.fill();
+    ctx.strokeStyle = GLD_L; ctx.lineWidth = 4; ctx.stroke();
     var ini = getInitials(name);
-    var iniSz = ini.length > 1 ? 58 : 70;
-    ctx.font = '700 ' + iniSz + 'px Georgia, serif';
-    ctx.fillStyle = GLD_L;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = GOLD; ctx.shadowBlur = 20;
+    ctx.font = '700 '+(ini.length>1?'54':'68')+'px Georgia,serif';
+    ctx.fillStyle = GLD_L; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.shadowColor=GOLD; ctx.shadowBlur=24;
     ctx.fillText(ini, PHOTO_CX, PHOTO_CY);
-    ctx.shadowBlur = 0;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.shadowBlur=0; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
     ctx.restore();
   }
 
-  // Gold ring - single precise stroke
-  ctx.save();
-  ctx.strokeStyle = GLD_L;
-  ctx.lineWidth = 2.5;
-  ctx.globalAlpha = 0.75;
-  ctx.beginPath();
-  ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+4, 0, Math.PI*2);
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-  ctx.restore();
-  // Ring bottom = 332
-
-  // ============================================================
-  //  3. FIRST NAME
-  //     NAME_TOP = ring-bot(332) + gap(32) = 364
-  // ============================================================
-  var NAME_TOP = 364;
-  var fnLen = fname.length;
-  var fnSz  = fnLen > 12 ? 64
-            : fnLen > 10 ? 72
-            : fnLen > 7  ? 82
-            : fnLen > 5  ? 92
-            :              104;
+  // Name block — to the right of photo
+  var NAME_X  = PHOTO_CX + PHOTO_R + 40;
+  var NAME_W2 = W - NAME_X - PAD;
 
   ctx.save();
-  ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.font = '900 ' + fnSz + 'px Georgia, serif';
+
+  var nlY2 = PHOTO_CY - PHOTO_R + 14;
+  ctx.font = '800 15px sans-serif';
+  ctx.fillStyle = GOLD;
+  ctx.fillText("TODAY'S LOG", NAME_X, nlY2);
+
+  ctx.fillStyle = GLD_D; ctx.globalAlpha = 0.5;
+  ctx.fillRect(NAME_X, nlY2 + 8, 140, 1);
+  ctx.globalAlpha = 1;
+
+  var fnLen = fname.length;
+  var fnSz2 = fnLen > 10 ? 58 : fnLen > 7 ? 72 : fnLen > 5 ? 84 : 96;
+  ctx.font = '900 ' + fnSz2 + 'px Georgia,serif';
   ctx.fillStyle = WHITE;
-  ctx.shadowColor = 'rgba(201,162,39,0.18)'; ctx.shadowBlur = 18;
-
+  ctx.shadowColor = 'rgba(201,162,39,0.28)'; ctx.shadowBlur = 28;
   var dispFirst = fname;
-  var maxNameW  = W - PAD * 2;
-  while (ctx.measureText(dispFirst).width > maxNameW && dispFirst.length > 2) {
-    fnSz -= 4;
-    ctx.font = '900 ' + fnSz + 'px Georgia, serif';
-  }
-  var FNAME_BASELINE = NAME_TOP + fnSz;
-  ctx.fillText(dispFirst, W/2, FNAME_BASELINE);
+  while (ctx.measureText(dispFirst).width > NAME_W2 && dispFirst.length > 3)
+    dispFirst = dispFirst.slice(0,-1);
+  ctx.fillText(dispFirst, NAME_X, nlY2 + 18 + fnSz2);
   ctx.shadowBlur = 0;
-  ctx.restore();
 
-  // ============================================================
-  //  4. LAST NAME  - gap 10 after fname
-  // ============================================================
-  var LNAME_FONTSIZE = 30;
-  var LNAME_BASELINE = FNAME_BASELINE + 10 + LNAME_FONTSIZE;
-  var AFTER_LNAME    = LNAME_BASELINE;
-  var lname = name.replace(fname, '').trim();
-
+  var lname = name.replace(fname,'').trim();
+  var lnY2 = nlY2 + 26 + fnSz2;
   if (lname) {
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.font = '300 ' + LNAME_FONTSIZE + 'px Georgia, serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.20)';
-    var dispLast = lname.length > 20 ? lname.slice(0,19)+'...' : lname;
-    ctx.fillText(dispLast, W/2, LNAME_BASELINE);
-    ctx.restore();
+    ctx.font = '300 32px Georgia,serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    var dispLast = lname.length > 14 ? lname.slice(0,13)+'…' : lname;
+    ctx.fillText(dispLast, NAME_X, lnY2 + 40);
+    lnY2 += 48;
   }
 
-  // ============================================================
-  //  5. BOOKWARRIOR BADGE
-  //     top = AFTER_LNAME + 22  h=44
-  // ============================================================
-  var BADGE_Y   = AFTER_LNAME + 22;
-  var BADGE_H   = 44;
-  var BADGE_BOT = BADGE_Y + BADGE_H;
+  // BOOKWARRIOR chip
+  var chipY2 = lnY2 + 24;
+  var chipH2 = 46;
+  var chipTx2 = '⚔  BOOKWARRIOR  ·  S1 \'26';
+  ctx.font = '700 19px sans-serif';
+  var chipW2 = Math.min(ctx.measureText(chipTx2).width + 36, NAME_W2);
 
-  var badgeTx = '** BOOKWARRIOR  S1 26';
-  ctx.save();
-  ctx.font = '700 17px sans-serif';
-  var badgeW = Math.min(ctx.measureText(badgeTx).width + 56, 420);
-  var badgeX = W/2 - badgeW/2;
-
-  var bdgBg = ctx.createLinearGradient(badgeX, BADGE_Y, badgeX+badgeW, BADGE_Y+BADGE_H);
-  bdgBg.addColorStop(0, 'rgba(201,162,39,0.13)');
-  bdgBg.addColorStop(1, 'rgba(201,162,39,0.05)');
-  ctx.fillStyle = bdgBg;
-  _roundRect(ctx, badgeX, BADGE_Y, badgeW, BADGE_H, 22); ctx.fill();
-  ctx.strokeStyle = 'rgba(201,162,39,0.30)'; ctx.lineWidth = 1;
-  _roundRect(ctx, badgeX, BADGE_Y, badgeW, BADGE_H, 22); ctx.stroke();
-
-  ctx.fillStyle = GLD_L;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(badgeTx, W/2, BADGE_Y + BADGE_H/2);
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  var chipBg2 = ctx.createLinearGradient(NAME_X, chipY2, NAME_X+chipW2, chipY2+chipH2);
+  chipBg2.addColorStop(0,'rgba(201,162,39,0.20)'); chipBg2.addColorStop(1,'rgba(201,162,39,0.07)');
+  ctx.fillStyle = chipBg2;
+  _roundRect(ctx, NAME_X, chipY2, chipW2, chipH2, 23);
+  ctx.strokeStyle = 'rgba(201,162,39,0.45)'; ctx.lineWidth = 1.5;
+  _roundRectStroke(ctx, NAME_X, chipY2, chipW2, chipH2, 23);
+  ctx.fillStyle = GLD_L; ctx.textBaseline = 'middle';
+  ctx.fillText(chipTx2, NAME_X + 18, chipY2 + chipH2/2);
+  ctx.textBaseline = 'alphabetic';
   ctx.restore();
 
-  // ============================================================
-  //  6. STREAK BADGE
-  //     top = BADGE_BOT + 18  h=50
-  // ============================================================
-  var STREAK_Y   = BADGE_BOT + 18;
-  var STREAK_H   = 50;
-  var STREAK_BOT = STREAK_Y + STREAK_H;
+  // Recalc Y positions relative to photo bottom
+  var PHOTO_BOT = PHOTO_CY + PHOTO_R + 20;
+  STREAK_Y  = PHOTO_BOT + 28;
+  BOOK_Y    = STREAK_Y + 84;
+  DIVIDER_Y = BOOK_Y + 150;
+  ACH_Y     = DIVIDER_Y + 66;
+  CREED_Y   = ACH_Y + 52;
+  STATS_Y   = CREED_Y + 56;
+  QUOTE_Y   = STATS_Y + STATS_H + 46;
+
+  // ════════════════════════════════════════════════════════════════
+  // STREAK BADGE
+  // ════════════════════════════════════════════════════════════════
+  ctx.save();
+  var sbX = PAD, sbY = STREAK_Y;
+  var sbW = Math.min(320, W - sbX - PAD), sbH = 62;
 
   if (streak > 0) {
-    ctx.save();
-    var strkW = 268;
-    var strkX = W/2 - strkW/2;
-
-    ctx.shadowColor = 'rgba(201,162,39,0.4)'; ctx.shadowBlur = 22;
-    var sg = ctx.createLinearGradient(strkX, STREAK_Y, strkX+strkW, STREAK_Y+STREAK_H);
-    sg.addColorStop(0,    '#7A5200');
-    sg.addColorStop(0.15, GLD_L);
-    sg.addColorStop(0.5,  GOLD);
-    sg.addColorStop(0.85, GLD_M);
-    sg.addColorStop(1,    '#9A6A00');
+    ctx.shadowColor = 'rgba(201,162,39,0.55)'; ctx.shadowBlur = 28;
+    var sg = ctx.createLinearGradient(sbX, sbY, sbX+sbW, sbY+sbH);
+    sg.addColorStop(0,'#7A5200'); sg.addColorStop(0.15,GLD_L);
+    sg.addColorStop(0.5,GOLD); sg.addColorStop(0.85,GLD_M); sg.addColorStop(1,'#9A6A00');
     ctx.fillStyle = sg;
-    _roundRect(ctx, strkX, STREAK_Y, strkW, STREAK_H, 25); ctx.fill();
+    _roundRect(ctx, sbX, sbY, sbW, sbH, 31);
     ctx.shadowBlur = 0;
-
-    ctx.globalAlpha = 0.16;
-    var shine = ctx.createLinearGradient(strkX, STREAK_Y, strkX, STREAK_Y+STREAK_H);
-    shine.addColorStop(0, WHITE); shine.addColorStop(0.5, 'transparent');
-    ctx.fillStyle = shine;
-    _roundRect(ctx, strkX+1, STREAK_Y, strkW-2, STREAK_H*0.5, 25); ctx.fill();
+    ctx.globalAlpha = 0.18;
+    var shine = ctx.createLinearGradient(sbX,sbY,sbX,sbY+sbH);
+    shine.addColorStop(0,WHITE); shine.addColorStop(0.5,'transparent');
+    ctx.fillStyle = shine; _roundRect(ctx, sbX+1, sbY, sbW-2, sbH*0.5, 31);
     ctx.globalAlpha = 1;
-
-    var emoji = streak>=90?'Trophy':streak>=30?'Crown':streak>=14?'Lightning':'Fire';
-    ctx.font = '700 19px sans-serif';
-    ctx.fillStyle = BG1;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(emoji + '  ' + streak + ' DAY STREAK', W/2, STREAK_Y+STREAK_H/2);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
+    var emoji = streak>=90?'🏆':streak>=30?'👑':streak>=14?'⚡':'🔥';
+    ctx.font = '800 26px sans-serif'; ctx.fillStyle = NAVY; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(emoji+'  '+streak+' DAY STREAK', sbX+sbW/2, sbY+sbH/2);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  } else {
+    ctx.strokeStyle = GLD_D; ctx.lineWidth = 1.5;
+    var fw = 220, fh = 52;
+    _roundRectStroke(ctx, sbX, sbY, fw, fh, 26);
+    ctx.font = '700 20px sans-serif'; ctx.fillStyle = GOLD;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('✨  FIRST SESSION', sbX+fw/2, sbY+fh/2);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
   }
-
-  // ============================================================
-  //  SEPARATOR 1  - centred in gap after streak
-  //  SEP1_Y = STREAK_BOT + 26
-  // ============================================================
-  var SEP1_Y = STREAK_BOT + 26;
-
-  ctx.save();
-  var sep1Gr = ctx.createLinearGradient(PAD, 0, W-PAD, 0);
-  sep1Gr.addColorStop(0,    'transparent');
-  sep1Gr.addColorStop(0.15, 'rgba(201,162,39,0.22)');
-  sep1Gr.addColorStop(0.5,  'rgba(201,162,39,0.35)');
-  sep1Gr.addColorStop(0.85, 'rgba(201,162,39,0.22)');
-  sep1Gr.addColorStop(1,    'transparent');
-  ctx.fillStyle = sep1Gr;
-  ctx.fillRect(PAD, SEP1_Y, W-PAD*2, 1);
   ctx.restore();
 
-  // ============================================================
-  //  7. BOOK BLOCK
-  //     NR_Y (label baseline) = SEP1_Y + 26
-  //     BOOK_START             = NR_Y + 24
-  // ============================================================
-  var NR_Y       = SEP1_Y + 26;
-  var BOOK_START = NR_Y + 24;
-  var AFTER_BOOK = BOOK_START + 8;
-
-  var bookStat2 = stats2.find(function(r){
-    return String(r[0]).toLowerCase() === 'book';
-  });
+  // ════════════════════════════════════════════════════════════════
+  // BOOK BLOCK
+  // ════════════════════════════════════════════════════════════════
+  var bookStat2 = stats2.find(function(r){ return String(r[0]).toLowerCase()==='book'; });
 
   if (bookStat2 && !isRest) {
     ctx.save();
-
-    // "NOW READING" label
-    ctx.font = '700 16px sans-serif';
-    ctx.fillStyle = 'rgba(201,162,39,0.42)';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText('NOW READING', W/2, NR_Y);
-
-    var nrW = ctx.measureText('NOW READING').width;
-    ctx.fillStyle = 'rgba(201,162,39,0.18)';
-    ctx.fillRect(W/2 - nrW/2, NR_Y+7, nrW, 1);
-
-    // Book title split
     var rawBook  = String(bookStat2[1]);
-    var splitIdx = 26;
+    var splitIdx = 30;
     if (rawBook.length > splitIdx) {
       var sp = rawBook.lastIndexOf(' ', splitIdx);
-      if (sp < 8) sp = splitIdx;
+      if (sp < 12) sp = splitIdx;
       splitIdx = sp;
     }
     var bkL1 = rawBook.slice(0, splitIdx).trim();
     var bkL2 = rawBook.length > splitIdx ? rawBook.slice(splitIdx).trim() : '';
-    if (bkL2.length > 30) bkL2 = bkL2.slice(0,29)+'...';
+    if (bkL2.length > 34) { bkL2 = bkL2.slice(0,33)+'…'; }
 
-    var bkSz = bkL2 ? 44 : 52;
-    ctx.font = '700 ' + bkSz + 'px Georgia, serif';
-    while (ctx.measureText(bkL1).width > W-PAD*2 && bkSz > 28) {
-      bkSz -= 2;
-      ctx.font = '700 ' + bkSz + 'px Georgia, serif';
-    }
+    var bkH3 = bkL2 ? 126 : 104;
+    var bkW3 = W - PAD*2;
+    var bkX3 = PAD;
 
-    var BK1_BASELINE = BOOK_START + bkSz;
-    ctx.fillStyle = WHITE;
-    ctx.shadowColor = 'rgba(201,162,39,0.1)'; ctx.shadowBlur = 8;
-    ctx.fillText(bkL1, W/2, BK1_BASELINE);
-    ctx.shadowBlur = 0;
-    AFTER_BOOK = BK1_BASELINE;
+    var bbg3 = ctx.createLinearGradient(bkX3,BOOK_Y,bkX3,BOOK_Y+bkH3);
+    bbg3.addColorStop(0,'rgba(255,255,255,0.09)'); bbg3.addColorStop(1,'rgba(255,255,255,0.04)');
+    ctx.fillStyle = bbg3;
+    ctx.strokeStyle='rgba(255,255,255,0.09)'; ctx.lineWidth=1;
+    _roundRect(ctx,bkX3,BOOK_Y,bkW3,bkH3,16);
+    _roundRectStroke(ctx,bkX3,BOOK_Y,bkW3,bkH3,16);
 
-    if (bkL2) {
-      var BK2_BASELINE = BK1_BASELINE + bkSz + 6;
-      ctx.font = '300 ' + bkSz + 'px Georgia, serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.fillText(bkL2, W/2, BK2_BASELINE);
-      AFTER_BOOK = BK2_BASELINE;
-    }
+    var lg3 = ctx.createLinearGradient(bkX3,BOOK_Y,bkX3,BOOK_Y+bkH3);
+    lg3.addColorStop(0,GLD_L); lg3.addColorStop(1,GLD_D);
+    ctx.fillStyle = lg3; ctx.fillRect(bkX3,BOOK_Y,6,bkH3);
 
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.font = '700 15px sans-serif'; ctx.fillStyle = GOLD;
+    ctx.textBaseline = 'top';
+    ctx.fillText('📖  NOW READING', bkX3+22, BOOK_Y+13);
+
+    var tSz3 = bkL2 ? 28 : 34;
+    ctx.font = '800 '+tSz3+'px Georgia,serif'; ctx.fillStyle = WHITE;
+    ctx.shadowColor='rgba(201,162,39,0.22)'; ctx.shadowBlur=10;
+    ctx.fillText(bkL1, bkX3+22, BOOK_Y+38);
+    if (bkL2) ctx.fillText(bkL2, bkX3+22, BOOK_Y+38+tSz3+4);
+    ctx.shadowBlur=0; ctx.textBaseline='alphabetic';
     ctx.restore();
-
+    DIVIDER_Y = BOOK_Y + bkH3 + 22;
   } else if (isRest) {
     ctx.save();
-    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.font = '300 italic 34px Georgia, serif';
-    ctx.fillStyle = 'rgba(167,139,250,0.55)';
-    ctx.fillText('Rest Day - Recovery', W/2, BOOK_START+40);
-    ctx.font = '400 18px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.fillText('Discipline includes rest.', W/2, BOOK_START+76);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.font = '700 19px sans-serif'; ctx.fillStyle = 'rgba(167,139,250,0.82)';
+    ctx.fillText('😴  REST & RECOVERY — DISCIPLINE INCLUDES REST', PAD, BOOK_Y + 32);
     ctx.restore();
-    AFTER_BOOK = BOOK_START + 80;
+    DIVIDER_Y = BOOK_Y + 60;
+  } else {
+    DIVIDER_Y = BOOK_Y + 10;
   }
 
-  // ============================================================
-  //  8. STAT CARDS
-  //     top = AFTER_BOOK + 40  h=168
-  //     3 cards, equal widths, STAT_GAP=14
-  //     STAT_W = floor((1080-160-28)/3) = 297
-  // ============================================================
-  var STAT_Y   = AFTER_BOOK + 40;
-  var STAT_H   = 168;
-  var STAT_GAP = 14;
-  var STAT_BOT = STAT_Y + STAT_H;
+  ACH_Y   = DIVIDER_Y + 58;
+  CREED_Y = ACH_Y + 52;
+  STATS_Y = CREED_Y + 56;
+  QUOTE_Y = STATS_Y + STATS_H + 46;
 
+  // ════════════════════════════════════════════════════════════════
+  // DIAGONAL GOLD DIVIDER
+  // ════════════════════════════════════════════════════════════════
+  ctx.save();
+  ctx.fillStyle = GOLD; ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.moveTo(0, DIVIDER_Y); ctx.lineTo(W, DIVIDER_Y-44);
+  ctx.lineTo(W, DIVIDER_Y-37); ctx.lineTo(0, DIVIDER_Y+7);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 0.14;
+  ctx.beginPath();
+  ctx.moveTo(0, DIVIDER_Y+18); ctx.lineTo(W, DIVIDER_Y-24);
+  ctx.lineTo(W, DIVIDER_Y-22); ctx.lineTo(0, DIVIDER_Y+20);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1; ctx.restore();
+
+  // ════════════════════════════════════════════════════════════════
+  // ACHIEVEMENT HEADLINE
+  // ════════════════════════════════════════════════════════════════
+  ctx.save();
+  var achTxt = isRest ? 'REST DAY LOGGED' : title.toUpperCase();
+  var achSz  = achTxt.length > 20 ? 50 : achTxt.length > 14 ? 60 : 72;
+  var achGr  = ctx.createLinearGradient(0, ACH_Y-achSz, 0, ACH_Y);
+  achGr.addColorStop(0, GLD_L); achGr.addColorStop(0.5, GLD_M); achGr.addColorStop(1, GLD_D);
+  ctx.font = '900 '+achSz+'px Georgia,serif';
+  ctx.fillStyle = achGr; ctx.textAlign='center';
+  ctx.shadowColor='rgba(201,162,39,0.35)'; ctx.shadowBlur=22;
+  ctx.fillText(achTxt, W/2, ACH_Y);
+  ctx.shadowBlur=0;
+  var aw = ctx.measureText(achTxt).width;
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(W/2-Math.min(aw/2,230), ACH_Y+10, Math.min(aw,460), 2.5);
+  ctx.font = '600 17px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.18)';
+  ctx.fillText('READ · REFLECT · EXECUTE', W/2, CREED_Y);
+  ctx.textAlign='left'; ctx.restore();
+
+  // ════════════════════════════════════════════════════════════════
+  // STAT BLOCKS
+  // ════════════════════════════════════════════════════════════════
   var validSt = stats2.filter(function(r){
-    var v = String(r[1]||'');
-    return v && v!=='0 min' && v!=='0' &&
-           String(r[0]).toLowerCase()!=='book';
+    var v=String(r[1]||'');
+    return v && v!=='0 min' && v!=='0' && String(r[0]).toLowerCase()!=='book';
   });
-  if (!validSt.length) validSt = stats2.filter(function(r){
-    return String(r[0]).toLowerCase()!=='book';
-  }).slice(0,3);
+  if (!validSt.length) validSt = stats2.slice(0,3);
+  var nSt = Math.min(validSt.length, 3);
+  var sPad3 = PAD, sGap3 = 14;
+  var sW3  = nSt > 0 ? Math.floor((W - sPad3*2 - sGap3*(nSt-1)) / nSt) : 300;
 
-  var nSt        = Math.min(validSt.length, 3);
-  var totalStatW = W - PAD*2 - STAT_GAP*(nSt-1);
-  var STAT_W     = Math.floor(totalStatW / nSt);
-  var STAT_W_LAST = totalStatW - STAT_W*(nSt-1);
-
-  validSt.slice(0, nSt).forEach(function(row, i) {
-    var cardW = (i === nSt-1) ? STAT_W_LAST : STAT_W;
-    var sx    = PAD + i*(STAT_W + STAT_GAP);
-    var sy    = STAT_Y;
+  validSt.slice(0,nSt).forEach(function(row, i) {
+    var sx = sPad3 + i*(sW3+sGap3), sy = STATS_Y;
 
     ctx.save();
+    var cg3 = ctx.createLinearGradient(sx,sy,sx,sy+STATS_H);
+    cg3.addColorStop(0,'rgba(255,255,255,0.09)'); cg3.addColorStop(1,'rgba(255,255,255,0.04)');
+    ctx.fillStyle=cg3; ctx.strokeStyle='rgba(255,255,255,0.09)'; ctx.lineWidth=1;
+    _roundRect(ctx,sx,sy,sW3,STATS_H,20);
+    _roundRectStroke(ctx,sx,sy,sW3,STATS_H,20);
 
-    // Glass card
-    var cg = ctx.createLinearGradient(sx, sy, sx, sy+STAT_H);
-    cg.addColorStop(0, 'rgba(255,255,255,0.065)');
-    cg.addColorStop(1, 'rgba(255,255,255,0.022)');
-    ctx.fillStyle = cg;
-    _roundRect(ctx, sx, sy, cardW, STAT_H, 14); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
-    _roundRect(ctx, sx, sy, cardW, STAT_H, 14); ctx.stroke();
+    var tg3 = ctx.createLinearGradient(sx,sy,sx+sW3,sy);
+    tg3.addColorStop(0,GLD_L); tg3.addColorStop(1,GLD_D);
+    ctx.fillStyle=tg3; _roundRect(ctx,sx,sy,sW3,5,3);
 
-    // Top gold bar
-    var tg = ctx.createLinearGradient(sx, sy, sx+cardW, sy);
-    tg.addColorStop(0, GLD_L); tg.addColorStop(1, GLD_D);
-    ctx.fillStyle = tg;
-    ctx.fillRect(sx, sy, cardW, 3);
+    ctx.globalAlpha=0.09;
+    var sh3=ctx.createLinearGradient(sx,sy,sx,sy+STATS_H*0.45);
+    sh3.addColorStop(0,WHITE); sh3.addColorStop(1,'transparent');
+    ctx.fillStyle=sh3; _roundRect(ctx,sx+1,sy+5,sW3-2,STATS_H*0.38,18);
+    ctx.globalAlpha=1;
 
-    // Stat value
-    var val = String(row[1]);
-    var vSz = val.length>7 ? 42
-            : val.length>5 ? 52
-            : val.length>3 ? 62
-            : 74;
-    var vGr = ctx.createLinearGradient(sx, sy+STAT_H*0.28, sx, sy+STAT_H*0.72);
-    vGr.addColorStop(0,   GLD_L);
-    vGr.addColorStop(0.5, GLD_M);
-    vGr.addColorStop(1,   GLD_D);
-    ctx.font = '900 ' + vSz + 'px Georgia, serif';
-    ctx.fillStyle = vGr;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(201,162,39,0.28)'; ctx.shadowBlur = 10;
-    ctx.fillText(val, sx+cardW/2, sy+STAT_H*0.46);
-    ctx.shadowBlur = 0;
-
-    // Label
-    ctx.font = '600 12px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(row[0]).toUpperCase(), sx+cardW/2, sy+STAT_H-22);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
+    var val=String(row[1]);
+    var vSz=val.length>7?44:val.length>5?56:val.length>3?70:84;
+    var vg=ctx.createLinearGradient(sx,sy+STATS_H*0.3,sx,sy+STATS_H*0.72);
+    vg.addColorStop(0,GLD_L); vg.addColorStop(0.5,GLD_M); vg.addColorStop(1,GLD_D);
+    ctx.font='900 '+vSz+'px Georgia,serif'; ctx.fillStyle=vg;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.shadowColor='rgba(201,162,39,0.45)'; ctx.shadowBlur=16;
+    ctx.fillText(val, sx+sW3/2, sy+STATS_H*0.50);
+    ctx.shadowBlur=0;
+    ctx.font='700 14px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.30)';
+    ctx.fillText(String(row[0]).toUpperCase(), sx+sW3/2, sy+STATS_H-26);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.restore();
   });
 
-  // ============================================================
-  //  9. QUOTE  - gap 40 below stats, max 2 lines
-  // ============================================================
-  var QUOTE_Y   = STAT_BOT + 40;
-  var QUOTE_BOT = QUOTE_Y + 62;
-
+  // ════════════════════════════════════════════════════════════════
+  // QUOTE
+  // ════════════════════════════════════════════════════════════════
   var qList = [
-    '"Not all readers are leaders - but all leaders are readers."',
-    '"The person you'll be in 5 years lives in the books you read today."',
+    '"Not all readers are leaders — but all leaders are readers."',
+    '"The person you\'ll be in 5 years is in the books you read today."',
     '"Reading is the gym for the mind. Show up daily."',
     '"One book at a time. One warrior at a time."',
     '"The edge you seek is on pages you have not yet read."',
@@ -4375,85 +4607,65 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
     '"Leaders are readers who act on what they read."'
   ];
   ctx.save();
-  ctx.font = 'italic 300 21px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.13)';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  _wrapText(ctx,
-    qList[now3.getDay() % qList.length],
-    W/2, QUOTE_Y, W-PAD*2-40, 30);
-  ctx.textAlign = 'left';
-  ctx.restore();
+  ctx.font='italic 24px Georgia,serif'; ctx.fillStyle='rgba(255,255,255,0.18)';
+  ctx.textAlign='center';
+  _wrapText(ctx, qList[now3.getDay()%qList.length], W/2, QUOTE_Y, W-120, 36);
+  ctx.textAlign='left'; ctx.restore();
 
-  // ============================================================
-  //  SEPARATOR 2  - before CTA
-  // ============================================================
-  var SEP2_Y = QUOTE_BOT + 14;
-
+  // ════════════════════════════════════════════════════════════════
+  // CTA STRIP
+  // ════════════════════════════════════════════════════════════════
   ctx.save();
-  var sep2Gr = ctx.createLinearGradient(0, 0, W, 0);
-  sep2Gr.addColorStop(0,    GLD_L);
-  sep2Gr.addColorStop(0.55, GOLD);
-  sep2Gr.addColorStop(1,    'transparent');
-  ctx.fillStyle = sep2Gr;
-  ctx.fillRect(0, SEP2_Y, W, 1.5);
-  ctx.restore();
+  var ctaH4 = H - CTA_Y - 8;
+  var ctaG  = ctx.createLinearGradient(0,CTA_Y,W,CTA_Y+ctaH4);
+  ctaG.addColorStop(0,'rgba(201,162,39,0.16)'); ctaG.addColorStop(0.5,'rgba(10,26,60,0.88)');
+  ctaG.addColorStop(1,'rgba(4,8,15,0.96)');
+  ctx.fillStyle=ctaG; ctx.fillRect(0,CTA_Y,W,ctaH4);
 
-  // ============================================================
-  //  10. CTA BLOCK  - stacked from SEP2_Y + 14
-  // ============================================================
-  var CTA_TOP = SEP2_Y + 14;
+  var eG2=ctx.createLinearGradient(0,CTA_Y,W,CTA_Y);
+  eG2.addColorStop(0,'transparent'); eG2.addColorStop(0.25,GLD_L);
+  eG2.addColorStop(0.75,GLD_L); eG2.addColorStop(1,'transparent');
+  ctx.fillStyle=eG2; ctx.fillRect(0,CTA_Y,W,2.5);
 
-  ctx.save();
-  ctx.fillStyle = 'rgba(2,5,10,0.35)';
-  ctx.fillRect(0, SEP2_Y, W, H-SEP2_Y);
-  ctx.restore();
-
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-
-  var ctaY = CTA_TOP + 18;
-
-  // Season label
-  ctx.font = '700 13px sans-serif';
-  ctx.fillStyle = 'rgba(201,162,39,0.38)';
-  ctx.fillText('S E A S O N   O N E   .   2 0 2 6', W/2, ctaY);
-
-  // Headline
-  ctaY += 30;
-  var hGr = ctx.createLinearGradient(0, ctaY-50, 0, ctaY);
-  hGr.addColorStop(0, GLD_L); hGr.addColorStop(0.5, GLD_M); hGr.addColorStop(1, GLD_D);
-  ctx.font = '900 48px Georgia, serif';
-  ctx.fillStyle = hGr;
-  ctx.shadowColor = 'rgba(201,162,39,0.22)'; ctx.shadowBlur = 16;
-  ctx.fillText('24 BOOKS. 6 MONTHS.', W/2, ctaY+48);
-  ctx.shadowBlur = 0;
-
-  // Subtitle
-  ctaY += 48 + 10;
-  ctx.font = '300 italic 34px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.48)';
-  ctx.fillText('One Identity.', W/2, ctaY+34);
-
-  // URL
-  ctaY += 34 + 18;
-  ctx.font = '600 19px sans-serif';
-  ctx.fillStyle = 'rgba(245,200,66,0.62)';
-  ctx.fillText('selar.com/bookaweekchallenge', W/2, ctaY+19);
-
-  // Hashtags
-  ctaY += 19 + 14;
-  ctx.font = '400 13px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.13)';
-  ctx.fillText('#BookAWeek  .  #BookWarrior  .  #ReadReflectExecute', W/2, ctaY+13);
-
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.restore();
+  ctx.textAlign='center';
+  var hG3=ctx.createLinearGradient(0,CTA_Y+16,0,CTA_Y+60);
+  hG3.addColorStop(0,GLD_L); hG3.addColorStop(1,GLD_M);
+  ctx.font='900 32px Georgia,serif'; ctx.fillStyle=hG3;
+  ctx.shadowColor='rgba(201,162,39,0.55)'; ctx.shadowBlur=18;
+  ctx.fillText('24 BOOKS. 6 MONTHS. 1 IDENTITY.', W/2, CTA_Y+50);
+  ctx.shadowBlur=0;
+  ctx.font='500 21px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.55)';
+  ctx.fillText('Season 1 is LIVE. Spots are limited.', W/2, CTA_Y+88);
+  ctx.font='700 18px sans-serif'; ctx.fillStyle='rgba(245,200,66,0.78)';
+  ctx.fillText('→  selar.com/bookaweekchallenge', W/2, CTA_Y+122);
+  ctx.font='500 14px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.22)';
+  ctx.fillText('#BookAWeek  ·  #BookWarrior  ·  #ReadReflectExecute', W/2, CTA_Y+154);
+  ctx.textAlign='left'; ctx.restore();
 
   updateShareBlob(document.getElementById('shareCanvas'));
 }
 
+// ── HELPER: stroke a rounded rect without filling ────────────────
+function _roundRectStroke(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath(); ctx.stroke();
+}
+
+// ── HELPER: build rounded rect path without filling ──────────────
+function _roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
 
 function _roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -4466,7 +4678,6 @@ function _roundRect(ctx, x, y, w, h, r) {
 }
 
 function _wrapText(ctx, text, x, y, maxW, lineH) {
-  // Remove surrounding quotes for wrapping, re-add after
   var words = text.split(' '), line = '';
   for (var n=0; n<words.length; n++) {
     var test = line + words[n] + ' ';
@@ -4474,9 +4685,7 @@ function _wrapText(ctx, text, x, y, maxW, lineH) {
       ctx.fillText(line.trim(), x, y);
       line = words[n] + ' ';
       y += lineH;
-    } else {
-      line = test;
-    }
+    } else { line = test; }
   }
   ctx.fillText(line.trim(), x, y);
 }
@@ -4497,11 +4706,9 @@ function drawInitialsCircle(ctx, x, y, r, name) {
   ctx.restore();
 }
 
-
 // ── NATIVE SHARE ─────────────────────────────────────────────
 function doNativeShare() {
   if (!_shareBlob) {
-    // Blob not ready yet — generate and retry
     var canvas = document.getElementById('shareCanvas');
     canvas.toBlob(function(blob) {
       _shareBlob = blob;
@@ -4526,12 +4733,10 @@ function doNativeShare() {
       if (e.name !== 'AbortError') downloadShareCard();
     });
   } else if (navigator.share) {
-    // Share without file (text only)
     navigator.share({ title:'BOOKAWEEK', text: caption })
-      .then(function() { downloadShareCard(); }) // also save image
+      .then(function() { downloadShareCard(); })
       .catch(function(e) { if (e.name !== 'AbortError') downloadShareCard(); });
   } else {
-    // Desktop fallback
     downloadShareCard();
   }
 }
@@ -4558,7 +4763,6 @@ function _shareCaption() {
 }
 
 function shareToWhatsApp() {
-  // Save image first, then open WhatsApp
   downloadShareCard();
   setTimeout(function() {
     var caption = encodeURIComponent(_shareCaption());
@@ -4567,7 +4771,6 @@ function shareToWhatsApp() {
 }
 
 function shareToInstagram() {
-  // Instagram doesn't support direct share via URL — save image + guide user
   downloadShareCard();
   setTimeout(function() {
     toast('Image saved! Open Instagram and post from your gallery 📸');
@@ -4587,8 +4790,6 @@ function shareToTwitter() {
     window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
   }, 600);
 }
-
-</script>
 
 <!-- SHARE SHEET — PREMIUM DARK EDITION -->
 <style>
@@ -4822,6 +5023,3 @@ function shareToTwitter() {
     <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
   </div>
 </div>
-
-</body>
-</html>
