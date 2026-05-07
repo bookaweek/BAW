@@ -129,8 +129,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 @keyframes spin{to{transform:rotate(360deg)}}
 .err-box{display:none;background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.28);border-radius:10px;padding:11px 14px;font-size:13px;color:#E07070;margin:10px 16px 0;text-align:center}
 .err-box.show{display:block}
-.success{display:none;position:fixed;inset:0;background:var(--navy);z-index:500;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center}
-.success.show{display:flex;animation:fadeIn .35s ease}
+.success{display:none;position:fixed;inset:0;background:var(--navy);z-index:500;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;text-align:center;overflow:hidden}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .s-icon{width:90px;height:90px;background:linear-gradient(135deg,var(--gold),#F5C842);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:44px;margin-bottom:28px;box-shadow:0 0 0 14px rgba(242,183,5,.1),0 0 0 28px rgba(242,183,5,.05);animation:popIn .55s cubic-bezier(.34,1.56,.64,1) .15s both}
 @keyframes popIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
