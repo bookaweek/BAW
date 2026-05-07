@@ -3912,19 +3912,13 @@ function renderShareCard(photoDataUrl) {
 
 function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, photoImg) {
 
-  // ==================================================================
-  // BOOKAWEEK - SHARE CARD v2  1080 x 1350
-  // Verified coordinate stack - zero overlaps, full audit passed.
-  // Top-down chain: each element Y = previous bottom + fixed gap.
-  // ==================================================================
-
   var d      = _lastLogData || {};
   var stats2 = d.stats || stats || [];
   var title  = String(d.title || 'Session Logged').replace(/[!]/g,'').replace(/\(offline\)/g,'').trim();
   var isRest = title.toLowerCase().indexOf('rest') !== -1;
   var now3   = new Date();
 
-  // -- PALETTE -----------------------------------------------------
+  // PALETTE
   var BG1   = '#030710';
   var BG2   = '#060D1C';
   var BG3   = '#081528';
@@ -3935,7 +3929,7 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
   var WHITE = '#FFFFFF';
   var PAD   = 80;
 
-  // -- BACKGROUND ----------------------------------------------
+  // BACKGROUND
   var bgGr = ctx.createLinearGradient(0, 0, 0, H);
   bgGr.addColorStop(0,    BG1);
   bgGr.addColorStop(0.38, BG2);
@@ -3943,7 +3937,7 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
   ctx.fillStyle = bgGr;
   ctx.fillRect(0, 0, W, H);
 
-  // Top-right atmosphere - restrained single glow
+  // Atmosphere glow
   var atm = ctx.createRadialGradient(W*0.95, 20, 0, W*0.95, 20, W*0.65);
   atm.addColorStop(0,   'rgba(201,162,39,0.07)');
   atm.addColorStop(0.7, 'rgba(201,162,39,0.015)');
@@ -3951,7 +3945,7 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
   ctx.fillStyle = atm;
   ctx.fillRect(0, 0, W, H*0.55);
 
-  // -- LEFT SPINE -----------------------------------------------
+  // Left spine
   var spineGr = ctx.createLinearGradient(0, 0, 0, H);
   spineGr.addColorStop(0,    GLD_L);
   spineGr.addColorStop(0.35, GOLD);
@@ -3960,7 +3954,7 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
   ctx.fillStyle = spineGr;
   ctx.fillRect(0, 0, 5, H);
 
-  // -- TOP EDGE ------------------------------------------------
+  // Top edge
   var topLine = ctx.createLinearGradient(0, 0, W, 0);
   topLine.addColorStop(0,    GLD_L);
   topLine.addColorStop(0.55, GOLD);
@@ -3968,7 +3962,7 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
   ctx.fillStyle = topLine;
   ctx.fillRect(0, 0, W, 3);
 
-  // -- BOTTOM EDGE ---------------------------------------------
+  // Bottom edge
   var botLine = ctx.createLinearGradient(0, 0, W, 0);
   botLine.addColorStop(0,    GLD_L);
   botLine.addColorStop(0.55, GOLD);
@@ -3976,80 +3970,53 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
   ctx.fillStyle = botLine;
   ctx.fillRect(0, H-3, W, 3);
 
-  // ============================================================
-  //  1. BRAND BAR  - baseline Y=72
-  // ============================================================
+  // === 1. BRAND BAR baseline Y=72 ===
   ctx.save();
   ctx.textBaseline = 'alphabetic';
-
-  // "BOOK" bold
   ctx.font = '900 27px Georgia, serif';
   ctx.fillStyle = GLD_L;
   ctx.textAlign = 'left';
   ctx.fillText('BOOK', PAD, 72);
   var bkW = ctx.measureText('BOOK').width;
-
-  // separator pip
   ctx.fillStyle = 'rgba(201,162,39,0.28)';
   ctx.fillRect(PAD + bkW + 9, 52, 1, 20);
-
-  // "AWEEK" light
   ctx.font = '300 27px Georgia, serif';
   ctx.fillStyle = 'rgba(255,255,255,0.22)';
   ctx.fillText('AWEEK', PAD + bkW + 20, 72);
-
-  // Date - right aligned same baseline
   ctx.textAlign = 'right';
   ctx.font = '400 20px sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.14)';
   ctx.fillText(dayName + '  .  ' + dateFmt, W - PAD, 72);
-
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.restore();
-  // Brand bottom approx 80px
 
-  // ============================================================
-  //  2. PHOTO CIRCLE
-  //     cy = 80 + 68 + 90 = 238
-  //     top=148  bot=328  ring-bot=332
-  // ============================================================
+  // === 2. PHOTO CIRCLE cy=238 r=90 ===
   var PHOTO_R  = 90;
   var PHOTO_CX = W / 2;
   var PHOTO_CY = 238;
 
-  // Soft ambient halo
   ctx.save();
   ctx.globalAlpha = 0.055;
-  var halo = ctx.createRadialGradient(
-    PHOTO_CX, PHOTO_CY, PHOTO_R+10,
-    PHOTO_CX, PHOTO_CY, PHOTO_R+90);
+  var halo = ctx.createRadialGradient(PHOTO_CX, PHOTO_CY, PHOTO_R+10, PHOTO_CX, PHOTO_CY, PHOTO_R+90);
   halo.addColorStop(0, GOLD); halo.addColorStop(1, 'transparent');
   ctx.fillStyle = halo;
-  ctx.beginPath();
-  ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+90, 0, Math.PI*2);
-  ctx.fill();
+  ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+90, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
   ctx.restore();
 
   if (photoImg) {
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
-    ctx.closePath(); ctx.clip();
+    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2); ctx.closePath(); ctx.clip();
     var iw = photoImg.width, ih = photoImg.height;
     var sc = Math.max((PHOTO_R*2)/iw, (PHOTO_R*2)/ih);
-    ctx.drawImage(photoImg,
-      PHOTO_CX - iw*sc/2, PHOTO_CY - ih*sc/2, iw*sc, ih*sc);
+    ctx.drawImage(photoImg, PHOTO_CX-iw*sc/2, PHOTO_CY-ih*sc/2, iw*sc, ih*sc);
     ctx.restore();
   } else {
     ctx.save();
-    var initGr = ctx.createRadialGradient(
-      PHOTO_CX-24, PHOTO_CY-24, 0, PHOTO_CX, PHOTO_CY, PHOTO_R);
-    initGr.addColorStop(0, '#162C52');
-    initGr.addColorStop(1, '#07101F');
-    ctx.beginPath();
-    ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
+    var initGr = ctx.createRadialGradient(PHOTO_CX-24, PHOTO_CY-24, 0, PHOTO_CX, PHOTO_CY, PHOTO_R);
+    initGr.addColorStop(0, '#162C52'); initGr.addColorStop(1, '#07101F');
+    ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R, 0, Math.PI*2);
     ctx.fillStyle = initGr; ctx.fill();
     var ini = getInitials(name);
     var iniSz = ini.length > 1 ? 58 : 70;
@@ -4058,65 +4025,41 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.shadowColor = GOLD; ctx.shadowBlur = 20;
     ctx.fillText(ini, PHOTO_CX, PHOTO_CY);
-    ctx.shadowBlur = 0;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.shadowBlur = 0; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.restore();
   }
 
-  // Gold ring - single precise stroke
   ctx.save();
-  ctx.strokeStyle = GLD_L;
-  ctx.lineWidth = 2.5;
-  ctx.globalAlpha = 0.75;
-  ctx.beginPath();
-  ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+4, 0, Math.PI*2);
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-  ctx.restore();
-  // Ring bottom = 332
+  ctx.strokeStyle = GLD_L; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.75;
+  ctx.beginPath(); ctx.arc(PHOTO_CX, PHOTO_CY, PHOTO_R+4, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.restore();
 
-  // ============================================================
-  //  3. FIRST NAME
-  //     NAME_TOP = ring-bot(332) + gap(32) = 364
-  // ============================================================
+  // === 3. FIRST NAME top=364 ===
   var NAME_TOP = 364;
   var fnLen = fname.length;
-  var fnSz  = fnLen > 12 ? 64
-            : fnLen > 10 ? 72
-            : fnLen > 7  ? 82
-            : fnLen > 5  ? 92
-            :              104;
-
+  var fnSz  = fnLen > 12 ? 64 : fnLen > 10 ? 72 : fnLen > 7 ? 82 : fnLen > 5 ? 92 : 104;
   ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = '900 ' + fnSz + 'px Georgia, serif';
   ctx.fillStyle = WHITE;
   ctx.shadowColor = 'rgba(201,162,39,0.18)'; ctx.shadowBlur = 18;
-
   var dispFirst = fname;
   var maxNameW  = W - PAD * 2;
   while (ctx.measureText(dispFirst).width > maxNameW && dispFirst.length > 2) {
-    fnSz -= 4;
-    ctx.font = '900 ' + fnSz + 'px Georgia, serif';
+    fnSz -= 4; ctx.font = '900 ' + fnSz + 'px Georgia, serif';
   }
   var FNAME_BASELINE = NAME_TOP + fnSz;
   ctx.fillText(dispFirst, W/2, FNAME_BASELINE);
-  ctx.shadowBlur = 0;
-  ctx.restore();
+  ctx.shadowBlur = 0; ctx.restore();
 
-  // ============================================================
-  //  4. LAST NAME  - gap 10 after fname
-  // ============================================================
+  // === 4. LAST NAME ===
   var LNAME_FONTSIZE = 30;
   var LNAME_BASELINE = FNAME_BASELINE + 10 + LNAME_FONTSIZE;
   var AFTER_LNAME    = LNAME_BASELINE;
   var lname = name.replace(fname, '').trim();
-
   if (lname) {
     ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     ctx.font = '300 ' + LNAME_FONTSIZE + 'px Georgia, serif';
     ctx.fillStyle = 'rgba(255,255,255,0.20)';
     var dispLast = lname.length > 20 ? lname.slice(0,19)+'...' : lname;
@@ -4124,250 +4067,154 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
     ctx.restore();
   }
 
-  // ============================================================
-  //  5. BOOKWARRIOR BADGE
-  //     top = AFTER_LNAME + 22  h=44
-  // ============================================================
+  // === 5. BOOKWARRIOR BADGE top=AFTER_LNAME+22 h=44 ===
   var BADGE_Y   = AFTER_LNAME + 22;
   var BADGE_H   = 44;
   var BADGE_BOT = BADGE_Y + BADGE_H;
-
-  var badgeTx = '** BOOKWARRIOR  S1 26';
+  var badgeTx   = 'BOOKWARRIOR  S1 26';
   ctx.save();
   ctx.font = '700 17px sans-serif';
   var badgeW = Math.min(ctx.measureText(badgeTx).width + 56, 420);
   var badgeX = W/2 - badgeW/2;
-
-  var bdgBg = ctx.createLinearGradient(badgeX, BADGE_Y, badgeX+badgeW, BADGE_Y+BADGE_H);
-  bdgBg.addColorStop(0, 'rgba(201,162,39,0.13)');
-  bdgBg.addColorStop(1, 'rgba(201,162,39,0.05)');
+  var bdgBg  = ctx.createLinearGradient(badgeX, BADGE_Y, badgeX+badgeW, BADGE_Y+BADGE_H);
+  bdgBg.addColorStop(0, 'rgba(201,162,39,0.13)'); bdgBg.addColorStop(1, 'rgba(201,162,39,0.05)');
   ctx.fillStyle = bdgBg;
   _roundRect(ctx, badgeX, BADGE_Y, badgeW, BADGE_H, 22); ctx.fill();
   ctx.strokeStyle = 'rgba(201,162,39,0.30)'; ctx.lineWidth = 1;
   _roundRect(ctx, badgeX, BADGE_Y, badgeW, BADGE_H, 22); ctx.stroke();
-
   ctx.fillStyle = GLD_L;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(badgeTx, W/2, BADGE_Y + BADGE_H/2);
+  ctx.fillText(badgeTx, W/2, BADGE_Y+BADGE_H/2);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.restore();
 
-  // ============================================================
-  //  6. STREAK BADGE
-  //     top = BADGE_BOT + 18  h=50
-  // ============================================================
+  // === 6. STREAK BADGE top=BADGE_BOT+18 h=50 ===
   var STREAK_Y   = BADGE_BOT + 18;
   var STREAK_H   = 50;
   var STREAK_BOT = STREAK_Y + STREAK_H;
-
   if (streak > 0) {
     ctx.save();
-    var strkW = 268;
-    var strkX = W/2 - strkW/2;
-
+    var strkW = 268; var strkX = W/2 - strkW/2;
     ctx.shadowColor = 'rgba(201,162,39,0.4)'; ctx.shadowBlur = 22;
     var sg = ctx.createLinearGradient(strkX, STREAK_Y, strkX+strkW, STREAK_Y+STREAK_H);
-    sg.addColorStop(0,    '#7A5200');
-    sg.addColorStop(0.15, GLD_L);
-    sg.addColorStop(0.5,  GOLD);
-    sg.addColorStop(0.85, GLD_M);
-    sg.addColorStop(1,    '#9A6A00');
+    sg.addColorStop(0,'#7A5200'); sg.addColorStop(0.15,GLD_L);
+    sg.addColorStop(0.5,GOLD); sg.addColorStop(0.85,GLD_M); sg.addColorStop(1,'#9A6A00');
     ctx.fillStyle = sg;
     _roundRect(ctx, strkX, STREAK_Y, strkW, STREAK_H, 25); ctx.fill();
     ctx.shadowBlur = 0;
-
     ctx.globalAlpha = 0.16;
     var shine = ctx.createLinearGradient(strkX, STREAK_Y, strkX, STREAK_Y+STREAK_H);
     shine.addColorStop(0, WHITE); shine.addColorStop(0.5, 'transparent');
     ctx.fillStyle = shine;
     _roundRect(ctx, strkX+1, STREAK_Y, strkW-2, STREAK_H*0.5, 25); ctx.fill();
     ctx.globalAlpha = 1;
-
-    var emoji = streak>=90?'Trophy':streak>=30?'Crown':streak>=14?'Lightning':'Fire';
-    ctx.font = '700 19px sans-serif';
-    ctx.fillStyle = BG1;
+    var streakEmoji = streak>=90?'[Trophy]':streak>=30?'[Crown]':streak>=14?'[Lightning]':'[Fire]';
+    ctx.font = '700 19px sans-serif'; ctx.fillStyle = BG1;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(emoji + '  ' + streak + ' DAY STREAK', W/2, STREAK_Y+STREAK_H/2);
+    ctx.fillText(streakEmoji + '  ' + streak + ' DAY STREAK', W/2, STREAK_Y+STREAK_H/2);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.restore();
   }
 
-  // ============================================================
-  //  SEPARATOR 1  - centred in gap after streak
-  //  SEP1_Y = STREAK_BOT + 26
-  // ============================================================
+  // === SEPARATOR 1 at STREAK_BOT+26 ===
   var SEP1_Y = STREAK_BOT + 26;
-
   ctx.save();
   var sep1Gr = ctx.createLinearGradient(PAD, 0, W-PAD, 0);
-  sep1Gr.addColorStop(0,    'transparent');
-  sep1Gr.addColorStop(0.15, 'rgba(201,162,39,0.22)');
-  sep1Gr.addColorStop(0.5,  'rgba(201,162,39,0.35)');
-  sep1Gr.addColorStop(0.85, 'rgba(201,162,39,0.22)');
-  sep1Gr.addColorStop(1,    'transparent');
-  ctx.fillStyle = sep1Gr;
-  ctx.fillRect(PAD, SEP1_Y, W-PAD*2, 1);
+  sep1Gr.addColorStop(0,'transparent'); sep1Gr.addColorStop(0.15,'rgba(201,162,39,0.22)');
+  sep1Gr.addColorStop(0.5,'rgba(201,162,39,0.35)'); sep1Gr.addColorStop(0.85,'rgba(201,162,39,0.22)');
+  sep1Gr.addColorStop(1,'transparent');
+  ctx.fillStyle = sep1Gr; ctx.fillRect(PAD, SEP1_Y, W-PAD*2, 1);
   ctx.restore();
 
-  // ============================================================
-  //  7. BOOK BLOCK
-  //     NR_Y (label baseline) = SEP1_Y + 26
-  //     BOOK_START             = NR_Y + 24
-  // ============================================================
+  // === 7. BOOK BLOCK NR_Y=SEP1_Y+26 ===
   var NR_Y       = SEP1_Y + 26;
   var BOOK_START = NR_Y + 24;
   var AFTER_BOOK = BOOK_START + 8;
-
-  var bookStat2 = stats2.find(function(r){
-    return String(r[0]).toLowerCase() === 'book';
-  });
+  var bookStat2  = stats2.find(function(r){ return String(r[0]).toLowerCase() === 'book'; });
 
   if (bookStat2 && !isRest) {
     ctx.save();
-
-    // "NOW READING" label
-    ctx.font = '700 16px sans-serif';
-    ctx.fillStyle = 'rgba(201,162,39,0.42)';
+    ctx.font = '700 16px sans-serif'; ctx.fillStyle = 'rgba(201,162,39,0.42)';
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     ctx.fillText('NOW READING', W/2, NR_Y);
-
     var nrW = ctx.measureText('NOW READING').width;
-    ctx.fillStyle = 'rgba(201,162,39,0.18)';
-    ctx.fillRect(W/2 - nrW/2, NR_Y+7, nrW, 1);
-
-    // Book title split
+    ctx.fillStyle = 'rgba(201,162,39,0.18)'; ctx.fillRect(W/2-nrW/2, NR_Y+7, nrW, 1);
     var rawBook  = String(bookStat2[1]);
     var splitIdx = 26;
-    if (rawBook.length > splitIdx) {
-      var sp = rawBook.lastIndexOf(' ', splitIdx);
-      if (sp < 8) sp = splitIdx;
-      splitIdx = sp;
-    }
+    if (rawBook.length > splitIdx) { var sp=rawBook.lastIndexOf(' ',splitIdx); if(sp<8) sp=splitIdx; splitIdx=sp; }
     var bkL1 = rawBook.slice(0, splitIdx).trim();
     var bkL2 = rawBook.length > splitIdx ? rawBook.slice(splitIdx).trim() : '';
     if (bkL2.length > 30) bkL2 = bkL2.slice(0,29)+'...';
-
     var bkSz = bkL2 ? 44 : 52;
     ctx.font = '700 ' + bkSz + 'px Georgia, serif';
-    while (ctx.measureText(bkL1).width > W-PAD*2 && bkSz > 28) {
-      bkSz -= 2;
-      ctx.font = '700 ' + bkSz + 'px Georgia, serif';
-    }
-
+    while (ctx.measureText(bkL1).width > W-PAD*2 && bkSz > 28) { bkSz-=2; ctx.font='700 '+bkSz+'px Georgia, serif'; }
     var BK1_BASELINE = BOOK_START + bkSz;
-    ctx.fillStyle = WHITE;
-    ctx.shadowColor = 'rgba(201,162,39,0.1)'; ctx.shadowBlur = 8;
-    ctx.fillText(bkL1, W/2, BK1_BASELINE);
-    ctx.shadowBlur = 0;
-    AFTER_BOOK = BK1_BASELINE;
-
+    ctx.fillStyle = WHITE; ctx.shadowColor='rgba(201,162,39,0.1)'; ctx.shadowBlur=8;
+    ctx.fillText(bkL1, W/2, BK1_BASELINE); ctx.shadowBlur=0; AFTER_BOOK=BK1_BASELINE;
     if (bkL2) {
       var BK2_BASELINE = BK1_BASELINE + bkSz + 6;
-      ctx.font = '300 ' + bkSz + 'px Georgia, serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.fillText(bkL2, W/2, BK2_BASELINE);
-      AFTER_BOOK = BK2_BASELINE;
+      ctx.font = '300 '+bkSz+'px Georgia, serif'; ctx.fillStyle='rgba(255,255,255,0.55)';
+      ctx.fillText(bkL2, W/2, BK2_BASELINE); AFTER_BOOK=BK2_BASELINE;
     }
-
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
-
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.restore();
   } else if (isRest) {
     ctx.save();
-    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.font = '300 italic 34px Georgia, serif';
-    ctx.fillStyle = 'rgba(167,139,250,0.55)';
+    ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+    ctx.font='300 italic 34px Georgia, serif'; ctx.fillStyle='rgba(167,139,250,0.55)';
     ctx.fillText('Rest Day - Recovery', W/2, BOOK_START+40);
-    ctx.font = '400 18px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.font='400 18px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.18)';
     ctx.fillText('Discipline includes rest.', W/2, BOOK_START+76);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.restore();
     AFTER_BOOK = BOOK_START + 80;
   }
 
-  // ============================================================
-  //  8. STAT CARDS
-  //     top = AFTER_BOOK + 40  h=168
-  //     3 cards, equal widths, STAT_GAP=14
-  //     STAT_W = floor((1080-160-28)/3) = 297
-  // ============================================================
+  // === 8. STAT CARDS top=AFTER_BOOK+40 h=168 ===
   var STAT_Y   = AFTER_BOOK + 40;
   var STAT_H   = 168;
   var STAT_GAP = 14;
   var STAT_BOT = STAT_Y + STAT_H;
-
-  var validSt = stats2.filter(function(r){
-    var v = String(r[1]||'');
-    return v && v!=='0 min' && v!=='0' &&
-           String(r[0]).toLowerCase()!=='book';
+  var validSt  = stats2.filter(function(r){
+    var v=String(r[1]||''); return v&&v!=='0 min'&&v!=='0'&&String(r[0]).toLowerCase()!=='book';
   });
-  if (!validSt.length) validSt = stats2.filter(function(r){
-    return String(r[0]).toLowerCase()!=='book';
-  }).slice(0,3);
-
+  if (!validSt.length) validSt = stats2.filter(function(r){ return String(r[0]).toLowerCase()!=='book'; }).slice(0,3);
   var nSt        = Math.min(validSt.length, 3);
   var totalStatW = W - PAD*2 - STAT_GAP*(nSt-1);
-  var STAT_W     = Math.floor(totalStatW / nSt);
-  var STAT_W_LAST = totalStatW - STAT_W*(nSt-1);
+  var STAT_W     = Math.floor(totalStatW/nSt);
+  var STAT_W_LAST= totalStatW - STAT_W*(nSt-1);
 
-  validSt.slice(0, nSt).forEach(function(row, i) {
-    var cardW = (i === nSt-1) ? STAT_W_LAST : STAT_W;
-    var sx    = PAD + i*(STAT_W + STAT_GAP);
+  validSt.slice(0,nSt).forEach(function(row,i){
+    var cardW = (i===nSt-1) ? STAT_W_LAST : STAT_W;
+    var sx    = PAD + i*(STAT_W+STAT_GAP);
     var sy    = STAT_Y;
-
     ctx.save();
-
-    // Glass card
-    var cg = ctx.createLinearGradient(sx, sy, sx, sy+STAT_H);
-    cg.addColorStop(0, 'rgba(255,255,255,0.065)');
-    cg.addColorStop(1, 'rgba(255,255,255,0.022)');
-    ctx.fillStyle = cg;
-    _roundRect(ctx, sx, sy, cardW, STAT_H, 14); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
-    _roundRect(ctx, sx, sy, cardW, STAT_H, 14); ctx.stroke();
-
-    // Top gold bar
-    var tg = ctx.createLinearGradient(sx, sy, sx+cardW, sy);
-    tg.addColorStop(0, GLD_L); tg.addColorStop(1, GLD_D);
-    ctx.fillStyle = tg;
-    ctx.fillRect(sx, sy, cardW, 3);
-
-    // Stat value
-    var val = String(row[1]);
-    var vSz = val.length>7 ? 42
-            : val.length>5 ? 52
-            : val.length>3 ? 62
-            : 74;
-    var vGr = ctx.createLinearGradient(sx, sy+STAT_H*0.28, sx, sy+STAT_H*0.72);
-    vGr.addColorStop(0,   GLD_L);
-    vGr.addColorStop(0.5, GLD_M);
-    vGr.addColorStop(1,   GLD_D);
-    ctx.font = '900 ' + vSz + 'px Georgia, serif';
-    ctx.fillStyle = vGr;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(201,162,39,0.28)'; ctx.shadowBlur = 10;
-    ctx.fillText(val, sx+cardW/2, sy+STAT_H*0.46);
-    ctx.shadowBlur = 0;
-
-    // Label
-    ctx.font = '600 12px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(row[0]).toUpperCase(), sx+cardW/2, sy+STAT_H-22);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.restore();
+    var cg = ctx.createLinearGradient(sx,sy,sx,sy+STAT_H);
+    cg.addColorStop(0,'rgba(255,255,255,0.065)'); cg.addColorStop(1,'rgba(255,255,255,0.022)');
+    ctx.fillStyle=cg; _roundRect(ctx,sx,sy,cardW,STAT_H,14); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=1;
+    _roundRect(ctx,sx,sy,cardW,STAT_H,14); ctx.stroke();
+    var tg=ctx.createLinearGradient(sx,sy,sx+cardW,sy);
+    tg.addColorStop(0,GLD_L); tg.addColorStop(1,GLD_D);
+    ctx.fillStyle=tg; ctx.fillRect(sx,sy,cardW,3);
+    var val=String(row[1]);
+    var vSz=val.length>7?42:val.length>5?52:val.length>3?62:74;
+    var vGr=ctx.createLinearGradient(sx,sy+STAT_H*0.28,sx,sy+STAT_H*0.72);
+    vGr.addColorStop(0,GLD_L); vGr.addColorStop(0.5,GLD_M); vGr.addColorStop(1,GLD_D);
+    ctx.font='900 '+vSz+'px Georgia, serif'; ctx.fillStyle=vGr;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.shadowColor='rgba(201,162,39,0.28)'; ctx.shadowBlur=10;
+    ctx.fillText(val,sx+cardW/2,sy+STAT_H*0.46); ctx.shadowBlur=0;
+    ctx.font='600 12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.22)';
+    ctx.textBaseline='middle';
+    ctx.fillText(String(row[0]).toUpperCase(),sx+cardW/2,sy+STAT_H-22);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.restore();
   });
 
-  // ============================================================
-  //  9. QUOTE  - gap 40 below stats, max 2 lines
-  // ============================================================
+  // === 9. QUOTE top=STAT_BOT+40 ===
   var QUOTE_Y   = STAT_BOT + 40;
   var QUOTE_BOT = QUOTE_Y + 62;
-
   var qList = [
-    '"Not all readers are leaders - but all leaders are readers."',
-    '"The person you'll be in 5 years lives in the books you read today."',
+    '"Not all readers are leaders, but all leaders are readers."',
+    '"The person you will be in 5 years lives in the books you read today."',
     '"Reading is the gym for the mind. Show up daily."',
     '"One book at a time. One warrior at a time."',
     '"The edge you seek is on pages you have not yet read."',
@@ -4375,81 +4222,42 @@ function _drawCard(ctx, W, H, name, fname, stats, streak, dayName, dateFmt, phot
     '"Leaders are readers who act on what they read."'
   ];
   ctx.save();
-  ctx.font = 'italic 300 21px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.13)';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  _wrapText(ctx,
-    qList[now3.getDay() % qList.length],
-    W/2, QUOTE_Y, W-PAD*2-40, 30);
-  ctx.textAlign = 'left';
-  ctx.restore();
+  ctx.font='italic 300 21px Georgia, serif'; ctx.fillStyle='rgba(255,255,255,0.13)';
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  _wrapText(ctx, qList[now3.getDay()%qList.length], W/2, QUOTE_Y, W-PAD*2-40, 30);
+  ctx.textAlign='left'; ctx.restore();
 
-  // ============================================================
-  //  SEPARATOR 2  - before CTA
-  // ============================================================
+  // === SEPARATOR 2 at QUOTE_BOT+14 ===
   var SEP2_Y = QUOTE_BOT + 14;
-
   ctx.save();
-  var sep2Gr = ctx.createLinearGradient(0, 0, W, 0);
-  sep2Gr.addColorStop(0,    GLD_L);
-  sep2Gr.addColorStop(0.55, GOLD);
-  sep2Gr.addColorStop(1,    'transparent');
-  ctx.fillStyle = sep2Gr;
-  ctx.fillRect(0, SEP2_Y, W, 1.5);
-  ctx.restore();
+  var sep2Gr=ctx.createLinearGradient(0,0,W,0);
+  sep2Gr.addColorStop(0,GLD_L); sep2Gr.addColorStop(0.55,GOLD); sep2Gr.addColorStop(1,'transparent');
+  ctx.fillStyle=sep2Gr; ctx.fillRect(0,SEP2_Y,W,1.5); ctx.restore();
 
-  // ============================================================
-  //  10. CTA BLOCK  - stacked from SEP2_Y + 14
-  // ============================================================
-  var CTA_TOP = SEP2_Y + 14;
-
+  // === 10. CTA BLOCK ===
   ctx.save();
-  ctx.fillStyle = 'rgba(2,5,10,0.35)';
-  ctx.fillRect(0, SEP2_Y, W, H-SEP2_Y);
-  ctx.restore();
-
+  ctx.fillStyle='rgba(2,5,10,0.35)'; ctx.fillRect(0,SEP2_Y,W,H-SEP2_Y); ctx.restore();
   ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-
-  var ctaY = CTA_TOP + 18;
-
-  // Season label
-  ctx.font = '700 13px sans-serif';
-  ctx.fillStyle = 'rgba(201,162,39,0.38)';
-  ctx.fillText('S E A S O N   O N E   .   2 0 2 6', W/2, ctaY);
-
-  // Headline
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  var ctaY = SEP2_Y + 32;
+  ctx.font='700 13px sans-serif'; ctx.fillStyle='rgba(201,162,39,0.38)';
+  ctx.fillText('SEASON ONE  .  2026', W/2, ctaY);
   ctaY += 30;
-  var hGr = ctx.createLinearGradient(0, ctaY-50, 0, ctaY);
-  hGr.addColorStop(0, GLD_L); hGr.addColorStop(0.5, GLD_M); hGr.addColorStop(1, GLD_D);
-  ctx.font = '900 48px Georgia, serif';
-  ctx.fillStyle = hGr;
-  ctx.shadowColor = 'rgba(201,162,39,0.22)'; ctx.shadowBlur = 16;
-  ctx.fillText('24 BOOKS. 6 MONTHS.', W/2, ctaY+48);
-  ctx.shadowBlur = 0;
-
-  // Subtitle
-  ctaY += 48 + 10;
-  ctx.font = '300 italic 34px Georgia, serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.48)';
+  var hGr=ctx.createLinearGradient(0,ctaY-50,0,ctaY);
+  hGr.addColorStop(0,GLD_L); hGr.addColorStop(0.5,GLD_M); hGr.addColorStop(1,GLD_D);
+  ctx.font='900 48px Georgia, serif'; ctx.fillStyle=hGr;
+  ctx.shadowColor='rgba(201,162,39,0.22)'; ctx.shadowBlur=16;
+  ctx.fillText('24 BOOKS. 6 MONTHS.', W/2, ctaY+48); ctx.shadowBlur=0;
+  ctaY += 58;
+  ctx.font='300 italic 34px Georgia, serif'; ctx.fillStyle='rgba(255,255,255,0.48)';
   ctx.fillText('One Identity.', W/2, ctaY+34);
-
-  // URL
-  ctaY += 34 + 18;
-  ctx.font = '600 19px sans-serif';
-  ctx.fillStyle = 'rgba(245,200,66,0.62)';
+  ctaY += 52;
+  ctx.font='600 19px sans-serif'; ctx.fillStyle='rgba(245,200,66,0.62)';
   ctx.fillText('selar.com/bookaweekchallenge', W/2, ctaY+19);
-
-  // Hashtags
-  ctaY += 19 + 14;
-  ctx.font = '400 13px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.13)';
+  ctaY += 33;
+  ctx.font='400 13px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.13)';
   ctx.fillText('#BookAWeek  .  #BookWarrior  .  #ReadReflectExecute', W/2, ctaY+13);
-
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.restore();
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.restore();
 
   updateShareBlob(document.getElementById('shareCanvas'));
 }
