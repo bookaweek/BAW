@@ -129,7 +129,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 @keyframes spin{to{transform:rotate(360deg)}}
 .err-box{display:none;background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.28);border-radius:10px;padding:11px 14px;font-size:13px;color:#E07070;margin:10px 16px 0;text-align:center}
 .err-box.show{display:block}
-.success{display:none;position:fixed;inset:0;background:var(--navy);z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center;overflow-y:auto}
+.success{display:none;position:fixed;inset:0;background:var(--navy);z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .success.show{display:flex;animation:fadeIn .35s ease}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .s-icon{width:90px;height:90px;background:linear-gradient(135deg,var(--gold),#F5C842);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:44px;margin-bottom:28px;box-shadow:0 0 0 14px rgba(242,183,5,.1),0 0 0 28px rgba(242,183,5,.05);animation:popIn .55s cubic-bezier(.34,1.56,.64,1) .15s both}
@@ -3637,19 +3637,21 @@ function updatePhotoThumb(dataUrl, name) {
 // ── OPEN SHARE SHEET ──────────────────────────────────────────
 function openShare() {
   var sheet = document.getElementById('shareSheet');
+  if (!sheet) { console.warn('[BAW] shareSheet element not found'); return; }
   sheet.classList.add('show');
-  var photo = localStorage.getItem(photoKey());
-  if (!photo) {
-    // First time — prompt and render with initials
-    renderShareCard(null);
-    setTimeout(function() { promptPhoto(); }, 300);
-  } else {
-    renderShareCard(photo);
-  }
+  // Render card after sheet is visible (avoids layout thrash)
+  setTimeout(function() {
+    var photo = localStorage.getItem(photoKey());
+    renderShareCard(photo || null);
+    if (!photo) {
+      setTimeout(function() { promptPhoto(); }, 400);
+    }
+  }, 50);
 }
 
 function closeShare() {
-  document.getElementById('shareSheet').classList.remove('show');
+  var sheet = document.getElementById('shareSheet');
+  if (sheet) sheet.classList.remove('show');
 }
 
 // ── PHOTO MANAGEMENT ──────────────────────────────────────────
@@ -4546,6 +4548,26 @@ function shareToTwitter() {
   margin:4px 0;
 }
 .sht-spacer { height:16px; }
+
+/* ── SHARE SHEET (bottom sheet) ─────────────────────────────── */
+.share-sheet{
+  display:none;position:fixed;inset:0;z-index:1100;
+  pointer-events:none;
+}
+.share-sheet.show{display:block;pointer-events:all;}
+.share-backdrop{
+  position:absolute;inset:0;background:rgba(0,0,0,.6);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+.share-panel{
+  position:absolute;bottom:0;left:0;right:0;
+  background:var(--navy,#0d0d1a);
+  border-radius:22px 22px 0 0;
+  max-height:92vh;overflow-y:auto;
+  padding-bottom:env(safe-area-inset-bottom,16px);
+  animation:slideUp .3s cubic-bezier(.4,0,.2,1);
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 </style>
 
 <div class="share-sheet" id="shareSheet">
