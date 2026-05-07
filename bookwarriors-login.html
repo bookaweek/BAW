@@ -129,7 +129,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 @keyframes spin{to{transform:rotate(360deg)}}
 .err-box{display:none;background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.28);border-radius:10px;padding:11px 14px;font-size:13px;color:#E07070;margin:10px 16px 0;text-align:center}
 .err-box.show{display:block}
-.success{display:none;position:fixed;inset:0;background:var(--navy);z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.success{display:none;position:fixed;inset:0;background:var(--navy);z-index:500;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center}
 .success.show{display:flex;animation:fadeIn .35s ease}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .s-icon{width:90px;height:90px;background:linear-gradient(135deg,var(--gold),#F5C842);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:44px;margin-bottom:28px;box-shadow:0 0 0 14px rgba(242,183,5,.1),0 0 0 28px rgba(242,183,5,.05);animation:popIn .55s cubic-bezier(.34,1.56,.64,1) .15s both}
@@ -1501,16 +1501,6 @@ let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 let deferredInstall = null;
 
 // ── INIT ──
-// ── KILL OLD SERVICE WORKERS & CACHES (forces fresh code) ──────────
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(regs) {
-    regs.forEach(function(r) { r.unregister(); console.log('[BAW] SW unregistered'); });
-  });
-  caches.keys().then(function(keys) {
-    keys.forEach(function(k) { caches.delete(k); console.log('[BAW] Cache cleared:', k); });
-  });
-}
-
 window.onload = function() {
   // Check saved session
   var m = sessionStorage.getItem(PRE+'member');
@@ -2105,11 +2095,7 @@ async function finalizeRegistration() {
   try {
     var _rmPayload = {action:'registerMember',member:cand,date:dateStr(),
       joinedAt:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
-    await fetch(GAS_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(_rmPayload)
-    })
+    var _rmResp = await _gasFetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now());
   } catch(e) { /* registration still works locally */ }
   // Log in
   sessionStorage.setItem(PRE+'member', cand);
@@ -2196,10 +2182,17 @@ function login(name) {
       } else {
         navigator.serviceWorker.addEventListener('controllerchange', function handler() {
           navigator.serviceWorker.removeEventListener('controllerchange', handler);
-          scheduleViaSW();
+          scheduleViaSW();function login(m) {
+  member = m;
+  // ... existing code ...
+  
+  // Always re-send schedule to SW on every login
+  setTimeout(function() { scheduleViaSW(); }, 1000);
+}
         });
         // Also try after a delay as backup
         setTimeout(scheduleViaSW, 2500);
+        
       }
     }
   }
@@ -2555,11 +2548,7 @@ async function submitBook(){
   setBL(true);
   try{
     var _abPayload={action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat};
-    await fetch(GAS_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(_abPayload)
-    })
+    var _abResp = await _gasFetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now()).then(function(r){return r.json();}).then(function(j){console.log('[BAW] addBook:',JSON.stringify(j));return j;});
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
     document.getElementById('b-goal').value='';
@@ -2593,43 +2582,76 @@ function prog(){
 
 // ══════════════════════════════════════════════════════════
 // GAS SEND + OFFLINE QUEUE
+
+// ══════════════════════════════════════════════════════════
+// _gasFetch — SW-bypass fetch for all GAS calls
+// Deletes cached GAS entries before every request so the
+// Service Worker cannot serve stale cached responses.
+// ══════════════════════════════════════════════════════════
+async function _gasFetch(url) {
+  if (window.caches) {
+    try {
+      var keys = await caches.keys();
+      for (var i = 0; i < keys.length; i++) {
+        var cache = await caches.open(keys[i]);
+        var reqs  = await cache.keys();
+        for (var j = 0; j < reqs.length; j++) {
+          if (reqs[j].url && reqs[j].url.includes('script.google.com')) {
+            await cache.delete(reqs[j]);
+          }
+        }
+      }
+    } catch(e) {}
+  }
+  return fetch(url, { method:'GET', mode:'cors', cache:'no-store', credentials:'omit', redirect:'follow' });
+}
+
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
 // ══════════════════════════════════════════════════════════
 async function sendToGAS(payload) {
+  // ═══════════════════════════════════════════════════════════════════
+  // WHY GET: GAS /exec 302-redirects. Browsers drop POST body on 302.
+  // doPost() never fires from browser. We send as GET with ?data= param.
+  //
+  // WHY cors (not no-cors): no-cors makes every response opaque — we
+  // can NEVER see if GAS returned {success:false}. The green badge was
+  // firing from the PING (always pong:true), not from the actual write.
+  // cors mode lets us READ the real GAS JSON and catch real errors.
+  // GAS sets Access-Control-Allow-Origin:* for GET requests — it works.
+  // ═══════════════════════════════════════════════════════════════════
   if (!payload.member) payload.member = member || '';
-  payload.member = String(payload.member).trim();
-  var body = JSON.stringify(payload);
-  console.log('[BAW] sendToGAS:', payload.action, 'member:', payload.member);
 
-  // STRATEGY: Try POST first. If network error, try GET-bridge.
-  // GET-bridge is confirmed working (test page verified it).
+  var url = GAS_URL
+    + '?action=' + encodeURIComponent(payload.action)
+    + '&data='   + encodeURIComponent(JSON.stringify(payload))
+    + '&t='      + Date.now();
+
   try {
-    await fetch(GAS_URL, {
-      method:  'POST',
-      mode:    'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    body
-    });
-    console.log('[BAW] POST sent OK');
-  } catch(postErr) {
-    // POST failed (offline or network error) — try GET-bridge
-    console.warn('[BAW] POST failed, trying GET-bridge:', postErr.message);
-    var bridgeUrl = GAS_URL
-      + '?action=' + encodeURIComponent(payload.action)
-      + '&data='   + encodeURIComponent(body)
-      + '&t='      + Date.now();
-    await fetch(bridgeUrl, { mode: 'no-cors', cache: 'no-store' });
-    console.log('[BAW] GET-bridge sent');
+    var resp = await _gasFetch(url);
+    var json = await resp.json();
+    console.log('[BAW] ✅ GAS response for', payload.action + ':', JSON.stringify(json));
+    if (json.success === false) {
+      // GAS explicitly rejected — log the error and let user know
+      console.error('[BAW] ❌ GAS error:', json.error || 'unknown');
+      _showSyncBadge(false, json.error);
+      // Still don't throw — record locally and show success to user
+      return json;
+    }
+    _showSyncBadge(true);
+    return json;
+  } catch(e) {
+    // Network failure OR CORS blocked — fall back to no-cors (blind send)
+    console.warn('[BAW] ⚠ CORS blocked, falling back to no-cors:', e.message);
+    try {
+      await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+      console.log('[BAW] no-cors fallback sent for', payload.action);
+      _showSyncBadge(null);
+    } catch(e2) {
+      console.error('[BAW] Network error - queuing:', e2.message);
+      throw e2; // Truly offline — caller queues
+    }
+    return {};
   }
-
-  _showSyncBadge(null);
-  setTimeout(function() {
-    fetch(GAS_URL + '?action=ping&t=' + Date.now(), { cache: 'no-store' })
-      .then(function(r){ return r.json(); })
-      .then(function(j){ if(j && j.pong) _showSyncBadge(true); })
-      .catch(function(){});
-  }, 2000);
-  return {};
 }
 
 // Shows a small badge in the header: green=confirmed, null=sent/unknown, false=error
@@ -2719,10 +2741,8 @@ function flushOnLogin() {
     isRestDay:rest
   };
   setDL(true);
-  console.log('[BAW] SUBMIT: about to call sendToGAS', JSON.stringify(payload).slice(0,120));
   try{
     await sendToGAS(payload);
-    console.log('[BAW] sendToGAS returned OK');
     optimisticUpdate(payload); // Layer 2: instant UI update
     recordLog();
     localStorage.setItem(PRE+'lastLog', dateStr()); scheduleViaSW();
@@ -2759,7 +2779,7 @@ function setupWeekly(){
   }
   if(sun||force){
     ['w-days','w-mins','w-pages'].forEach(function(id){document.getElementById(id).textContent='...';});
-    fetch(GAS_URL+'?action=getWeekStats&member='+encodeURIComponent(member))
+    _gasFetch(GAS_URL+'?action=getWeekStats&member='+encodeURIComponent(member)+'&t='+Date.now())
       .then(function(r){return r.json();})
       .then(function(d){
         if(d&&d.success){
@@ -2826,14 +2846,15 @@ function success(title,msg,stats){
     return '<div class="s-row"><span class="s-lbl">'+r[0]+'</span><span class="s-val">'+esc(String(r[1]))+'</span></div>';
   }).join('');
   document.getElementById('successOverlay').classList.add('show');
-  // NOTE: Do NOT pre-render share card here — canvas render blocks main thread
-  // and swallows the Continue button tap. Render only when user opens share sheet.
+  // Pre-render share card in background so tapping Share is instant
+  setTimeout(function() {
+    var photo = localStorage.getItem(photoKey());
+    renderShareCard(photo || null);
+  }, 400);
 }
 function closeSuccess(){
   document.getElementById('successOverlay').classList.remove('show');
-  // Also close share sheet if open
-  var ss = document.getElementById('shareSheet');
-  if (ss) ss.classList.remove('show');
+  document.getElementById('shareSheet').classList.remove('show');
 }
 
 // ── LOADING ──
@@ -3100,11 +3121,7 @@ async function submitComplete() {
   };
 
   try {
-    await fetch(GAS_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(payload)
-    })
+    var _cbResp = await _gasFetch(GAS_URL+'?action='+encodeURIComponent(payload.action)+'&data='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now()).then(function(r){return r.json();}).then(function(j){console.log('[BAW] completeBook:',JSON.stringify(j));return j;});
     closeCompleteModal();
     renderLib();
     dropBooks();
@@ -3222,7 +3239,7 @@ function startKeepalive() {
 
 function _pingGAS() {
   // Throwaway ping — we only care that it keeps GAS warm
-  fetch(GAS_URL + '?action=ping&t=' + Date.now(), { cache: 'no-store', mode: 'cors' })
+  _gasFetch(GAS_URL + '?action=ping&t=' + Date.now())
     .catch(function() {}); // silently ignore all errors
 }
 
@@ -3293,7 +3310,7 @@ function fetchLiveBoard(forceRender) {
   _inFlight = true;
 
   var t0 = Date.now();
-  fetch(GAS_URL + '?action=getDashboard&t=' + t0, { cache: 'no-store' })
+  _gasFetch(GAS_URL + '?action=getDashboard&t=' + t0)
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -3637,21 +3654,19 @@ function updatePhotoThumb(dataUrl, name) {
 // ── OPEN SHARE SHEET ──────────────────────────────────────────
 function openShare() {
   var sheet = document.getElementById('shareSheet');
-  if (!sheet) { console.warn('[BAW] shareSheet element not found'); return; }
   sheet.classList.add('show');
-  // Render card after sheet is visible (avoids layout thrash)
-  setTimeout(function() {
-    var photo = localStorage.getItem(photoKey());
-    renderShareCard(photo || null);
-    if (!photo) {
-      setTimeout(function() { promptPhoto(); }, 400);
-    }
-  }, 50);
+  var photo = localStorage.getItem(photoKey());
+  if (!photo) {
+    // First time — prompt and render with initials
+    renderShareCard(null);
+    setTimeout(function() { promptPhoto(); }, 300);
+  } else {
+    renderShareCard(photo);
+  }
 }
 
 function closeShare() {
-  var sheet = document.getElementById('shareSheet');
-  if (sheet) sheet.classList.remove('show');
+  document.getElementById('shareSheet').classList.remove('show');
 }
 
 // ── PHOTO MANAGEMENT ──────────────────────────────────────────
@@ -4548,26 +4563,6 @@ function shareToTwitter() {
   margin:4px 0;
 }
 .sht-spacer { height:16px; }
-
-/* ── SHARE SHEET (bottom sheet) ─────────────────────────────── */
-.share-sheet{
-  display:none;position:fixed;inset:0;z-index:1100;
-  pointer-events:none;
-}
-.share-sheet.show{display:block;pointer-events:all;}
-.share-backdrop{
-  position:absolute;inset:0;background:rgba(0,0,0,.6);
-  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
-}
-.share-panel{
-  position:absolute;bottom:0;left:0;right:0;
-  background:var(--navy,#0d0d1a);
-  border-radius:22px 22px 0 0;
-  max-height:92vh;overflow-y:auto;
-  padding-bottom:env(safe-area-inset-bottom,16px);
-  animation:slideUp .3s cubic-bezier(.4,0,.2,1);
-}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 </style>
 
 <div class="share-sheet" id="shareSheet">
