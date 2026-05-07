@@ -3601,6 +3601,7 @@ function fmtDate(d) {
   return d.getFullYear() + '-' +
     String(d.getMonth() + 1).padStart(2, '0') + '-' +
     String(d.getDate()).padStart(2, '0');
+  
 }
 function getInitials(name) {
   if (!name) return '?';
@@ -4636,7 +4637,9 @@ function shareToTwitter() {
     window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
   }, 600);
 }
-
+  
+</script>
+  
 <!-- SHARE SHEET — PREMIUM DARK EDITION -->
 <style>
 /* ════════════════════════════════════════════
