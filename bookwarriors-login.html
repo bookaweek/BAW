@@ -839,6 +839,11 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 /* ══ SHARE SYSTEM ══ */
 /* share-sheet CSS moved to bottom of file */
 
+/* ── BACKLOG DATE TOGGLE ── */
+.backlog-toggle{display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:4px 0;}
+.backlog-toggle:active{opacity:.75;}
+.backlog-toggle{display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:4px 2px}
+.backlog-toggle:active{opacity:.75}
 </style>
 </head>
 <body>
@@ -1170,6 +1175,20 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
             <button type="button" class="star-btn" onclick="setStar(4)">&#11088;</button>
             <button type="button" class="star-btn" onclick="setStar(5)">&#11088;</button>
           </div>
+        </div>
+      </div>
+      <div class="card" id="backlogCard" style="margin-top:8px;padding:14px 18px">
+        <div class="backlog-toggle" onclick="toggleBacklogDate()">
+          <span id="backlogIcon">&#x1F4C5;</span>
+          <span id="backlogLabel" style="flex:1;font-size:13px;font-weight:600;color:var(--navy)">Logging for today</span>
+          <span style="font-size:11px;color:var(--cgray)">Change date &#x203A;</span>
+        </div>
+        <div id="backlogDateWrap" style="display:none;margin-top:12px">
+          <label for="d-logdate" style="display:block;font-size:12px;font-weight:600;color:var(--navy);margin-bottom:6px">Log Date <span style="color:var(--gold)">*</span></label>
+          <input type="date" id="d-logdate" onchange="onBacklogDateChange()"
+            style="width:100%;height:var(--input-h);padding:0 16px;background:var(--off-w);border:2px solid var(--lgray);border-radius:12px;font-family:inherit;font-size:16px;color:var(--dgray);outline:none;-webkit-appearance:none;appearance:none">
+          <p style="margin-top:8px;font-size:11px;color:var(--cgray);line-height:1.5">Sessions can be backdated up to <b>30 days</b>. This date will appear on the sheet.</p>
+          <button type="button" onclick="clearBacklogDate()" style="margin-top:6px;background:none;border:none;color:var(--cgray);font-size:12px;cursor:pointer;text-decoration:underline;padding:0">Reset to today</button>
         </div>
       </div>
       <div class="err-box" id="dailyErr"></div>
@@ -2724,13 +2743,17 @@ function flushOnLogin() {
     if(!mins){err.textContent='Please enter minutes read.';err.classList.add('show');return;}
     if(!insight){err.textContent='Please share your key insight.';err.classList.add('show');return;}
   }
-  var now=new Date();
+  var _bli=document.getElementById('d-logdate');
+  var _blv=_bli&&_bli.value?_bli.value:null;
+  var now=_blv?new Date(_blv+'T12:00:00'):new Date();
+  var _logDateStr=_blv||dateStr();
+  var _logDateDisp=now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
   var bookClean = rest ? 'Rest Day' : book.split(' - ')[0].trim();
   var payload={
     action:'logDaily',
     member:member,
-    date:dateStr(),
-    dateDisplay:now.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
+    date:_logDateStr,
+    dateDisplay:_logDateDisp,
     book:bookClean,
     module:rest?'':document.getElementById('d-mod').value,
     minutes:rest?0:(parseInt(mins)||0),
@@ -2866,6 +2889,10 @@ function setWL(on){document.getElementById('weeklySubmit').disabled=on;document.
 function resetDaily(){
   document.getElementById('dailyForm').reset();
   stars=0;rest=false;
+  var _e=document.getElementById('d-logdate');if(_e)_e.value='';
+  var _w=document.getElementById('backlogDateWrap');if(_w)_w.style.display='none';
+  var _l=document.getElementById('backlogLabel');if(_l)_l.textContent='Logging for today';
+  var _ic=document.getElementById('backlogIcon');if(_ic)_ic.textContent='&#x1F4C5;';
   document.getElementById('restRow').classList.remove('on');
   document.getElementById('restLbl').textContent='Mark as Rest Day';
   document.getElementById('dailyReadFields').style.opacity='1';
@@ -4241,6 +4268,36 @@ function drawInitialsCircle(ctx, x, y, r, name) {
 }
 
 
+// -- BACKLOG DATE HELPERS
+function toggleBacklogDate(){
+  var w=document.getElementById('backlogDateWrap');
+  if(!w)return;
+  var isOpen=w.style.display==='none'||w.style.display==='';
+  w.style.display=isOpen?'block':'none';
+  if(isOpen){var i=document.getElementById('d-logdate');if(i&&!i.value)i.value=dateStr();}
+}
+function onBacklogDateChange(){
+  var i=document.getElementById('d-logdate');
+  if(!i||!i.value)return;
+  var chosen=new Date(i.value+'T12:00:00');
+  var today=new Date();today.setHours(12,0,0,0);
+  var diff=(today-chosen)/(1000*60*60*24);
+  var err=document.getElementById('dailyErr');
+  function showErr(msg){if(err){err.textContent=msg;err.classList.add('show');setTimeout(function(){err.classList.remove('show');},3000);}}
+  if(chosen>today){i.value=dateStr();showErr('You cannot log a future date.');return;}
+  if(diff>30){i.value=dateStr();showErr('Sessions can only be backdated up to 30 days.');return;}
+  var lbl=document.getElementById('backlogLabel');
+  var ico=document.getElementById('backlogIcon');
+  var disp=chosen.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  if(lbl)lbl.textContent=diff<1?'Logging for today':'Logging for: '+disp;
+  if(ico)ico.textContent=diff<1?'&#x1F4C5;':'&#x23F0;';
+}
+function clearBacklogDate(){
+  var i=document.getElementById('d-logdate');if(i)i.value='';
+  var l=document.getElementById('backlogLabel');if(l)l.textContent='Logging for today';
+  var ic=document.getElementById('backlogIcon');if(ic)ic.textContent='&#x1F4C5;';
+  var w=document.getElementById('backlogDateWrap');if(w)w.style.display='none';
+}
 // ── NATIVE SHARE ─────────────────────────────────────────────
 function doNativeShare() {
   if (!_shareBlob) {
