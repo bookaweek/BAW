@@ -844,6 +844,48 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .backlog-toggle:active{opacity:.75;}
 .backlog-toggle{display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:4px 2px}
 .backlog-toggle:active{opacity:.75}
+.feed-header{padding:20px 16px 0;text-align:center}
+.feed-header-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:#fff;margin-bottom:4px}
+.feed-header-sub{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px}
+.feed-refresh-btn{background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.3);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:7px 18px;border-radius:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .2s}
+.feed-refresh-btn:active{background:rgba(242,183,5,.2)}
+.feed-filters{display:flex;gap:7px;padding:14px 16px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.feed-filters::-webkit-scrollbar{display:none}
+.feed-filter{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(255,255,255,.55);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .18s}
+.feed-filter.active{background:var(--navy2);border-color:var(--gold);color:var(--gold)}
+.feed-loading{text-align:center;padding:50px 20px;color:rgba(255,255,255,.4);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.feed-spin{width:28px;height:28px;border:3px solid rgba(242,183,5,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
+.feed-error{text-align:center;padding:40px 20px;color:rgba(255,255,255,.5);font-size:13px}
+.feed-retry-btn{margin-top:14px;padding:8px 20px;background:var(--navy2);border:1px solid var(--gold);color:var(--gold);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.feed-empty{text-align:center;padding:50px 20px;color:rgba(255,255,255,.4)}
+/* Feed card */
+.fc{margin:10px 16px 0;background:linear-gradient(135deg,rgba(27,61,128,.55),rgba(10,22,40,.7));border:1px solid rgba(255,255,255,.08);border-radius:18px;overflow:hidden;transition:transform .15s;-webkit-tap-highlight-color:transparent}
+.fc.mine{border-color:rgba(242,183,5,.35);background:linear-gradient(135deg,rgba(40,32,8,.6),rgba(27,20,5,.5))}
+.fc-head{padding:14px 16px 10px;display:flex;align-items:center;gap:11px}
+.fc-avatar{width:40px;height:40px;border-radius:50%;background:var(--navy2);border:2px solid rgba(242,183,5,.45);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--gold);flex-shrink:0;font-family:'Playfair Display',serif}
+.fc-avatar.rest{border-color:rgba(167,139,250,.5);color:rgba(167,139,250,.9);background:rgba(60,30,100,.4)}
+.fc-meta{flex:1;min-width:0}
+.fc-name{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fc-date{font-size:11px;color:rgba(255,255,255,.38);margin-top:1px}
+.fc-badge{flex-shrink:0;font-size:10px;font-weight:800;letter-spacing:.06em;padding:3px 10px;border-radius:12px}
+.fc-badge.reading{background:rgba(13,122,110,.2);color:#0DC89E;border:1px solid rgba(13,122,110,.35)}
+.fc-badge.rest{background:rgba(107,63,160,.2);color:#B39DDB;border:1px solid rgba(107,63,160,.35)}
+/* Stats strip */
+.fc-stats{display:flex;gap:0;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)}
+.fc-stat{flex:1;text-align:center;padding:10px 4px}
+.fc-stat+.fc-stat{border-left:1px solid rgba(255,255,255,.06)}
+.fc-stat-val{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--gold);line-height:1}
+.fc-stat-lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-top:3px}
+/* Book strip */
+.fc-book{padding:10px 16px;display:flex;align-items:center;gap:9px}
+.fc-book-icon{font-size:18px;flex-shrink:0}
+.fc-book-title{font-size:13px;font-weight:600;color:rgba(255,255,255,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Insight */
+.fc-insight{margin:0 16px 14px;background:rgba(255,255,255,.04);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;padding:9px 12px}
+.fc-insight-label{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,183,5,.55);margin-bottom:4px}
+.fc-insight-text{font-size:13px;color:rgba(255,255,255,.68);line-height:1.55;font-style:italic}
+/* Today marker */
+.feed-day-marker{text-align:center;padding:16px 0 4px;font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.28)}
 </style>
 </head>
 <body>
@@ -1113,11 +1155,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </button>
   </div>
 
-  <div class="mode-bar" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+  <div class="mode-bar" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr;">
     <button class="mode-btn active" id="btn-daily"  onclick="setMode('daily')"><span class="m-icon">&#x1F4C5;</span><span class="m-label">Log</span></button>
     <button class="mode-btn" id="btn-books"  onclick="setMode('books')"><span class="m-icon">&#x1F4DA;</span><span class="m-label">Books</span></button>
     <button class="mode-btn" id="btn-weekly" onclick="setMode('weekly')"><span class="m-icon">&#x1F4C6;</span><span class="m-label">Weekly</span></button>
     <button class="mode-btn" id="btn-dash"   onclick="setMode('dash')"><span class="m-icon">&#x1F3C6;</span><span class="m-label">Stats</span></button>
+    <button class="mode-btn" id="btn-feed"   onclick="setMode('feed')"><span class="m-icon">&#x1F525;</span><span class="m-label">Feed</span></button>
   </div>
   <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
 
@@ -2220,7 +2263,7 @@ function login(name) {
 // ── MODE ──
 function setMode(m) {
   mode=m;
-  ['daily','books','weekly','dash'].forEach(function(x){
+  ['daily','books','weekly','dash','feed'].forEach(function(x){
     document.getElementById('mode-'+x).style.display=x===m?'block':'none';
     document.getElementById('btn-'+x).classList.toggle('active',x===m);
   });
@@ -2228,6 +2271,7 @@ function setMode(m) {
   if(m==='books'){renderLib();stopActivePoll();}
   if(m==='weekly'){setupWeekly();weekDropBooks();stopActivePoll();}
   if(m==='dash'){loadDashboard();} // loadDashboard sets _onStatsTab=true + starts 5s poll
+  if(m==='feed'){loadFeed();}
 }
 
 // ── LIBRARY ──
@@ -4268,6 +4312,324 @@ function drawInitialsCircle(ctx, x, y, r, name) {
 }
 
 
+// ══════════════════════════════════════════════════════════════
+// WARRIOR FEED — live daily logs from Google Sheet
+// Uses Google Sheets JSON API (no auth — public read)
+// Sheet: "Daily Logs" cols: A=timestamp B=member C=date D=book
+//        E=minutes F=pages G=insight H=actionTaken I=rating J=isRestDay
+// ══════════════════════════════════════════════════════════════
+
+var _feedData      = [];
+var _feedFilter    = 'all';
+var _feedLoaded    = false;
+var _feedFetching  = false;
+
+// Spreadsheet ID from GAS config
+var SHEET_ID = '1UEHXooO2z6gEup2gmuiDPzqYwRkoYpTn6NneRBNtYvU';
+
+function loadFeed(force) {
+  if (_feedFetching) return;
+  if (_feedLoaded && !force) { renderFeed(); return; }
+  _feedFetching = true;
+  document.getElementById('feedLoading').style.display = 'flex';
+  document.getElementById('feedList').style.display    = 'none';
+  document.getElementById('feedError').style.display   = 'none';
+  document.getElementById('feedEmpty').style.display   = 'none';
+  var icon = document.getElementById('feedRefreshIcon');
+  if(icon) icon.style.animation = 'spin .6s linear infinite';
+
+  // Use GAS getDashboard first (already working) to get warrior names,
+  // then use Google Sheets JSON API for daily log rows
+  var sheetName = encodeURIComponent('Daily Log');
+  var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+    '/gviz/tq?tqx=out:json&sheet=' + sheetName + '&t=' + Date.now();
+
+  fetch(url, { cache: 'no-store' })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    })
+    .then(function(text) {
+      // Google wraps response in google.visualization.Query.setResponse(...)
+      var json = text.replace(/^.*?google\.visualization\.Query\.setResponse\(/, '')
+                     .replace(/\);?\s*$/, '');
+      var data = JSON.parse(json);
+      _feedData = parseFeedRows(data);
+      _feedLoaded = true;
+      _feedFetching = false;
+      if(icon) icon.style.animation = '';
+      document.getElementById('feedLoading').style.display = 'none';
+      renderFeed();
+    })
+    .catch(function(err) {
+      _feedFetching = false;
+      if(icon) icon.style.animation = '';
+      document.getElementById('feedLoading').style.display = 'none';
+      // Fallback: try with sheet name "Daily Logs" (plural)
+      if (!_feedLoaded) {
+        _tryFeedFallback();
+      } else {
+        renderFeed(); // show cached data
+      }
+    });
+}
+
+function _tryFeedFallback() {
+  var sheetName = encodeURIComponent('Daily Logs');
+  var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+    '/gviz/tq?tqx=out:json&sheet=' + sheetName + '&t=' + Date.now();
+  fetch(url, { cache: 'no-store' })
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var json = text.replace(/^.*?google\.visualization\.Query\.setResponse\(/, '')
+                     .replace(/\);?\s*$/, '');
+      var data = JSON.parse(json);
+      _feedData = parseFeedRows(data);
+      _feedLoaded = true;
+      renderFeed();
+    })
+    .catch(function(){
+      // Try raw sheet index 0 as fallback
+      _tryFeedSheetIndex();
+    });
+}
+
+function _tryFeedSheetIndex() {
+  // Try sheet index 1 (Daily Log is usually second sheet)
+  var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+    '/gviz/tq?tqx=out:json&gid=1&t=' + Date.now();
+  fetch(url, { cache: 'no-store' })
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var json = text.replace(/^.*?google\.visualization\.Query\.setResponse\(/, '')
+                     .replace(/\);?\s*$/, '');
+      var data = JSON.parse(json);
+      _feedData = parseFeedRows(data);
+      _feedLoaded = true;
+      renderFeed();
+    })
+    .catch(function(){
+      showFeedError('Could not load feed. Check your connection.');
+    });
+}
+
+function parseFeedRows(data) {
+  if (!data || !data.table || !data.table.rows) return [];
+  var rows = data.table.rows;
+  var cols = data.table.cols || [];
+  // Auto-detect column positions by header labels
+  var cMap = {};
+  cols.forEach(function(c, i) {
+    var lbl = (c.label || c.id || '').toLowerCase().replace(/\s+/g,'');
+    cMap[lbl] = i;
+    // also map short names
+    if (lbl.indexOf('member') !== -1) cMap['member'] = i;
+    if (lbl.indexOf('date') !== -1 && !cMap['date']) cMap['date'] = i;
+    if (lbl.indexOf('book') !== -1) cMap['book'] = i;
+    if (lbl.indexOf('minute') !== -1 || lbl.indexOf('mins') !== -1) cMap['minutes'] = i;
+    if (lbl.indexOf('page') !== -1) cMap['pages'] = i;
+    if (lbl.indexOf('insight') !== -1) cMap['insight'] = i;
+    if (lbl.indexOf('action') !== -1) cMap['action'] = i;
+    if (lbl.indexOf('rating') !== -1) cMap['rating'] = i;
+    if (lbl.indexOf('rest') !== -1) cMap['isrest'] = i;
+  });
+
+  function cell(row, key) {
+    var idx = cMap[key];
+    if (idx === undefined || idx === null) return '';
+    var c = row.c && row.c[idx];
+    if (!c) return '';
+    var v = c.v !== null && c.v !== undefined ? c.v : (c.f || '');
+    return String(v).trim();
+  }
+
+  var logs = [];
+  rows.forEach(function(row) {
+    if (!row || !row.c) return;
+    var m = cell(row,'member');
+    if (!m || m.length < 2) return;
+    var dateRaw = cell(row,'date') || cell(row,'datedisplay') || '';
+    var isRest  = cell(row,'isrest').toLowerCase() === 'true' || cell(row,'isrest') === '1';
+    var book    = isRest ? 'Rest Day' : cell(row,'book');
+    var mins    = parseInt(cell(row,'minutes')) || 0;
+    var pages   = parseInt(cell(row,'pages'))   || 0;
+    var insight = cell(row,'insight');
+    var action  = cell(row,'action');
+    var rating  = parseInt(cell(row,'rating'))  || 0;
+    logs.push({
+      member:  m,
+      nameLo:  lettersOnly(m),
+      date:    dateRaw,
+      book:    book,
+      minutes: mins,
+      pages:   pages,
+      insight: insight,
+      action:  action,
+      rating:  rating,
+      isRest:  isRest
+    });
+  });
+  // Sort newest first
+  logs.reverse();
+  return logs;
+}
+
+function setFeedFilter(f) {
+  _feedFilter = f;
+  document.querySelectorAll('.feed-filter').forEach(function(btn){
+    btn.classList.toggle('active', btn.dataset.filter === f);
+  });
+  renderFeed();
+}
+
+function renderFeed() {
+  var list  = document.getElementById('feedList');
+  var empty = document.getElementById('feedEmpty');
+  if (!list) return;
+
+  var myLo = lettersOnly(member || '');
+  var today = dateStr();
+
+  // Filter
+  var filtered = _feedData.filter(function(log) {
+    if (_feedFilter === 'mine')    return log.nameLo === myLo || log.nameLo.indexOf(myLo) === 0 || myLo.indexOf(log.nameLo) === 0;
+    if (_feedFilter === 'today')   return log.date === today || log.date.indexOf(today) === 0;
+    if (_feedFilter === 'reading') return !log.isRest;
+    if (_feedFilter === 'rest')    return log.isRest;
+    return true;
+  });
+
+  if (!filtered.length) {
+    list.style.display  = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.style.display  = 'block';
+
+  // Group by date for day markers
+  var html = '';
+  var lastDate = null;
+  filtered.forEach(function(log) {
+    var dateLabel = _formatFeedDate(log.date);
+    if (dateLabel !== lastDate) {
+      html += '<div class="feed-day-marker">' + (dateLabel || 'Earlier') + '</div>';
+      lastDate = dateLabel;
+    }
+    html += _buildFeedCard(log, myLo);
+  });
+  list.innerHTML = html;
+}
+
+function _formatFeedDate(dateStr2) {
+  if (!dateStr2) return '';
+  var today = dateStr();
+  // yyyy-mm-dd format
+  var d = dateStr2.replace(/T.*$/, '').trim();
+  if (d === today) return 'Today';
+  // Check yesterday
+  var yest = new Date(); yest.setDate(yest.getDate()-1);
+  var yStr = yest.getFullYear()+'-'+String(yest.getMonth()+1).padStart(2,'0')+'-'+String(yest.getDate()).padStart(2,'0');
+  if (d === yStr) return 'Yesterday';
+  // Format as "Mon, 27 May"
+  try {
+    var dt = new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'});
+  } catch(e) { return dateStr2; }
+}
+
+function _buildFeedCard(log, myLo) {
+  var isMe = log.nameLo === myLo || log.nameLo.indexOf(myLo) === 0 || myLo.indexOf(log.nameLo) === 0;
+  var ini  = _getFeedInitials(log.member);
+  var fname2 = log.member.split(' ')[0];
+
+  var cardClass = 'fc' + (isMe ? ' mine' : '');
+  var avatarClass = 'fc-avatar' + (log.isRest ? ' rest' : '');
+  var badge = log.isRest
+    ? '<span class="fc-badge rest">Rest Day</span>'
+    : '<span class="fc-badge reading">Reading</span>';
+
+  var stars = '';
+  if (log.rating > 0) {
+    for (var s=0; s<log.rating; s++) stars += '&#11088;';
+  }
+
+  var statsStrip = '';
+  if (!log.isRest) {
+    var statParts = [];
+    if (log.minutes > 0) statParts.push('<div class="fc-stat"><div class="fc-stat-val">' + log.minutes + '</div><div class="fc-stat-lbl">Mins</div></div>');
+    if (log.pages   > 0) statParts.push('<div class="fc-stat"><div class="fc-stat-val">' + log.pages   + '</div><div class="fc-stat-lbl">Pages</div></div>');
+    if (log.rating  > 0) statParts.push('<div class="fc-stat"><div class="fc-stat-val" style="font-size:13px">' + stars + '</div><div class="fc-stat-lbl">Rating</div></div>');
+    if (statParts.length) statsStrip = '<div class="fc-stats">' + statParts.join('') + '</div>';
+  }
+
+  var bookStrip = '';
+  if (log.book && log.book !== 'Rest Day') {
+    var bk = log.book.length > 40 ? log.book.slice(0,39)+'…' : log.book;
+    bookStrip = '<div class="fc-book"><span class="fc-book-icon">&#x1F4D6;</span><span class="fc-book-title">' + escHtml(bk) + '</span></div>';
+  }
+
+  var insightBlock = '';
+  if (log.insight && log.insight !== 'Rest Day' && log.insight.length > 2) {
+    var ins = log.insight.length > 180 ? log.insight.slice(0,179)+'…' : log.insight;
+    insightBlock = '<div class="fc-insight"><div class="fc-insight-label">&#x1F4A1; Key Insight</div><div class="fc-insight-text">' + escHtml(ins) + '</div></div>';
+  }
+
+  var actionBlock = '';
+  if (log.action && log.action.length > 2 && !log.isRest) {
+    var act = log.action.length > 120 ? log.action.slice(0,119)+'…' : log.action;
+    actionBlock = '<div style="margin:0 16px 12px;font-size:12px;color:rgba(255,255,255,.45);"><span style="font-weight:700;color:rgba(13,200,156,.7)">Action: </span>' + escHtml(act) + '</div>';
+  }
+
+  var meTag = isMe ? '<span style="font-size:10px;background:rgba(242,183,5,.15);color:var(--gold);padding:2px 7px;border-radius:8px;font-weight:700;margin-left:6px">You</span>' : '';
+
+  return '<div class="' + cardClass + '">' +
+    '<div class="fc-head">' +
+      '<div class="' + avatarClass + '">' + escHtml(ini) + '</div>' +
+      '<div class="fc-meta">' +
+        '<div class="fc-name">' + escHtml(fname2) + meTag + '</div>' +
+        '<div class="fc-date">' + _formatFeedDate(log.date) + '</div>' +
+      '</div>' +
+      badge +
+    '</div>' +
+    statsStrip +
+    bookStrip +
+    insightBlock +
+    actionBlock +
+  '</div>';
+}
+
+function _getFeedInitials(name) {
+  if (!name) return '?';
+  var p = name.trim().split(' ').filter(Boolean);
+  if (p.length === 1) return p[0].charAt(0).toUpperCase();
+  return (p[0].charAt(0) + p[p.length-1].charAt(0)).toUpperCase();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showFeedError(msg) {
+  document.getElementById('feedLoading').style.display = 'none';
+  document.getElementById('feedList').style.display    = 'none';
+  document.getElementById('feedEmpty').style.display   = 'none';
+  var el = document.getElementById('feedError');
+  if (el) {
+    el.style.display = 'block';
+    var em = document.getElementById('feedErrorMsg');
+    if (em) em.textContent = msg || 'Could not load feed';
+  }
+}
+
+// Auto-refresh feed every 60s while on feed tab
+setInterval(function(){
+  if (document.getElementById('mode-feed') &&
+      document.getElementById('mode-feed').style.display !== 'none') {
+    loadFeed(true);
+  }
+}, 60000);
+
 // -- BACKLOG DATE HELPERS
 function toggleBacklogDate(){
   var w=document.getElementById('backlogDateWrap');
@@ -4389,6 +4751,51 @@ function shareToTwitter() {
 }
 
 </script>
+
+<!-- ══ FEED MODE ══ -->
+  <div id="mode-feed" style="display:none">
+    <div class="feed-header">
+      <div class="feed-header-title">&#x1F525; Warrior Feed</div>
+      <div class="feed-header-sub">Every warrior. Every session. Live from the sheet.</div>
+      <button class="feed-refresh-btn" onclick="loadFeed(true)" id="feedRefreshBtn">
+        <span id="feedRefreshIcon">&#x21BB;</span> Refresh
+      </button>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="feed-filters" id="feedFilters">
+      <button class="feed-filter active" data-filter="all"    onclick="setFeedFilter('all')">All</button>
+      <button class="feed-filter"        data-filter="mine"   onclick="setFeedFilter('mine')">Mine</button>
+      <button class="feed-filter"        data-filter="today"  onclick="setFeedFilter('today')">Today</button>
+      <button class="feed-filter"        data-filter="reading" onclick="setFeedFilter('reading')">Reading</button>
+      <button class="feed-filter"        data-filter="rest"   onclick="setFeedFilter('rest')">Rest Days</button>
+    </div>
+
+    <!-- Loading state -->
+    <div id="feedLoading" class="feed-loading">
+      <div class="feed-spin"></div>
+      <div>Pulling from the sheet...</div>
+    </div>
+
+    <!-- Error state -->
+    <div id="feedError" class="feed-error" style="display:none">
+      <div style="font-size:32px;margin-bottom:10px">&#x26A0;&#xFE0F;</div>
+      <div id="feedErrorMsg">Could not load feed</div>
+      <button onclick="loadFeed(true)" class="feed-retry-btn">Try Again</button>
+    </div>
+
+    <!-- Feed list -->
+    <div id="feedList" style="display:none"></div>
+
+    <!-- Empty state -->
+    <div id="feedEmpty" style="display:none" class="feed-empty">
+      <div style="font-size:40px;margin-bottom:12px">&#x1F4DA;</div>
+      <div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:6px">No logs yet</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.4)">Be the first BookWarrior to log a session!</div>
+    </div>
+
+    <div style="height:32px"></div>
+  </div>
 
 <!-- SHARE SHEET — PREMIUM DARK EDITION -->
 <style>
