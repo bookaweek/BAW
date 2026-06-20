@@ -51,6 +51,7 @@ self.addEventListener('fetch', function(e) {
 
   // Never intercept GAS or external API calls
   if (url.includes('script.google.com') ||
+      url.includes('docs.google.com') ||
       url.includes('googleapis.com') ||
       url.includes('fonts.gstatic') ||
       url.includes('gstatic.com') ||
@@ -68,7 +69,11 @@ self.addEventListener('fetch', function(e) {
       fetch(e.request, { cache: 'no-store' })
         .then(function(r) {
           if (r && r.ok) {
-            caches.open(CACHE).then(function(c) { c.put(e.request, r.clone()); });
+            // Clone FIRST, synchronously, before the body is ever read.
+            // Caching the clone is fire-and-forget; the original `r` goes
+            // straight back to the page untouched.
+            var toCache = r.clone();
+            caches.open(CACHE).then(function(c) { c.put(e.request, toCache); });
           }
           return r;
         })
@@ -86,7 +91,11 @@ self.addEventListener('fetch', function(e) {
       if (cached) return cached;
       return fetch(e.request).then(function(r) {
         if (r && r.ok && e.request.method === 'GET') {
-          caches.open(CACHE).then(function(c) { c.put(e.request, r.clone()); });
+          // Clone FIRST, synchronously — fixes "Response body is already used"
+          // which happened when c.put() ran its .clone() AFTER the page had
+          // already started reading r's body via .text()/.json().
+          var toCache = r.clone();
+          caches.open(CACHE).then(function(c) { c.put(e.request, toCache); });
         }
         return r;
       }).catch(function() { return new Response('', { status: 503 }); });
