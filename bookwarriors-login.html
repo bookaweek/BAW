@@ -4327,6 +4327,29 @@ var _feedFetching  = false;
 // Spreadsheet ID from GAS config
 var SHEET_ID = '1UEHXooO2z6gEup2gmuiDPzqYwRkoYpTn6NneRBNtYvU';
 
+// SW-proof fetch: bypasses any Service Worker fetch interception by using
+// XMLHttpRequest, which service worker `fetch` event listeners cannot intercept
+// the same way — this sidesteps the sw.js clone()-after-read crash entirely.
+function _xhrGet(url, onSuccess, onError) {
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onSuccess(xhr.responseText);
+      } else {
+        onError(new Error('HTTP ' + xhr.status));
+      }
+    };
+    xhr.onerror = function() { onError(new Error('Network error')); };
+    xhr.ontimeout = function() { onError(new Error('Timeout')); };
+    xhr.send();
+  } catch (e) {
+    onError(e);
+  }
+}
+
 function loadFeed(force) {
   if (_feedFetching) return;
   if (_feedLoaded && !force) { renderFeed(); return; }
@@ -4338,19 +4361,12 @@ function loadFeed(force) {
   var icon = document.getElementById('feedRefreshIcon');
   if(icon) icon.style.animation = 'spin .6s linear infinite';
 
-  // Use GAS getDashboard first (already working) to get warrior names,
-  // then use Google Sheets JSON API for daily log rows
   var sheetName = encodeURIComponent('Daily Log');
   var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
     '/gviz/tq?tqx=out:json&sheet=' + sheetName + '&t=' + Date.now();
 
-  fetch(url, { cache: 'no-store' })
-    .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.text();
-    })
-    .then(function(text) {
-      // Google wraps response in google.visualization.Query.setResponse(...)
+  _xhrGet(url, function(text) {
+    try {
       var json = text.replace(/^.*?google\.visualization\.Query\.setResponse\(/, '')
                      .replace(/\);?\s*$/, '');
       var data = JSON.parse(json);
@@ -4360,57 +4376,61 @@ function loadFeed(force) {
       if(icon) icon.style.animation = '';
       document.getElementById('feedLoading').style.display = 'none';
       renderFeed();
-    })
-    .catch(function(err) {
+    } catch (parseErr) {
       _feedFetching = false;
       if(icon) icon.style.animation = '';
       document.getElementById('feedLoading').style.display = 'none';
-      // Fallback: try with sheet name "Daily Logs" (plural)
-      if (!_feedLoaded) {
-        _tryFeedFallback();
-      } else {
-        renderFeed(); // show cached data
-      }
-    });
+      _tryFeedFallback();
+    }
+  }, function(err) {
+    _feedFetching = false;
+    if(icon) icon.style.animation = '';
+    document.getElementById('feedLoading').style.display = 'none';
+    if (!_feedLoaded) {
+      _tryFeedFallback();
+    } else {
+      renderFeed();
+    }
+  });
 }
 
 function _tryFeedFallback() {
   var sheetName = encodeURIComponent('Daily Logs');
   var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
     '/gviz/tq?tqx=out:json&sheet=' + sheetName + '&t=' + Date.now();
-  fetch(url, { cache: 'no-store' })
-    .then(function(r){ return r.text(); })
-    .then(function(text){
+  _xhrGet(url, function(text) {
+    try {
       var json = text.replace(/^.*?google\.visualization\.Query\.setResponse\(/, '')
                      .replace(/\);?\s*$/, '');
       var data = JSON.parse(json);
       _feedData = parseFeedRows(data);
       _feedLoaded = true;
       renderFeed();
-    })
-    .catch(function(){
-      // Try raw sheet index 0 as fallback
+    } catch (e) {
       _tryFeedSheetIndex();
-    });
+    }
+  }, function() {
+    _tryFeedSheetIndex();
+  });
 }
 
 function _tryFeedSheetIndex() {
-  // Try sheet index 1 (Daily Log is usually second sheet)
   var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
     '/gviz/tq?tqx=out:json&gid=1&t=' + Date.now();
-  fetch(url, { cache: 'no-store' })
-    .then(function(r){ return r.text(); })
-    .then(function(text){
+  _xhrGet(url, function(text) {
+    try {
       var json = text.replace(/^.*?google\.visualization\.Query\.setResponse\(/, '')
                      .replace(/\);?\s*$/, '');
       var data = JSON.parse(json);
       _feedData = parseFeedRows(data);
       _feedLoaded = true;
       renderFeed();
-    })
-    .catch(function(){
-      showFeedError('Could not load feed. Check your connection.');
-    });
+    } catch (e) {
+      showFeedError('Could not load feed. The sheet format may have changed.');
+    }
+  }, function() {
+    showFeedError('Could not load feed. Check your connection.');
+  });
 }
 
 function parseFeedRows(data) {
