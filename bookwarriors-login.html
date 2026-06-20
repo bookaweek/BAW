@@ -2651,22 +2651,34 @@ function prog(){
 // Deletes cached GAS entries before every request so the
 // Service Worker cannot serve stale cached responses.
 // ══════════════════════════════════════════════════════════
-async function _gasFetch(url) {
-  if (window.caches) {
-    try {
-      var keys = await caches.keys();
-      for (var i = 0; i < keys.length; i++) {
-        var cache = await caches.open(keys[i]);
-        var reqs  = await cache.keys();
-        for (var j = 0; j < reqs.length; j++) {
-          if (reqs[j].url && reqs[j].url.includes('script.google.com')) {
-            await cache.delete(reqs[j]);
-          }
-        }
-      }
-    } catch(e) {}
+async function _gasFetch(url, timeoutMs) {
+  // sw.js bypasses script.google.com / docs.google.com entirely (see fetch
+  // handler), so the old per-call cache-scrubbing loop is no longer needed
+  // and was actually a liability: it ran a full caches.keys() -> per-cache
+  // .keys() -> per-request URL scan on EVERY poll (every 5-30s), racing
+  // against the Service Worker's own cache writes and slowing every
+  // request down. Removed entirely.
+  //
+  // Added: a real timeout via AbortController. Without this, a cold-started
+  // or rate-limited GAS deployment can hang far longer than feels like a
+  // "failure" to the user, and fetchLiveBoard's retry backoff never gets a
+  // chance to kick in until the browser's own (very long) default timeout
+  // finally fires.
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, timeoutMs || 12000);
+  try {
+    var resp = await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-store',
+      credentials: 'omit',
+      redirect: 'follow',
+      signal: controller.signal
+    });
+    return resp;
+  } finally {
+    clearTimeout(timer);
   }
-  return fetch(url, { method:'GET', mode:'cors', cache:'no-store', credentials:'omit', redirect:'follow' });
 }
 
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
@@ -3381,10 +3393,22 @@ function fetchLiveBoard(forceRender) {
   _inFlight = true;
 
   var t0 = Date.now();
-  _gasFetch(GAS_URL + '?action=getDashboard&t=' + t0)
+  _gasFetch(GAS_URL + '?action=getDashboard&t=' + t0, 12000)
     .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
+      if (!r.ok) {
+        var e = new Error('HTTP ' + r.status);
+        e._httpStatus = r.status;
+        throw e;
+      }
+      return r.json().catch(function() {
+        // GAS returned 200 but with a body that isn't valid JSON
+        // (e.g. an HTML error page from a misconfigured deployment).
+        // Surface this distinctly so it's diagnosable instead of
+        // looking identical to a plain network failure.
+        var e = new Error('Non-JSON response from GAS');
+        e._badJson = true;
+        throw e;
+      });
     })
     .then(function(d) {
       _inFlight  = false;
@@ -3430,7 +3454,29 @@ function fetchLiveBoard(forceRender) {
       // Exponential backoff: 5s → 10s → 20s → 30s cap
       var delay = Math.min(5000 * Math.pow(2, _failCount - 1), 30000);
       _setActivePollInterval(delay);
-      console.warn('[BAW] fetchLiveBoard failed (' + _failCount + '), retry in ' + (delay/1000) + 's');
+
+      // Diagnose WHY it failed instead of a generic warning every time.
+      // Still retries on the same schedule — this only changes what gets
+      // logged, so a real cause is visible instead of a bare retry count.
+      var reason = e && e.name === 'AbortError' ? 'timeout (12s)'
+                 : e && e._badJson              ? 'GAS returned non-JSON (bad deployment / quota page)'
+                 : e && e._httpStatus           ? 'HTTP ' + e._httpStatus
+                 : e && e.message               ? e.message
+                 : 'unknown network error';
+
+      // Only spam the console on the 1st failure and every 5th after that —
+      // the retries themselves are unaffected, this just stops flooding
+      // the console on a long outage while still surfacing the real cause.
+      if (_failCount === 1 || _failCount % 5 === 0) {
+        console.warn('[BAW] fetchLiveBoard failed (' + _failCount + ', ' + reason + '), retry in ' + (delay/1000) + 's');
+      }
+
+      // After 10 consecutive failures, something is persistently wrong
+      // (not a transient blip) — surface it visibly if the Stats tab is open
+      // instead of silently retrying forever with no UI signal.
+      if (_failCount === 10 && _onStatsTab && typeof showSyncBadge === 'function') {
+        showSyncBadge(null, 'Live sync unavailable — showing last known data');
+      }
     });
 }
 
@@ -3514,19 +3560,35 @@ function stopActivePoll() {
 })();
 
 // ── SYNC BADGE ──
-function showSyncBadge(ms) {
+function showSyncBadge(ms, errorMsg) {
   var el = document.getElementById('dash-last-updated');
   if (!el) return;
   var now = new Date();
   var t   = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
-  el.textContent  = '🟢 Live · ' + t + ' (' + ms + 'ms)';
+
+  // Error mode: ms is null/omitted and an errorMsg is supplied — used by
+  // fetchLiveBoard after sustained consecutive failures, so the warrior
+  // sees a visible signal instead of a console-only warning that never
+  // reaches them while staring at silently-stale numbers.
+  if (ms === null || ms === undefined) {
+    el.textContent   = '⚠️ ' + (errorMsg || 'Sync unavailable') + ' · ' + t;
+    el.style.color    = 'rgba(242,183,5,.85)';
+    el.style.opacity  = '1';
+    clearTimeout(el._ft);
+    // Don't auto-fade the warning — it should stay visible until the
+    // next successful sync explicitly clears it (see the success path
+    // in fetchLiveBoard, which always calls showSyncBadge(ms) on recovery).
+    return;
+  }
+
+  el.textContent  = '?? Live · ' + t + ' (' + ms + 'ms)';
   el.style.color  = 'rgba(13,210,100,.8)';
   el.style.opacity = '1';
   clearTimeout(el._ft);
   el._ft = setTimeout(function() {
     el.style.color   = 'rgba(255,255,255,.3)';
     el.style.opacity = '0.4';
-    el.textContent   = '🔄 Syncing every 5s...';
+    el.textContent   = '?? Syncing every 5s...';
   }, 6000);
 }
 
