@@ -2781,6 +2781,16 @@ function flushQueue() {
 // Flush any queued logs when connection returns
 window.addEventListener('online', function() {
   setTimeout(flushQueue, 1000);
+
+  // Connectivity just came back — reset the dashboard poll's failure
+  // state and re-fetch immediately instead of waiting out whatever
+  // exponential-backoff delay (up to 30s) was in effect from the
+  // outage. This is the direct fix for "it stayed broken-looking even
+  // after my WiFi came back" — previously the poll just sat on its
+  // existing backoff timer until it happened to fire again.
+  _failCount = 0;
+  if (typeof _setActivePollInterval === 'function') _setActivePollInterval(5000);
+  if (typeof fetchLiveBoard === 'function') setTimeout(function(){ fetchLiveBoard(true); }, 800);
 });
 
 // Attempt flush on every login too
@@ -3390,6 +3400,26 @@ function triggerPostSubmitFetch() {
 // ══════════════════════════════════════════════════════════════════════
 function fetchLiveBoard(forceRender) {
   if (_inFlight) return; // don't pile up — let the current request finish
+
+  // ── OFFLINE GUARD ──────────────────────────────────────────────
+  // navigator.onLine reflects the OS/browser's own connectivity check —
+  // this is exactly what produces ERR_INTERNET_DISCONNECTED when false.
+  // Without this check, a device with no signal was being treated
+  // identically to a real GAS-side failure: _failCount climbed, the
+  // exponential backoff kicked in, and after 10 strikes it showed a
+  // misleading "Live sync unavailable" warning — even though the
+  // actual cause was simply "no internet right now", which the
+  // existing #offline-bar already communicates clearly on its own.
+  //
+  // Now: if we're offline, skip the request entirely. No failure is
+  // recorded, no backoff is triggered, no false "GAS is broken"
+  // warning fires. The 'online' listener below restarts the poll the
+  // INSTANT connectivity returns — no waiting for the next interval.
+  if (!navigator.onLine) {
+    _setActivePollInterval(5000); // reset so polling resumes promptly on reconnect
+    return;
+  }
+
   _inFlight = true;
 
   var t0 = Date.now();
@@ -3466,10 +3496,11 @@ function fetchLiveBoard(forceRender) {
       // Diagnose WHY it failed instead of a generic warning every time.
       // Still retries on the same schedule — this only changes what gets
       // logged, so a real cause is visible instead of a bare retry count.
-      var reason = e && e.name === 'AbortError' ? 'timeout (12s)'
-                 : e && e._badJson              ? 'GAS returned non-JSON (bad deployment / quota page)'
-                 : e && e._httpStatus           ? 'HTTP ' + e._httpStatus
-                 : e && e.message               ? e.message
+      var reason = !navigator.onLine                ? 'device offline'
+                 : e && e.name === 'AbortError'      ? 'timeout (12s)'
+                 : e && e._badJson                   ? 'GAS returned non-JSON (bad deployment / quota page)'
+                 : e && e._httpStatus                ? 'HTTP ' + e._httpStatus
+                 : e && e.message                    ? e.message
                  : 'unknown network error';
 
       // Only spam the console on the 1st failure and every 5th after that —
@@ -3489,7 +3520,11 @@ function fetchLiveBoard(forceRender) {
       // After 10 consecutive failures, something is persistently wrong
       // (not a transient blip) — surface it visibly if the Stats tab is open
       // instead of silently retrying forever with no UI signal.
-      if (_failCount === 10 && _onStatsTab && typeof showSyncBadge === 'function') {
+      // Only fires this if we were actually online when it failed — a
+      // string of failures purely caused by the device being offline
+      // should never be mistaken for "GAS is broken"; the #offline-bar
+      // already tells the warrior exactly what's really going on.
+      if (_failCount === 10 && navigator.onLine && _onStatsTab && typeof showSyncBadge === 'function') {
         showSyncBadge(null, 'Live sync unavailable — showing last known data');
       }
     });
