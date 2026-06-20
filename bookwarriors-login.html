@@ -3400,14 +3400,22 @@ function fetchLiveBoard(forceRender) {
         e._httpStatus = r.status;
         throw e;
       }
-      return r.json().catch(function() {
-        // GAS returned 200 but with a body that isn't valid JSON
-        // (e.g. an HTML error page from a misconfigured deployment).
-        // Surface this distinctly so it's diagnosable instead of
-        // looking identical to a plain network failure.
-        var e = new Error('Non-JSON response from GAS');
-        e._badJson = true;
-        throw e;
+      // Read as text FIRST so we can show the real GAS error body
+      // (quota message, permission error, stack trace, etc.) if it
+      // turns out not to be JSON, instead of discarding it.
+      return r.text().then(function(bodyText) {
+        try {
+          return JSON.parse(bodyText);
+        } catch (parseErr) {
+          var e = new Error('Non-JSON response from GAS');
+          e._badJson = true;
+          // Keep a short, safe-to-log excerpt of the actual response —
+          // this is the #1 most useful clue for diagnosing GAS-side
+          // issues (quota exhausted, permission revoked, script error,
+          // wrong deployment serving stale code, etc.)
+          e._bodyExcerpt = String(bodyText || '').slice(0, 300);
+          throw e;
+        }
       });
     })
     .then(function(d) {
@@ -3469,6 +3477,13 @@ function fetchLiveBoard(forceRender) {
       // the console on a long outage while still surfacing the real cause.
       if (_failCount === 1 || _failCount % 5 === 0) {
         console.warn('[BAW] fetchLiveBoard failed (' + _failCount + ', ' + reason + '), retry in ' + (delay/1000) + 's');
+        // If GAS sent back an actual body (its real error message), print
+        // it on its own line — this is what tells you WHICH of: quota
+        // exhausted / permission revoked / stale deployment / script
+        // exception is actually happening, instead of guessing.
+        if (e && e._bodyExcerpt) {
+          console.warn('[BAW] GAS response body was:', e._bodyExcerpt);
+        }
       }
 
       // After 10 consecutive failures, something is persistently wrong
