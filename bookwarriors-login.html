@@ -2651,7 +2651,7 @@ function prog(){
 // Deletes cached GAS entries before every request so the
 // Service Worker cannot serve stale cached responses.
 // ══════════════════════════════════════════════════════════
-async function _gasFetch(url, timeoutMs) {
+async function _gasFetch(url, timeoutMs, _retryCount) {
   // sw.js bypasses script.google.com / docs.google.com entirely (see fetch
   // handler), so the old per-call cache-scrubbing loop is no longer needed
   // and was actually a liability: it ran a full caches.keys() -> per-cache
@@ -2664,6 +2664,24 @@ async function _gasFetch(url, timeoutMs) {
   // "failure" to the user, and fetchLiveBoard's retry backoff never gets a
   // chance to kick in until the browser's own (very long) default timeout
   // finally fires.
+  //
+  // Added: up to 3 automatic retries (increased from 1 — a single quick
+  // retry proved insufficient against a connection issue that recurred
+  // twice in a row) specifically for transport-level connection failures
+  // (ERR_CONNECTION_CLOSED, ERR_CONNECTION_RESET, ERR_CONNECTION_REFUSED,
+  // the generic "Failed to fetch" TypeError fetch() throws for all of
+  // these). GAS web apps don't serve their response body directly from
+  // script.google.com — that host issues a 302 to a freshly-signed,
+  // single-use URL on script.googleusercontent.com which actually
+  // carries the JSON payload, OR the connection to script.google.com
+  // itself can be closed by an intermediary (carrier NAT, corporate
+  // proxy, flaky mobile tower). Each retry gets a brand-new attempt
+  // with increasing backoff (300ms, 700ms, 1500ms) to give a transient
+  // network blip real room to clear, while still failing fast (under
+  // ~3s total) if the problem is structural rather than transient —
+  // a structural failure (broken/revoked deployment, script error) will
+  // fail identically on every retry and should surface to the user
+  // quickly rather than being retried forever.
   var controller = new AbortController();
   var timer = setTimeout(function() { controller.abort(); }, timeoutMs || 12000);
   try {
@@ -2676,9 +2694,111 @@ async function _gasFetch(url, timeoutMs) {
       signal: controller.signal
     });
     return resp;
+  } catch (err) {
+    var isConnFailure = err && err.name === 'TypeError' &&
+      /Failed to fetch|NetworkError|ERR_CONNECTION|ERR_CONNECTION_CLOSED|ERR_CONNECTION_RESET|ERR_CONNECTION_REFUSED/i.test(
+        String(err.message || '')
+      );
+    var retries = _retryCount || 0;
+    var MAX_RETRIES = 3;
+    var BACKOFF_MS = [300, 700, 1500];
+    if (isConnFailure && navigator.onLine && retries < MAX_RETRIES) {
+      var delay = BACKOFF_MS[retries] || 1500;
+      await new Promise(function(r) { setTimeout(r, delay + Math.random() * 150); });
+      return _gasFetch(url, timeoutMs, retries + 1);
+    }
+    // Tag the error with how many retries were actually attempted, so
+    // diagnostics (and runConnectionDiagnostic below) can tell a
+    // transient blip apart from a structural failure that persisted
+    // across every single retry.
+    err._gasRetriesExhausted = retries;
+    throw err;
   } finally {
     clearTimeout(timer);
   }
+}
+
+// ══════════════════════════════════════════════════════════
+// runConnectionDiagnostic — call from the console:
+//   runConnectionDiagnostic()
+// Gives a definitive, unambiguous answer to "is this my network,
+// or is the GAS deployment itself broken?" by testing THREE
+// different things and reporting each result separately:
+//   1. A plain ping to a known-reliable Google endpoint (rules out
+//      "no internet at all" vs "something specific to GAS")
+//   2. The actual GAS_URL ping action (tests the real deployment)
+//   3. Whether the failure (if any) persists across 3 attempts
+// ══════════════════════════════════════════════════════════
+async function runConnectionDiagnostic() {
+  console.log('%c[BAW DIAGNOSTIC] Starting...', 'font-weight:bold;color:#F2B705');
+
+  // Test 1: general internet sanity check (bypasses GAS entirely)
+  var generalOk = false;
+  try {
+    var r1 = await fetch('https://www.gstatic.com/generate_204', { mode: 'no-cors', cache: 'no-store' });
+    generalOk = true;
+  } catch (e1) {
+    generalOk = false;
+  }
+  console.log(generalOk
+    ? '✅ Step 1/3 — General internet: OK (device has working connectivity)'
+    : '❌ Step 1/3 — General internet: FAILED (device itself has no usable connection right now)');
+
+  if (!generalOk) {
+    console.log('%c[BAW DIAGNOSTIC] STOP — this is a device/network problem, not GAS. Check WiFi/data and try again.', 'color:#E07B39');
+    return { generalOk: false, gasOk: null, conclusion: 'device offline or no usable connectivity' };
+  }
+
+  // Test 2: the actual GAS deployment, 3 sequential attempts, each timed
+  var gasResults = [];
+  for (var i = 0; i < 3; i++) {
+    var t0 = Date.now();
+    try {
+      var r2 = await fetch(GAS_URL + '?action=ping&t=' + Date.now(), {
+        method: 'GET', mode: 'cors', cache: 'no-store', credentials: 'omit', redirect: 'follow'
+      });
+      var ms = Date.now() - t0;
+      if (r2.ok) {
+        var body = await r2.text();
+        gasResults.push({ attempt: i + 1, ok: true, status: r2.status, ms: ms, body: body.slice(0, 200) });
+      } else {
+        gasResults.push({ attempt: i + 1, ok: false, status: r2.status, ms: ms, body: null });
+      }
+    } catch (e2) {
+      gasResults.push({ attempt: i + 1, ok: false, status: null, ms: Date.now() - t0, error: String(e2 && e2.message || e2) });
+    }
+    if (i < 2) await new Promise(function(r) { setTimeout(r, 500); });
+  }
+
+  var anySuccess = gasResults.some(function(g) { return g.ok; });
+  var allFailed  = gasResults.every(function(g) { return !g.ok; });
+
+  console.log('Step 2/3 — GAS deployment, 3 attempts:');
+  gasResults.forEach(function(g) {
+    if (g.ok) {
+      console.log('  ✅ Attempt ' + g.attempt + ': HTTP ' + g.status + ' in ' + g.ms + 'ms — body: ' + g.body);
+    } else if (g.status) {
+      console.log('  ❌ Attempt ' + g.attempt + ': HTTP ' + g.status + ' in ' + g.ms + 'ms');
+    } else {
+      console.log('  ❌ Attempt ' + g.attempt + ': ' + g.error + ' (no HTTP response at all — connection-level failure)');
+    }
+  });
+
+  var conclusion;
+  if (allFailed) {
+    conclusion = 'STRUCTURAL — GAS deployment failed on all 3 attempts with NO successful response. ' +
+      'This is almost certainly: (a) the deployment was deleted/revoked, (b) "Who has access" is no ' +
+      'longer set to "Anyone", or (c) the script has a syntax/runtime error preventing it from starting. ' +
+      'Open script.google.com → your project → Deploy → Manage deployments, and verify the active ' +
+      'deployment exists, its access is "Anyone", and check Executions log for errors.';
+  } else if (anySuccess && !allFailed) {
+    conclusion = 'TRANSIENT — GAS deployment works (at least one attempt succeeded). Failures you saw ' +
+      'before were a temporary network blip, not a broken deployment. The automatic retry logic should ' +
+      'now smooth this over for warriors.';
+  }
+  console.log('%c[BAW DIAGNOSTIC] CONCLUSION: ' + conclusion, 'font-weight:bold;color:' + (allFailed ? '#C0392B' : '#0D7A6E'));
+
+  return { generalOk: true, gasResults: gasResults, anySuccess: anySuccess, allFailed: allFailed, conclusion: conclusion };
 }
 
 // sendToGAS: fires fetch, queues on fail, retries on reconnect
@@ -3496,10 +3616,12 @@ function fetchLiveBoard(forceRender) {
       // Diagnose WHY it failed instead of a generic warning every time.
       // Still retries on the same schedule — this only changes what gets
       // logged, so a real cause is visible instead of a bare retry count.
+      var isConnIssue = e && e.name === 'TypeError' && /Failed to fetch|NetworkError|ERR_CONNECTION/i.test(String(e.message || ''));
       var reason = !navigator.onLine                ? 'device offline'
                  : e && e.name === 'AbortError'      ? 'timeout (12s)'
                  : e && e._badJson                   ? 'GAS returned non-JSON (bad deployment / quota page)'
                  : e && e._httpStatus                ? 'HTTP ' + e._httpStatus
+                 : isConnIssue                       ? 'connection-level failure, retried 3x automatically — run runConnectionDiagnostic() in console for a definitive cause'
                  : e && e.message                    ? e.message
                  : 'unknown network error';
 
@@ -4436,12 +4558,11 @@ var _feedFilter    = 'all';
 var _feedLoaded    = false;
 var _feedFetching  = false;
 
-// Spreadsheet ID from GAS config
-var SHEET_ID = '1UEHXooO2z6gEup2gmuiDPzqYwRkoYpTn6NneRBNtYvU';
-
 // SW-proof fetch: bypasses any Service Worker fetch interception by using
 // XMLHttpRequest, which service worker `fetch` event listeners cannot intercept
 // the same way — this sidesteps the sw.js clone()-after-read crash entirely.
+// Kept available for anything else that wants it, though the Feed itself
+// now routes through _gasFetch (see below) rather than XHR directly.
 function _xhrGet(url, onSuccess, onError) {
   try {
     var xhr = new XMLHttpRequest();
@@ -4462,6 +4583,27 @@ function _xhrGet(url, onSuccess, onError) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// loadFeed — THE CORRECTED VERSION.
+//
+// The previous implementation guessed at raw Google Sheets API calls
+// against hardcoded sheet names ('Daily Log', 'Daily Logs', gid=1).
+// That was wrong: this spreadsheet's REAL structure (visible in the
+// actual GAS script) is SIX SEPARATE per-warrior tabs — "📅 Dorcas
+// Daily", "📅 Haliyah Daily", etc. — not one shared log sheet. The
+// old code was silently failing through three layers of guesses
+// before showing "Could not load feed", because none of those
+// hardcoded names ever matched anything real.
+//
+// THE FIX: route through the GAS script itself via the new
+// `getRecentLogs` action, which already knows the real per-warrior
+// tab names and column layout (it's defined right next to logDaily,
+// using the exact same DCOL map). This also means the Feed gets the
+// same caching (CacheService, 20s window) and the same hardened
+// _gasFetch (timeout + automatic retry on connection failures) that
+// the Stats tab already benefits from — instead of being a totally
+// separate, unprotected code path.
+// ══════════════════════════════════════════════════════════════
 function loadFeed(force) {
   if (_feedFetching) return;
   if (_feedLoaded && !force) { renderFeed(); return; }
@@ -4473,138 +4615,89 @@ function loadFeed(force) {
   var icon = document.getElementById('feedRefreshIcon');
   if(icon) icon.style.animation = 'spin .6s linear infinite';
 
-  var sheetName = encodeURIComponent('Daily Log');
-  var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
-    '/gviz/tq?tqx=out:json&sheet=' + sheetName + '&t=' + Date.now();
-
-  _xhrGet(url, function(text) {
-    try {
-      var json = text.replace(/^.*?google\.visualization\.Query\.setResponse\(/, '')
-                     .replace(/\);?\s*$/, '');
-      var data = JSON.parse(json);
-      _feedData = parseFeedRows(data);
-      _feedLoaded = true;
-      _feedFetching = false;
-      if(icon) icon.style.animation = '';
-      document.getElementById('feedLoading').style.display = 'none';
-      renderFeed();
-    } catch (parseErr) {
-      _feedFetching = false;
-      if(icon) icon.style.animation = '';
-      document.getElementById('feedLoading').style.display = 'none';
-      _tryFeedFallback();
-    }
-  }, function(err) {
+  if (!navigator.onLine) {
+    // Same offline-awareness as fetchLiveBoard — don't show a scary
+    // feed-specific error when the real cause is just "no internet
+    // right now", which the existing #offline-bar already covers.
     _feedFetching = false;
     if(icon) icon.style.animation = '';
     document.getElementById('feedLoading').style.display = 'none';
-    if (!_feedLoaded) {
-      _tryFeedFallback();
-    } else {
-      renderFeed();
-    }
-  });
-}
-
-function _tryFeedFallback() {
-  var sheetName = encodeURIComponent('Daily Logs');
-  var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
-    '/gviz/tq?tqx=out:json&sheet=' + sheetName + '&t=' + Date.now();
-  _xhrGet(url, function(text) {
-    try {
-      var json = text.replace(/^.*?google\.visualization\.Query\.setResponse\(/, '')
-                     .replace(/\);?\s*$/, '');
-      var data = JSON.parse(json);
-      _feedData = parseFeedRows(data);
-      _feedLoaded = true;
-      renderFeed();
-    } catch (e) {
-      _tryFeedSheetIndex();
-    }
-  }, function() {
-    _tryFeedSheetIndex();
-  });
-}
-
-function _tryFeedSheetIndex() {
-  var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
-    '/gviz/tq?tqx=out:json&gid=1&t=' + Date.now();
-  _xhrGet(url, function(text) {
-    try {
-      var json = text.replace(/^.*?google\.visualization\.Query\.setResponse\(/, '')
-                     .replace(/\);?\s*$/, '');
-      var data = JSON.parse(json);
-      _feedData = parseFeedRows(data);
-      _feedLoaded = true;
-      renderFeed();
-    } catch (e) {
-      showFeedError('Could not load feed. The sheet format may have changed.');
-    }
-  }, function() {
-    showFeedError('Could not load feed. Check your connection.');
-  });
-}
-
-function parseFeedRows(data) {
-  if (!data || !data.table || !data.table.rows) return [];
-  var rows = data.table.rows;
-  var cols = data.table.cols || [];
-  // Auto-detect column positions by header labels
-  var cMap = {};
-  cols.forEach(function(c, i) {
-    var lbl = (c.label || c.id || '').toLowerCase().replace(/\s+/g,'');
-    cMap[lbl] = i;
-    // also map short names
-    if (lbl.indexOf('member') !== -1) cMap['member'] = i;
-    if (lbl.indexOf('date') !== -1 && !cMap['date']) cMap['date'] = i;
-    if (lbl.indexOf('book') !== -1) cMap['book'] = i;
-    if (lbl.indexOf('minute') !== -1 || lbl.indexOf('mins') !== -1) cMap['minutes'] = i;
-    if (lbl.indexOf('page') !== -1) cMap['pages'] = i;
-    if (lbl.indexOf('insight') !== -1) cMap['insight'] = i;
-    if (lbl.indexOf('action') !== -1) cMap['action'] = i;
-    if (lbl.indexOf('rating') !== -1) cMap['rating'] = i;
-    if (lbl.indexOf('rest') !== -1) cMap['isrest'] = i;
-  });
-
-  function cell(row, key) {
-    var idx = cMap[key];
-    if (idx === undefined || idx === null) return '';
-    var c = row.c && row.c[idx];
-    if (!c) return '';
-    var v = c.v !== null && c.v !== undefined ? c.v : (c.f || '');
-    return String(v).trim();
+    if (_feedLoaded) { renderFeed(); } else { showFeedEmpty(); }
+    return;
   }
 
-  var logs = [];
-  rows.forEach(function(row) {
-    if (!row || !row.c) return;
-    var m = cell(row,'member');
-    if (!m || m.length < 2) return;
-    var dateRaw = cell(row,'date') || cell(row,'datedisplay') || '';
-    var isRest  = cell(row,'isrest').toLowerCase() === 'true' || cell(row,'isrest') === '1';
-    var book    = isRest ? 'Rest Day' : cell(row,'book');
-    var mins    = parseInt(cell(row,'minutes')) || 0;
-    var pages   = parseInt(cell(row,'pages'))   || 0;
-    var insight = cell(row,'insight');
-    var action  = cell(row,'action');
-    var rating  = parseInt(cell(row,'rating'))  || 0;
-    logs.push({
-      member:  m,
-      nameLo:  lettersOnly(m),
-      date:    dateRaw,
-      book:    book,
-      minutes: mins,
-      pages:   pages,
-      insight: insight,
-      action:  action,
-      rating:  rating,
-      isRest:  isRest
+  _gasFetch(GAS_URL + '?action=getRecentLogs&limit=80&t=' + Date.now(), 12000)
+    .then(function(r) {
+      if (!r.ok) {
+        var e = new Error('HTTP ' + r.status);
+        e._httpStatus = r.status;
+        throw e;
+      }
+      return r.text().then(function(bodyText) {
+        try {
+          return JSON.parse(bodyText);
+        } catch (parseErr) {
+          var e = new Error('Non-JSON response from GAS');
+          e._badJson = true;
+          e._bodyExcerpt = String(bodyText || '').slice(0, 300);
+          throw e;
+        }
+      });
+    })
+    .then(function(d) {
+      _feedFetching = false;
+      if(icon) icon.style.animation = '';
+      document.getElementById('feedLoading').style.display = 'none';
+
+      if (!d || !d.success || !Array.isArray(d.logs)) {
+        showFeedError('GAS responded but had no logs data. Check the deployment.');
+        return;
+      }
+
+      _feedData   = d.logs.map(function(log) {
+        return {
+          member:  log.member,
+          nameLo:  lettersOnly(log.member),
+          date:    log.date,
+          book:    log.book,
+          minutes: parseInt(log.minutes) || 0,
+          pages:   parseInt(log.pages)   || 0,
+          insight: log.insight || '',
+          action:  log.action || '',
+          rating:  parseInt(log.rating)  || 0,
+          isRest:  !!log.isRest
+        };
+      });
+      _feedLoaded = true;
+      renderFeed();
+    })
+    .catch(function(e) {
+      _feedFetching = false;
+      if(icon) icon.style.animation = '';
+      document.getElementById('feedLoading').style.display = 'none';
+
+      var reason = !navigator.onLine          ? 'device offline'
+                 : e && e.name === 'AbortError' ? 'timeout (12s)'
+                 : e && e._badJson              ? 'GAS returned non-JSON: ' + (e._bodyExcerpt || '')
+                 : e && e._httpStatus           ? 'HTTP ' + e._httpStatus
+                 : e && e.message               ? e.message
+                 : 'unknown network error';
+      console.warn('[BAW] loadFeed failed:', reason);
+
+      if (_feedLoaded) {
+        renderFeed(); // show stale-but-real cached data rather than an error screen
+      } else {
+        showFeedError('Could not load feed (' + reason + '). Tap Refresh to retry.');
+      }
     });
-  });
-  // Sort newest first
-  logs.reverse();
-  return logs;
 }
+
+function showFeedEmpty() {
+  document.getElementById('feedList').style.display  = 'none';
+  document.getElementById('feedError').style.display  = 'none';
+  document.getElementById('feedEmpty').style.display  = 'block';
+}
+
 
 function setFeedFilter(f) {
   _feedFilter = f;
