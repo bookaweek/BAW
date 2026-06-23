@@ -1560,6 +1560,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzNSLcx7LjrQekWWEPzfVkcak1g_7-1M3QZ-9wAD6DpFhi1Gwq_V9lyuXH_QajV0NySGQ/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
+// Shared, in-memory cache of { memberName: photoUrl } — populated from
+// whichever GAS response (getDashboard or getRecentLogs) most recently
+// included photoUrl fields. Read by both the Stats leaderboard and the
+// Feed when rendering avatars, so a photo fetched via either tab is
+// instantly available to the other without a duplicate network call.
+var _photoRegistry = {};
 let deferredInstall = null;
 
 // ── INIT ──
@@ -3581,9 +3587,17 @@ function fetchLiveBoard(forceRender) {
           booksCompleted: parseInt(w.booksCompleted) || 0,
           daysLogged:     parseInt(w.daysLogged)     || 0,
           totalMins:      parseInt(w.totalMins)      || 0,
-          totalPages:     parseInt(w.totalPages)     || 0
+          totalPages:     parseInt(w.totalPages)     || 0,
+          photoUrl:       String(w.photoUrl || '').trim()
         };
       }).filter(function(w) { return w.name.length >= 2; });
+
+      // Populate the shared photo registry from this poll — instantly
+      // available to the Feed tab too without it needing a separate
+      // round-trip just to get photo URLs.
+      fresh.forEach(function(w) {
+        if (w.photoUrl) _photoRegistry[w.name] = w.photoUrl;
+      });
 
       if (!fresh.length || !isBoardSane(fresh)) {
         console.warn('[BAW] Sanity check failed — keeping current _board');
@@ -3820,6 +3834,62 @@ function buildCalendar(logDates, restDates) {
 }
 
 // ── LEADERBOARD ──
+// ══════════════════════════════════════════════════════════════════
+// _buildAvatarHtml — single shared helper for rendering a warrior's
+// circular avatar EVERYWHERE it appears (leaderboard podium, leader-
+// board rows, feed cards). Looks up _photoRegistry first; if no photo
+// is known for this warrior, renders initials exactly as before — so
+// nothing changes visually for any warrior who hasn't uploaded a
+// photo, while warriors who have get their real photo everywhere
+// instantly. onerror swaps cleanly to the initials fallback if a
+// Drive URL is ever unreachable, so a broken link NEVER shows the
+// browser's default broken-image icon.
+//
+// sizePx:    diameter/side length in px
+// shape:     'circle' or 'square' (podium boxes are square, everything
+//            else in this app is circular)
+// fontSizePx: initials font size, used both for the live element and
+//            the fallback the onerror swap produces.
+// extraStyle: any additional inline CSS to merge in (e.g. margins).
+// ══════════════════════════════════════════════════════════════════
+function _buildAvatarHtml(name, sizePx, shape, fontSizePx, extraStyle) {
+  var photoUrl = _photoRegistry[name] || '';
+  var ini = getInitials(name);
+  var radius = shape === 'square' ? '10px' : '50%';
+  var baseStyle =
+    'width:' + sizePx + 'px;height:' + sizePx + 'px;border-radius:' + radius + ';' +
+    'background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;' +
+    'font-size:' + fontSizePx + 'px;font-weight:900;color:#fff;' +
+    'border:2px solid rgba(255,255,255,.2);flex-shrink:0;' + (extraStyle || '');
+
+  if (!photoUrl) {
+    return '<div style="' + baseStyle + '">' + escHtml(ini) + '</div>';
+  }
+
+  var iniEsc = escHtml(ini);
+  var fallbackDiv = '<div style=&quot;' + baseStyle.replace(/"/g, '&quot;') + '&quot;>' + iniEsc + '</div>';
+  return '<img src="' + escHtml(photoUrl) + '" alt="' + iniEsc + '" ' +
+    'style="' + baseStyle + 'object-fit:cover" ' +
+    'onerror="this.outerHTML=\'' + fallbackDiv + '\'">';
+}
+
+// Dedicated leaderboard-row avatar: keeps the EXACT existing .lb-avatar
+// CSS class (38px, 10px radius, navy2 bg, gold initials) untouched for
+// any warrior without a photo — zero visual regression — while
+// swapping in a real photo <img> matching those same dimensions for
+// warriors who have one, with the same onerror-to-initials safety net.
+function _buildLbRowAvatar(name) {
+  var photoUrl = _photoRegistry[name] || '';
+  if (!photoUrl) {
+    return '<div class="lb-avatar">' + escHtml(getInitials(name)) + '</div>';
+  }
+  var iniEsc = escHtml(getInitials(name));
+  var fallbackDiv = '<div class=&quot;lb-avatar&quot;>' + iniEsc + '</div>';
+  return '<img class="lb-avatar" src="' + escHtml(photoUrl) + '" alt="' + iniEsc + '" ' +
+    'style="object-fit:cover" ' +
+    'onerror="this.outerHTML=\'' + fallbackDiv + '\'">';
+}
+
 function renderLeaderboard(board) {
   var podium  = document.getElementById('lb-podium');
   var list    = document.getElementById('lb-list');
@@ -3847,9 +3917,7 @@ function renderLeaderboard(board) {
     pod.innerHTML =
       '<div class="lb-rank-num">#' + (idx + 1) + '</div>' +
       '<div class="lb-medal">' + medals[idx] + '</div>' +
-      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.12);' +
-        'display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;' +
-        'color:#fff;margin-bottom:6px;border:2px solid rgba(255,255,255,.2);">' + getInitials(w.name) + '</div>' +
+      _buildAvatarHtml(w.name, 38, 'square', 15, 'margin-bottom:6px;') +
       '<div class="lb-pod-name">'  + w.name.split(' ')[0] + '</div>' +
       '<div class="lb-pod-score">' + w.booksCompleted + ' books</div>' +
       '<div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:2px;">' + exactNum(w.totalMins) + ' min</div>';
@@ -3865,7 +3933,7 @@ function renderLeaderboard(board) {
     row.className = 'lb-row' + (isMe ? ' me' : '');
     row.innerHTML =
       '<div class="lb-pos">#' + (i + 1) + '</div>' +
-      '<div class="lb-avatar">' + getInitials(w.name) + '</div>' +
+      _buildLbRowAvatar(w.name) +
       '<div class="lb-info">' +
         '<div class="lb-name">' + w.name + (isMe ? ' <span style="color:var(--gold);font-size:10px;">(You)</span>' : '') + '</div>' +
         '<div class="lb-detail">' +
@@ -4009,6 +4077,80 @@ function triggerPhotoInput() {
   document.getElementById('photoInput').click();
 }
 
+// ══════════════════════════════════════════════════════════════════
+// Compress an image File down to a reasonable max dimension/quality
+// before it's ever sent anywhere. Camera photos can be 3-8MB at full
+// resolution — for a small circular avatar there is zero benefit to
+// that, and it would make every upload slow and risk exceeding GAS's
+// payload limits. This draws the image onto a canvas capped at
+// maxDim on its longest side and re-encodes as JPEG at the given
+// quality, which is more than enough for a profile circle while
+// keeping the resulting base64 small and fast to upload.
+// ══════════════════════════════════════════════════════════════════
+function _compressImageFile(file, maxDim, quality) {
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      img.onload = function() {
+        var w = img.naturalWidth, h = img.naturalHeight;
+        var scale = Math.min(1, maxDim / Math.max(w, h));
+        var cw = Math.round(w * scale), ch = Math.round(h * scale);
+        var canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, cw, ch);
+        try {
+          var dataUrl = canvas.toDataURL('image/jpeg', quality || 0.82);
+          resolve(dataUrl);
+        } catch (encErr) {
+          reject(encErr);
+        }
+      };
+      img.onerror = function() { reject(new Error('Could not decode image')); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function() { reject(new Error('Could not read file')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Uploads the warrior's photo to the GAS-backed Drive store so every
+// OTHER warrior can see it too (localStorage alone never could —
+// it's invisible outside the device it was set on). Fails silently
+// from the warrior's own point of view if offline/GAS is briefly
+// unreachable: their own share card already works instantly from the
+// localStorage copy regardless, and this just retries quietly next
+// time they open the app rather than blocking anything visible.
+async function _uploadPhotoToGAS(memberName, photoDataUrl) {
+  if (!navigator.onLine) return; // will simply be retried next session
+  try {
+    var resp = await fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight
+      body: JSON.stringify({
+        action: 'uploadPhoto',
+        member: memberName,
+        photoBase64: photoDataUrl
+      })
+    });
+    var json = await resp.json().catch(function(){ return null; });
+    if (json && json.success) {
+      console.log('[BAW] Photo uploaded to shared store for ' + memberName);
+      // Invalidate any cached board/feed/photo data we're holding so
+      // the next render picks up the freshly-uploaded URL instead of
+      // a stale "no photo" state for this warrior.
+      try { if (typeof _photoRegistry === 'object' && _photoRegistry) _photoRegistry[memberName] = json.photoUrl; } catch(e) {}
+    } else {
+      console.warn('[BAW] Photo upload to shared store failed:', json && json.error);
+    }
+  } catch (err) {
+    console.warn('[BAW] Photo upload to shared store failed (network):', err && err.message);
+  }
+}
+
 function changeProfilePhoto() {
   document.getElementById('photoInput').click();
 }
@@ -4023,16 +4165,37 @@ function skipPhoto() {
 function handlePhotoUpload(event) {
   var file = event.target.files && event.target.files[0];
   if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var b64 = e.target.result;
+
+  // Compress first (caps at 1000px longest side, JPEG quality 0.82 —
+  // plenty for a circular avatar, and keeps the upload small/fast).
+  _compressImageFile(file, 1000, 0.82).then(function(b64) {
+    // Same instant local behavior as before — zero regression for the
+    // warrior's own device/share-card experience.
     localStorage.setItem(photoKey(), b64);
-    // Remove prompt overlay if present
     var overlay = document.querySelector('.photo-prompt-overlay');
     if (overlay) overlay.remove();
     renderShareCard(b64);
-  };
-  reader.readAsDataURL(file);
+
+    // NEW: also push it to the shared GAS/Drive store so every other
+    // warrior can see this photo too — this is the part that makes
+    // it visible beyond just this one device.
+    if (member) _uploadPhotoToGAS(member, b64);
+  }).catch(function(err) {
+    console.warn('[BAW] Photo compression failed, falling back to raw file:', err);
+    // Fallback: same behavior as the original implementation, in the
+    // rare case compression itself fails for some reason.
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var b64raw = e.target.result;
+      localStorage.setItem(photoKey(), b64raw);
+      var overlay2 = document.querySelector('.photo-prompt-overlay');
+      if (overlay2) overlay2.remove();
+      renderShareCard(b64raw);
+      if (member) _uploadPhotoToGAS(member, b64raw);
+    };
+    reader.readAsDataURL(file);
+  });
+
   // Reset input so same file can be re-selected
   event.target.value = '';
 }
@@ -4665,9 +4828,18 @@ function loadFeed(force) {
           insight: log.insight || '',
           action:  log.action || '',
           rating:  parseInt(log.rating)  || 0,
-          isRest:  !!log.isRest
+          isRest:  !!log.isRest,
+          photoUrl: String(log.photoUrl || '').trim()
         };
       });
+
+      // Populate the shared photo registry from this poll too — so
+      // a photo fetched here is instantly available to the Stats
+      // leaderboard without a separate round-trip.
+      _feedData.forEach(function(log) {
+        if (log.photoUrl) _photoRegistry[log.member] = log.photoUrl;
+      });
+
       _feedLoaded = true;
       renderFeed();
     })
@@ -4808,9 +4980,26 @@ function _buildFeedCard(log, myLo) {
 
   var meTag = isMe ? '<span style="font-size:10px;background:rgba(242,183,5,.15);color:var(--gold);padding:2px 7px;border-radius:8px;font-weight:700;margin-left:6px">You</span>' : '';
 
+  // Look up the warrior's photo: prefer whatever this specific log
+  // entry carried (freshest), fall back to the shared registry
+  // (populated by either the Stats poll or a previous Feed poll).
+  var photoUrl = log.photoUrl || _photoRegistry[log.member] || '';
+  var avatarHtml;
+  if (photoUrl) {
+    // onerror swaps straight to an initials circle, in-place, if the
+    // Drive URL is ever broken/expired/deleted — never shows a
+    // browser's default broken-image icon to the warrior.
+    var iniEsc = escHtml(ini);
+    avatarHtml = '<img class="' + avatarClass + '" src="' + escHtml(photoUrl) + '" alt="' + iniEsc + '" ' +
+      'style="object-fit:cover" ' +
+      'onerror="this.outerHTML=\'<div class=&quot;' + avatarClass + '&quot;>' + iniEsc + '</div>\'">';
+  } else {
+    avatarHtml = '<div class="' + avatarClass + '">' + escHtml(ini) + '</div>';
+  }
+
   return '<div class="' + cardClass + '">' +
     '<div class="fc-head">' +
-      '<div class="' + avatarClass + '">' + escHtml(ini) + '</div>' +
+      avatarHtml +
       '<div class="fc-meta">' +
         '<div class="fc-name">' + escHtml(fname2) + meTag + '</div>' +
         '<div class="fc-date">' + _formatFeedDate(log.date) + '</div>' +
