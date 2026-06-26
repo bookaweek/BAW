@@ -1070,7 +1070,32 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       </div>
     </div>
     <div class="date-badge"><span id="dayName">Monday</span> &middot; <span id="fullDate">...</span></div>
-    <div class="member-greeting">Hey, <em id="greetName">...</em> &#x1F44B;</div>
+    <div class="member-greeting-row" style="display:flex;align-items:center;gap:10px;">
+      <div class="member-greeting" style="margin:0;">Hey, <em id="greetName">...</em> &#x1F44B;</div>
+      <!--
+        PERSISTENT PROFILE AVATAR — the actual fix for "how do they
+        upload a photo?" Previously the ONLY entry point was buried
+        inside the share sheet, which only opens after logging a
+        session — a warrior who never shares a card had no way in at
+        all. This sits right in the header, visible the instant they
+        log in, every single time, regardless of whether they ever
+        open the share sheet.
+      -->
+      <div id="headerAvatarBtn" onclick="changeProfilePhoto()"
+        style="width:34px;height:34px;border-radius:50%;cursor:pointer;flex-shrink:0;
+               border:2px solid rgba(242,183,5,.5);display:flex;align-items:center;
+               justify-content:center;background:rgba(255,255,255,.08);
+               font-size:13px;font-weight:900;color:var(--gold);
+               -webkit-tap-highlight-color:transparent;position:relative;"
+        title="Tap to set your profile photo">
+        <span id="headerAvatarInitials">?</span>
+        <!-- small camera badge — signals "tap to change photo" without
+             needing any explanatory text taking up header space -->
+        <span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;
+                      border-radius:50%;background:var(--navy);border:1.5px solid var(--gold);
+                      display:flex;align-items:center;justify-content:center;font-size:8px;">&#x1F4F7;</span>
+      </div>
+    </div>
     <div class="member-sub" id="greetSub" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
       Ready to log your session?
       <span id="syncBadge" style="display:none;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid;letter-spacing:.04em;"></span>
@@ -2236,6 +2261,7 @@ function login(name) {
   document.getElementById('memberScreen').classList.add('hidden');
   document.getElementById('mainApp').style.display='block';
   document.getElementById('greetName').textContent=name;
+  refreshHeaderAvatar(); // show this warrior's own photo/initials immediately
   loadLib(); setupWeekly(); setMode('daily');
   renderStreak();
   showNotifBanner();
@@ -2250,13 +2276,7 @@ function login(name) {
       } else {
         navigator.serviceWorker.addEventListener('controllerchange', function handler() {
           navigator.serviceWorker.removeEventListener('controllerchange', handler);
-          scheduleViaSW();function login(m) {
-  member = m;
-  // ... existing code ...
-  
-  // Always re-send schedule to SW on every login
-  setTimeout(function() { scheduleViaSW(); }, 1000);
-}
+          scheduleViaSW();
         });
         // Also try after a delay as backup
         setTimeout(scheduleViaSW, 2500);
@@ -3890,6 +3910,56 @@ function _buildLbRowAvatar(name) {
     'onerror="this.outerHTML=\'' + fallbackDiv + '\'">';
 }
 
+// ══════════════════════════════════════════════════════════════════
+// refreshHeaderAvatar — populates the persistent header avatar button.
+// This is the actual entry point warriors use to set/change their
+// photo — visible the instant they log in, every session, with zero
+// dependency on ever opening the share sheet (which used to be the
+// ONLY way in).
+//
+// Priority order for what to show:
+//   1. This warrior's OWN photo, read straight from localStorage —
+//      instant, zero network call, works even fully offline.
+//   2. If no local copy yet (e.g. fresh install, cleared storage) but
+//      the shared registry already has it (set on another device),
+//      use that.
+//   3. Otherwise, initials — exactly the same fallback used
+//      everywhere else in the app.
+// ══════════════════════════════════════════════════════════════════
+function refreshHeaderAvatar() {
+  var btn = document.getElementById('headerAvatarBtn');
+  if (!btn || !member) return;
+
+  var localPhoto = '';
+  try { localPhoto = localStorage.getItem(photoKey()) || ''; } catch (e) {}
+  var photoUrl = localPhoto || _photoRegistry[member] || '';
+
+  var initialsEl = document.getElementById('headerAvatarInitials');
+  if (initialsEl) initialsEl.textContent = getInitials(member);
+
+  // Remove any previously-inserted <img> so repeated calls (e.g. after
+  // a fresh upload) don't stack duplicate images inside the button.
+  var existingImg = btn.querySelector('img');
+  if (existingImg) existingImg.remove();
+
+  if (photoUrl) {
+    if (initialsEl) initialsEl.style.display = 'none';
+    var img = document.createElement('img');
+    img.src = photoUrl;
+    img.alt = getInitials(member);
+    img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
+    img.onerror = function() {
+      // Broken/unreachable photo URL — fall back to initials cleanly,
+      // same safety net pattern used everywhere else avatars render.
+      img.remove();
+      if (initialsEl) initialsEl.style.display = '';
+    };
+    btn.insertBefore(img, btn.firstChild);
+  } else if (initialsEl) {
+    initialsEl.style.display = '';
+  }
+}
+
 function renderLeaderboard(board) {
   var podium  = document.getElementById('lb-podium');
   var list    = document.getElementById('lb-list');
@@ -4175,6 +4245,7 @@ function handlePhotoUpload(event) {
     var overlay = document.querySelector('.photo-prompt-overlay');
     if (overlay) overlay.remove();
     renderShareCard(b64);
+    refreshHeaderAvatar(); // header updates instantly, no reload needed
 
     // NEW: also push it to the shared GAS/Drive store so every other
     // warrior can see this photo too — this is the part that makes
@@ -4191,6 +4262,7 @@ function handlePhotoUpload(event) {
       var overlay2 = document.querySelector('.photo-prompt-overlay');
       if (overlay2) overlay2.remove();
       renderShareCard(b64raw);
+      refreshHeaderAvatar();
       if (member) _uploadPhotoToGAS(member, b64raw);
     };
     reader.readAsDataURL(file);
