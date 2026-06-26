@@ -883,7 +883,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 /* Insight */
 .fc-insight{margin:0 16px 14px;background:rgba(255,255,255,.04);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;padding:9px 12px}
 .fc-insight-label{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,183,5,.55);margin-bottom:4px}
-.fc-insight-text{font-size:13px;color:rgba(255,255,255,.68);line-height:1.55;font-style:italic}
+.fc-insight-text{font-size:13px;color:rgba(255,255,255,.68);line-height:1.55;font-style:italic;white-space:pre-wrap;word-break:break-word}
+.fc-quote-share-btn{margin-top:9px;display:inline-flex;align-items:center;gap:5px;background:rgba(242,183,5,.12);border:1px solid rgba(242,183,5,.35);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;padding:5px 12px;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s}
+.fc-quote-share-btn:active{background:rgba(242,183,5,.22)}
 /* Today marker */
 .feed-day-marker{text-align:center;padding:16px 0 4px;font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.28)}
 </style>
@@ -5040,8 +5042,23 @@ function _buildFeedCard(log, myLo) {
 
   var insightBlock = '';
   if (log.insight && log.insight !== 'Rest Day' && log.insight.length > 2) {
-    var ins = log.insight.length > 180 ? log.insight.slice(0,179)+'…' : log.insight;
-    insightBlock = '<div class="fc-insight"><div class="fc-insight-label">&#x1F4A1; Key Insight</div><div class="fc-insight-text">' + escHtml(ins) + '</div></div>';
+    // Insights are ALWAYS shown in full — never truncated. The card's
+    // CSS (.fc-insight-text) already wraps naturally; there is no
+    // length at which clipping someone's actual reflection is
+    // acceptable. A "Share as Quote" button is appended so any
+    // warrior can turn this into a shareable quote card.
+    var insightId = 'ins_' + log.member.replace(/[^a-zA-Z0-9]/g,'') + '_' + log.date.replace(/-/g,'');
+    insightBlock =
+      '<div class="fc-insight" data-insight-id="' + insightId + '">' +
+        '<div class="fc-insight-label">&#x1F4A1; Key Insight</div>' +
+        '<div class="fc-insight-text">' + escHtml(log.insight) + '</div>' +
+        '<button class="fc-quote-share-btn" onclick="openQuoteShare(' +
+          escHtml(JSON.stringify(log.member)) + ',' +
+          escHtml(JSON.stringify(log.insight)) + ',' +
+          escHtml(JSON.stringify(log.date)) + ')">' +
+          '<span style="font-size:13px;">&#x2197;</span> Share as Quote' +
+        '</button>' +
+      '</div>';
   }
 
   var actionBlock = '';
@@ -5147,6 +5164,218 @@ function clearBacklogDate(){
   var w=document.getElementById('backlogDateWrap');if(w)w.style.display='none';
 }
 // ── NATIVE SHARE ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// QUOTE SHARING — any warrior can turn ANY other warrior's insight
+// into a beautiful, standalone quote card and share it anywhere.
+// Always credits the original author by name — this is shared
+// material from the community feed, not the sharer's own words.
+// ══════════════════════════════════════════════════════════════════
+
+var _quoteShareBlob = null;
+var _currentQuote = null; // { member, insight, date }
+
+function openQuoteShare(member, insight, date) {
+  _currentQuote = { member: member, insight: insight, date: date };
+  _quoteShareBlob = null;
+  var sheet = document.getElementById('quoteShareSheet');
+  if (sheet) sheet.classList.add('show');
+  setTimeout(function() { _drawQuoteCard(_currentQuote); }, 80);
+}
+
+function closeQuoteShare() {
+  var sheet = document.getElementById('quoteShareSheet');
+  if (sheet) sheet.classList.remove('show');
+}
+
+// Renders a 1080x1080 standalone quote card — same navy/gold language
+// as the session share card, but built specifically to showcase a
+// single insight in full, with full attribution to whoever wrote it.
+function _drawQuoteCard(q) {
+  var canvas = document.getElementById('quoteCanvas');
+  if (!canvas || !q) return;
+  var ctx = canvas.getContext('2d');
+  var W = 1080, H = 1080;
+  canvas.width = W; canvas.height = H;
+
+  var GOLD = '#C9A227', GL = '#F2B705', GD = '#8B6914', WH = '#FFFFFF';
+
+  function rr(x,y,w,h,r){
+    r=Math.min(r,w/2,h/2);
+    ctx.beginPath();ctx.moveTo(x+r,y);
+    ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+    ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+    ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+    ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
+    ctx.closePath();
+  }
+
+  // ── 1: flat navy background, matching the rest of the app ──
+  ctx.fillStyle = '#0A1628';
+  ctx.fillRect(0,0,W,H);
+  var tlg = ctx.createRadialGradient(0,0,0,0,0,W*0.7);
+  tlg.addColorStop(0,'rgba(20,50,120,0.32)'); tlg.addColorStop(1,'rgba(10,22,40,0)');
+  ctx.fillStyle = tlg; ctx.fillRect(0,0,W,H);
+
+  // left gold spine, top accent — same visual language as everywhere else
+  var spGr = ctx.createLinearGradient(0,0,0,H);
+  spGr.addColorStop(0,GL); spGr.addColorStop(0.5,GOLD); spGr.addColorStop(1,GD);
+  ctx.fillStyle = spGr; ctx.fillRect(0,0,5,H);
+
+  // ── 2: giant opening quotation mark, very subtle, behind the text ──
+  ctx.save();
+  ctx.globalAlpha = 0.07;
+  ctx.font = '900 360px Georgia, serif';
+  ctx.fillStyle = GL;
+  ctx.fillText('\u201C', 60, 380);
+  ctx.restore();
+
+  // ── 3: the insight itself, centred, wrapped, NEVER truncated ──
+  var text = String(q.insight || '');
+  var maxW = W - 160;
+  ctx.textAlign = 'center';
+
+  // Auto-shrink font size to fit longer insights gracefully — a short
+  // one-liner gets a big, bold treatment; a long reflective paragraph
+  // still fits cleanly without ever cutting a single word.
+  var fontSize = 52;
+  var lineHeight, lines;
+  function wrapAndMeasure(fs) {
+    ctx.font = '600 ' + fs + 'px Georgia, serif';
+    var lh = Math.round(fs * 1.42);
+    var words = text.split(/\s+/), ls = [], cur = '';
+    for (var i = 0; i < words.length; i++) {
+      var test = cur ? cur + ' ' + words[i] : words[i];
+      if (ctx.measureText(test).width > maxW && cur) {
+        ls.push(cur); cur = words[i];
+      } else {
+        cur = test;
+      }
+    }
+    if (cur) ls.push(cur);
+    return { lines: ls, lineHeight: lh };
+  }
+
+  var maxBlockHeight = 560; // leave room for header + footer credit
+  while (fontSize > 26) {
+    var attempt = wrapAndMeasure(fontSize);
+    if (attempt.lines.length * attempt.lineHeight <= maxBlockHeight) {
+      lines = attempt.lines; lineHeight = attempt.lineHeight;
+      break;
+    }
+    fontSize -= 2;
+  }
+  if (!lines) { var fallback = wrapAndMeasure(26); lines = fallback.lines; lineHeight = fallback.lineHeight; }
+
+  var blockHeight = lines.length * lineHeight;
+  var startY = (H - blockHeight) / 2 - 30;
+
+  ctx.font = '600 ' + fontSize + 'px Georgia, serif';
+  ctx.fillStyle = WH;
+  ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 10;
+  lines.forEach(function(line, i) {
+    ctx.fillText(line, W/2, startY + i*lineHeight);
+  });
+  ctx.shadowBlur = 0;
+
+  // closing quotation mark accent under the text
+  var underlineY = startY + blockHeight + 36;
+  ctx.fillStyle = GL;
+  ctx.fillRect(W/2 - 40, underlineY, 80, 3);
+
+  // ── 4: attribution — ALWAYS credits the original author ──
+  var attribY = underlineY + 56;
+  ctx.font = '700 30px Georgia, serif';
+  var attribGr = ctx.createLinearGradient(0, attribY-30, 0, attribY);
+  attribGr.addColorStop(0, GL); attribGr.addColorStop(1, GOLD);
+  ctx.fillStyle = attribGr;
+  ctx.fillText('\u2014 ' + (q.member || 'A BookWarrior'), W/2, attribY);
+
+  ctx.font = '500 18px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText('BookWarrior \u00B7 BOOKAWEEK Season 1', W/2, attribY + 32);
+
+  // ── 5: brand footer strip ──
+  var footY = H - 86;
+  ctx.font = '900 26px Georgia, serif';
+  var brandGr = ctx.createLinearGradient(0, footY-26, 0, footY);
+  brandGr.addColorStop(0, GL); brandGr.addColorStop(1, GOLD);
+  ctx.fillStyle = brandGr;
+  ctx.fillText('BOOK \u00B7 A \u00B7 WEEK', W/2, footY);
+  ctx.font = '500 15px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillText('#BookAWeek \u00B7 #BookWarrior \u00B7 #ReadReflectExecute', W/2, footY + 26);
+
+  ctx.textAlign = 'left';
+
+  canvas.toBlob(function(blob) { _quoteShareBlob = blob; }, 'image/png');
+}
+
+function _quoteCaption() {
+  var q = _currentQuote;
+  if (!q) return '';
+  return '\u201C' + q.insight + '\u201D\n\n\u2014 ' + q.member + ', BookWarrior on BOOKAWEEK\n\n' +
+    '24 books \u00B7 6 months \u00B7 1 identity shift.\nJoin Season 1 \u2192 selar.com/bookaweekchallenge\n\n' +
+    '#BookAWeek #BookWarrior #ReadReflectExecute';
+}
+
+function doNativeQuoteShare() {
+  if (!_quoteShareBlob) {
+    var canvas = document.getElementById('quoteCanvas');
+    canvas.toBlob(function(blob) { _quoteShareBlob = blob; doNativeQuoteShare(); }, 'image/png');
+    return;
+  }
+  var q = _currentQuote || {};
+  var file = new File([_quoteShareBlob], 'bookaweek-quote-' + String(q.member||'warrior').toLowerCase().replace(/\s+/g,'-') + '.png', { type:'image/png' });
+
+  if (navigator.share && navigator.canShare && navigator.canShare({ files:[file] })) {
+    navigator.share({
+      title: 'BOOKAWEEK \u2014 a quote from ' + (q.member || 'a BookWarrior'),
+      text: _quoteCaption(),
+      files: [file]
+    }).catch(function(e) { if (e.name !== 'AbortError') downloadQuoteCard(); });
+  } else if (navigator.share) {
+    navigator.share({ title: 'BOOKAWEEK', text: _quoteCaption() })
+      .then(function() { downloadQuoteCard(); })
+      .catch(function(e) { if (e.name !== 'AbortError') downloadQuoteCard(); });
+  } else {
+    downloadQuoteCard();
+  }
+}
+
+function downloadQuoteCard() {
+  var canvas = document.getElementById('quoteCanvas');
+  var q = _currentQuote || {};
+  var name = String(q.member || 'warrior').toLowerCase().replace(/\s+/g,'-');
+  var link = document.createElement('a');
+  link.download = 'bookaweek-quote-' + name + '-' + new Date().toISOString().slice(0,10) + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function quoteShareToWhatsApp() {
+  downloadQuoteCard();
+  setTimeout(function() {
+    window.open('https://wa.me/?text=' + encodeURIComponent(_quoteCaption()), '_blank');
+  }, 600);
+}
+
+function quoteShareToInstagram() {
+  downloadQuoteCard();
+  setTimeout(function() {
+    toast('Image saved! Open Instagram and post from your gallery 📸');
+  }, 400);
+}
+
+function quoteShareToTwitter() {
+  var q = _currentQuote || {};
+  var text = '\u201C' + q.insight + '\u201D \u2014 ' + q.member + ', BookWarrior on BOOKAWEEK. ' +
+    'Join Season 1 \u2192 selar.com/bookaweekchallenge #BookAWeek #BookWarrior';
+  downloadQuoteCard();
+  setTimeout(function() {
+    window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+  }, 600);
+}
+
 function doNativeShare() {
   if (!_shareBlob) {
     // Blob not ready yet — generate and retry
@@ -5447,6 +5676,60 @@ function shareToTwitter() {
 }
 .sht-spacer { height:16px; }
 </style>
+
+<!-- ══════════════════════════════════════════════════════════════
+     QUOTE SHARE SHEET — lets ANY warrior turn ANY other warrior's
+     insight into a beautiful, shareable quote card, credited to the
+     original author, on any platform.
+     ══════════════════════════════════════════════════════════════ -->
+<div class="share-sheet" id="quoteShareSheet">
+  <div class="share-backdrop" onclick="closeQuoteShare()"></div>
+  <div class="share-panel">
+    <div class="sht-handle"></div>
+
+    <div class="sht-head">
+      <div class="sht-head-label">&#x1F4AC; &nbsp;Share This Quote</div>
+      <button class="sht-head-close" onclick="closeQuoteShare()">&#x2715;</button>
+    </div>
+
+    <div class="sht-preview">
+      <div class="sht-canvas-wrap">
+        <canvas id="quoteCanvas" width="1080" height="1080"></canvas>
+      </div>
+    </div>
+
+    <div class="sht-actions">
+      <button class="sht-btn-native" id="quoteNativeBtn" onclick="doNativeQuoteShare()">
+        <span style="font-size:22px;">&#x2197;</span>
+        Share to Any App
+      </button>
+
+      <div class="sht-divider"></div>
+
+      <div class="sht-platforms">
+        <button class="sht-plat-btn" onclick="quoteShareToWhatsApp()">
+          <span class="sht-plat-icon">💬</span>
+          <span class="sht-plat-label">WhatsApp</span>
+        </button>
+        <button class="sht-plat-btn" onclick="quoteShareToInstagram()">
+          <span class="sht-plat-icon">📸</span>
+          <span class="sht-plat-label">Instagram</span>
+        </button>
+        <button class="sht-plat-btn" onclick="quoteShareToTwitter()">
+          <span class="sht-plat-icon">&#x1D54F;</span>
+          <span class="sht-plat-label">X / Twitter</span>
+        </button>
+      </div>
+
+      <button class="sht-btn-save" onclick="downloadQuoteCard()">
+        <span style="font-size:17px;">&#x2B07;</span>
+        Save Image to Gallery
+      </button>
+    </div>
+
+    <div class="sht-spacer"></div>
+  </div>
+</div>
 
 <div class="share-sheet" id="shareSheet">
   <div class="share-backdrop" onclick="closeShare()"></div>
