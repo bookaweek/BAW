@@ -1823,18 +1823,28 @@ function enableNotifs() {
     localStorage.setItem(PRE+'notifs', '1');
     localStorage.setItem(PRE+'notif_member', member || '');
 
-    // Tell SW to take over scheduling
+    // Tell SW to take over scheduling (existing daily reminder system)
     scheduleViaSW();
 
     // Fire welcome notification immediately via SW (survives close)
     fireViaSW('welcome', {
-      title: 'BookAWeek Reminders ON 🔔',
+      title: 'BookAWeek Reminders ON \uD83D\uDD14',
       body: 'We will remind you every day so your streak never breaks. Read. Reflect. Execute.',
       tag: 'baw-welcome'
     });
 
     showNotifBanner();
-    toast('Daily reminders enabled! We will keep your streak alive 🔥');
+    toast('Daily reminders enabled! We will keep your streak alive \uD83D\uDD25');
+
+    // ── FCM REGISTRATION ──────────────────────────────────────────
+    // On top of the existing local daily reminder SW, we ALSO register
+    // for Firebase Cloud Messaging so GAS can push cross-warrior
+    // "someone just logged!" alerts to this device from the server
+    // side. This is the only way to notify a warrior's phone while
+    // their app is fully closed — the existing SW-based daily
+    // reminder only fires from THIS device's own schedule, not from
+    // actions on OTHER warriors' phones.
+    _registerFCMToken();
   });
 }
 
@@ -1940,6 +1950,168 @@ function dismissNotif() {
   var bar = document.getElementById('notif-bar');
   if (bar) bar.style.display = 'none';
   localStorage.setItem(PRE+'notif_dismissed', Date.now());
+}
+
+function dismissNotif() {
+  var bar = document.getElementById('notif-bar');
+  if (bar) bar.style.display = 'none';
+  localStorage.setItem(PRE+'notif_dismissed', Date.now());
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FCM CLIENT ENGINE
+//
+// Handles Firebase Cloud Messaging on the client side:
+//   1. Lazy-loads the Firebase JS SDK from CDN on first use
+//      (no impact on initial load time — only loaded after a warrior
+//      explicitly taps "Enable Notifications" and grants permission)
+//   2. Registers the dedicated firebase-messaging-sw.js alongside
+//      the existing main sw.js (Firebase requires its own SW file)
+//   3. Gets a unique FCM device token via pushManager.subscribe /
+//      Firebase's getToken(), using your project's VAPID public key
+//   4. Sends that token to GAS via registerPushToken so GAS knows
+//      WHERE to send this warrior's push when anyone else logs
+//   5. Sets up a foreground message handler so pushes also appear
+//      when the app IS open — consistent UX in all states
+//
+// SETUP STEP NEEDED FROM YOU:
+//   Replace BOOKAWEEK_FCM_VAPID_KEY below with your Firebase project's
+//   Web Push certificate public key:
+//   Firebase Console → Project Settings → Cloud Messaging →
+//   "Web Push certificates" → copy the Key pair's Public key.
+//   This is NOT secret — it is safe to embed here in client JS.
+// ══════════════════════════════════════════════════════════════════
+
+var BOOKAWEEK_FCM_VAPID_KEY = 'REPLACE_WITH_YOUR_FIREBASE_VAPID_PUBLIC_KEY';
+var _fcmMessaging = null;
+var _fcmReady = false;
+
+function _loadFirebaseSDK() {
+  return new Promise(function(resolve, reject) {
+    if (_fcmReady && _fcmMessaging) { resolve(_fcmMessaging); return; }
+
+    var sdkUrls = [
+      'https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js',
+      'https://www.gstatic.com/firebasejs/10.13.1/firebase-messaging-compat.js'
+    ];
+
+    var loaded = 0;
+    function loadNext(i) {
+      if (i >= sdkUrls.length) {
+        try {
+          // Replace these values with your actual Firebase project config:
+          // Firebase Console → Project Settings → General →
+          // "Your apps" → Web app → SDK setup → Config
+          firebase.initializeApp({
+            apiKey:            'REPLACE_WITH_YOUR_FIREBASE_API_KEY',
+            authDomain:        'REPLACE_WITH_YOUR_PROJECT_ID.firebaseapp.com',
+            projectId:         'REPLACE_WITH_YOUR_PROJECT_ID',
+            storageBucket:     'REPLACE_WITH_YOUR_PROJECT_ID.appspot.com',
+            messagingSenderId: 'REPLACE_WITH_YOUR_SENDER_ID',
+            appId:             'REPLACE_WITH_YOUR_APP_ID'
+          });
+          _fcmMessaging = firebase.messaging();
+          _fcmReady = true;
+          resolve(_fcmMessaging);
+        } catch(initErr) {
+          reject(initErr);
+        }
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = sdkUrls[i];
+      s.onload = function() { loadNext(i + 1); };
+      s.onerror = function() { reject(new Error('Failed to load Firebase SDK: ' + sdkUrls[i])); };
+      document.head.appendChild(s);
+    }
+    loadNext(0);
+  });
+}
+
+async function _registerFCMToken() {
+  if (!member) return;
+  if (BOOKAWEEK_FCM_VAPID_KEY.indexOf('REPLACE_WITH') === 0) {
+    console.warn('[BAW FCM] VAPID key not configured yet. See BOOKAWEEK_FCM_VAPID_KEY in the source.');
+    return;
+  }
+
+  try {
+    // Register Firebase's dedicated SW alongside the existing main sw.js.
+    // Both run concurrently — Firebase needs its own SW scope registration
+    // to intercept push events; the main sw.js handles caching/offline.
+    var fbReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/firebase-messaging-sw-scope/'
+    });
+
+    var messaging = await _loadFirebaseSDK();
+
+    var token = await messaging.getToken({
+      vapidKey: BOOKAWEEK_FCM_VAPID_KEY,
+      serviceWorkerRegistration: fbReg
+    });
+
+    if (!token) {
+      console.warn('[BAW FCM] getToken returned null — notification permission may have been revoked.');
+      return;
+    }
+
+    console.log('[BAW FCM] Got FCM token for', member);
+
+    // Store locally so we can detect token changes on future logins
+    var tokenKey = PRE + 'fcm_token_' + lettersOnly(member);
+    var prevToken = localStorage.getItem(tokenKey);
+    localStorage.setItem(tokenKey, token);
+
+    // Only send to GAS if token is new or has rotated — avoids a
+    // redundant network call on every login when nothing has changed.
+    if (token !== prevToken) {
+      var resp = await fetch(GAS_URL, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'registerPushToken', member: member, fcmToken: token })
+      });
+      var json = await resp.json().catch(function() { return null; });
+      if (json && json.success) {
+        console.log('[BAW FCM] Token registered with GAS for', member);
+      } else {
+        console.warn('[BAW FCM] Token registration failed:', json && json.error);
+      }
+    }
+
+    // Foreground message handler: shows a notification when a push
+    // arrives while the app is actively open (Firebase suppresses
+    // push display in the foreground by default, so we handle it
+    // explicitly here — consistent UX whether app is open or closed).
+    messaging.onMessage(function(payload) {
+      console.log('[BAW FCM] Foreground message:', payload);
+      var d = payload.data || {};
+      var title = d.title || 'BOOKAWEEK';
+      var body  = d.body  || 'A BookWarrior just logged a session!';
+
+      // Use the same fireViaSW helper the daily reminders use, so
+      // cross-warrior push notifications look identical to daily
+      // reminders — same icon, same style, same tap behavior.
+      if (typeof fireViaSW === 'function') {
+        fireViaSW('cross_warrior_' + Date.now(), {
+          title: title,
+          body: body,
+          tag: 'baw-cross-warrior'
+        });
+      } else if (Notification.permission === 'granted') {
+        new Notification(title, { body: body, icon: 'icon-192.png' });
+      }
+    });
+
+  } catch (err) {
+    // FCM registration failure is always non-fatal: the warrior's
+    // session-logging and all other app features continue to work
+    // perfectly — they just won't get cross-warrior push notifications
+    // on this device until FCM registration succeeds (it will be
+    // retried automatically the next time they enable notifications).
+    console.warn('[BAW FCM] Registration failed (non-fatal):', err && err.message);
+  }
 }
 
 // ── SHOW BANNER ───────────────────────────────────────────
