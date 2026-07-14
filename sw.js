@@ -173,6 +173,35 @@ self.addEventListener('push', function(e) {
 // ═══════════════════════
 self.addEventListener('notificationclick', function(e) {
   e.notification.close();
+  var action = e.action; // 'log', 'later', or '' (body tap)
+
+  if (action === 'later') {
+    // Snooze 2 hours: show brief confirmation, reschedule, do NOT open app
+    self.registration.showNotification('Snoozed \u2014 see you in 2 hours', {
+      body: 'We\u2019ll remind you again in 2 hours. Keep that streak!',
+      icon: 'icon-192.png', tag: 'baw-snooze-confirm', silent: true
+    });
+    // Auto-dismiss the snooze confirmation after 4 seconds
+    setTimeout(function() {
+      self.registration.getNotifications({ tag: 'baw-snooze-confirm' })
+        .then(function(ns) { ns.forEach(function(n) { n.close(); }); });
+    }, 4000);
+    // Re-fire the actual reminder after 2 hours
+    setTimeout(function() {
+      self.registration.showNotification('\u23F0 Time to Log, BookWarrior!', {
+        body: 'You asked for a reminder. Your streak is waiting \uD83D\uDD25',
+        icon: 'icon-192.png', badge: 'icon-192.png', tag: 'baw-reminder',
+        requireInteraction: true,
+        actions: [
+          { action: 'log',   title: '\uD83D\uDCDD Log Now' },
+          { action: 'later', title: '\u23F0 Later' }
+        ]
+      });
+    }, 2 * 60 * 60 * 1000);
+    return; // do NOT open the app for a snooze tap
+  }
+
+  // 'log' action OR direct body tap — open/focus the app
   var target = (e.notification.data && e.notification.data.url)
     ? e.notification.data.url
     : 'bookwarriors-login.html';
