@@ -2039,8 +2039,8 @@ async function _registerFCMToken() {
     // Register Firebase's dedicated SW alongside the existing main sw.js.
     // Both run concurrently — Firebase needs its own SW scope registration
     // to intercept push events; the main sw.js handles caching/offline.
-    var fbReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-      scope: '/firebase-messaging-sw-scope/'
+    var fbReg = await navigator.serviceWorker.register('firebase-messaging-sw.js', {
+      scope: './'
     });
 
     var messaging = await _loadFirebaseSDK();
