@@ -2065,13 +2065,8 @@ async function _registerFCMToken() {
     // Only send to GAS if token is new or has rotated — avoids a
     // redundant network call on every login when nothing has changed.
     if (token !== prevToken) {
-      var resp = await fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'cors',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'registerPushToken', member: member, fcmToken: token })
-      });
+      var _rptPayload = { action: 'registerPushToken', member: member, fcmToken: token };
+      var resp = await _gasFetch(GAS_URL + '?action=registerPushToken&data=' + encodeURIComponent(JSON.stringify(_rptPayload)) + '&t=' + Date.now());
       var json = await resp.json().catch(function() { return null; });
       if (json && json.success) {
         console.log('[BAW FCM] Token registered with GAS for', member);
