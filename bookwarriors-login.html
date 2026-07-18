@@ -2541,13 +2541,33 @@ function setMode(m) {
   if(m==='feed'){loadFeed();}
 }
 
-// ── LIBRARY ──
+// ── LIBRARY (server-backed, works across devices) ──
 function libKey(){ return PRE+member+'_lib'; }
-function loadLib(){
-  try{ var s=localStorage.getItem(libKey()); lib=s?JSON.parse(s):[]; }catch(e){lib=[];}
-}
 function saveLib(){
+  // Local cache only, for instant paint on next load of THIS device --
+  // the server (GAS getBooks) is always the real source of truth.
   try{localStorage.setItem(libKey(),JSON.stringify(lib));}catch(e){}
+}
+async function loadLib(){
+  // 1) Instant local cache paint, so the UI isn't empty while we fetch.
+  try{ var s=localStorage.getItem(libKey()); lib=s?JSON.parse(s):[]; }catch(e){lib=[];}
+  if (mode === 'books') renderLib();
+
+  // 2) Pull the real, authoritative list from the server so any device
+  // shows the exact same library this member has anywhere.
+  try {
+    var _gbPayload = { action:'getBooks', member: member };
+    var resp = await _gasFetch(GAS_URL + '?action=getBooks&data=' + encodeURIComponent(JSON.stringify(_gbPayload)) + '&t=' + Date.now());
+    var json = await resp.json();
+    if (json && json.success && Array.isArray(json.books)) {
+      lib = json.books;
+      saveLib();
+      if (mode === 'books') renderLib();
+    }
+  } catch (e) {
+    // Offline or GAS unreachable -- keep showing the local cache from
+    // step 1 rather than blanking the screen.
+  }
 }
 // ══════════════════════════════════════════════
 // WORLD-CLASS BOOK LIBRARY
@@ -2877,7 +2897,7 @@ async function submitBook(){
   lib.push({t:title,a:author,s:status,category:cat,goal:goal}); saveLib();
   setBL(true);
   try{
-    var _abPayload={action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat};
+    var _abPayload={action:'addBook',member:member,date:dateStr(),title:title,author:author,status:status,category:cat,goal:goal};
     var _abResp = await _gasFetch(GAS_URL+'?action=addBook&data='+encodeURIComponent(JSON.stringify(_abPayload))+'&t='+Date.now()).then(function(r){return r.json();}).then(function(j){console.log('[BAW] addBook:',JSON.stringify(j));return j;});
     document.getElementById('b-title').value='';
     document.getElementById('b-author').value='';
