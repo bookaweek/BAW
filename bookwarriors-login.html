@@ -1074,6 +1074,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     <div class="date-badge"><span id="dayName">Monday</span> &middot; <span id="fullDate">...</span></div>
     <div class="member-greeting-row" style="display:flex;align-items:center;gap:10px;">
       <div class="member-greeting" style="margin:0;">Hey, <em id="greetName">...</em> &#x1F44B;</div>
+      <button onclick="logout()" title="Log out" style="margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;">Log out</button>
       <!--
         PERSISTENT PROFILE AVATAR — the actual fix for "how do they
         upload a photo?" Previously the ONLY entry point was buried
@@ -2197,23 +2198,18 @@ if ('serviceWorker' in navigator) {
 
 var cand = '', buf = '', setPinBuf = '', confirmBuf = '', forgotBuf = '';
 
-// ── MEMBER REGISTRY (localStorage) ──
-function getRegistry() {
-  try { return JSON.parse(localStorage.getItem(PRE+'registry') || '{}'); } catch(e) { return {}; }
+// ── MEMBER REGISTRY (server-backed via GAS, works across devices) ──
+// The PIN itself now lives server-side (hashed) so any device sees the
+// same account. A small local cache is kept ONLY to make the "Welcome
+// back" hint feel instant -- it is never trusted for the actual PIN
+// check, which always goes through GAS.
+function getKnownCache() {
+  try { return JSON.parse(localStorage.getItem(PRE+'known') || '{}'); } catch(e) { return {}; }
 }
-function saveRegistry(reg) {
-  try { localStorage.setItem(PRE+'registry', JSON.stringify(reg)); } catch(e) {}
-}
-function isRegistered(name) {
-  return !!getRegistry()[normName(name)];
-}
-function getPin(name) {
-  return getRegistry()[normName(name)] || '';
-}
-function savePin(name, pin) {
-  var reg = getRegistry();
-  reg[normName(name)] = pin;
-  saveRegistry(reg);
+function markKnown(name, known) {
+  var c = getKnownCache();
+  c[normName(name)] = known;
+  try { localStorage.setItem(PRE+'known', JSON.stringify(c)); } catch(e) {}
 }
 function normName(n) {
   return n.trim().toLowerCase();
@@ -2233,16 +2229,20 @@ function nameInputChange() {
   var val = document.getElementById('nameInput').value.trim();
   var hint = document.getElementById('nameHint');
   if (val.length < 2) { hint.textContent = ''; return; }
-  if (isRegistered(val)) {
+  var known = getKnownCache()[normName(val)];
+  if (known === true) {
     hint.textContent = 'Welcome back, ' + val.split(' ')[0] + '! Enter your PIN to continue.';
     hint.style.color = 'rgba(13,122,110,.9)';
-  } else {
+  } else if (known === false) {
     hint.textContent = 'New here? You will set your own PIN.';
     hint.style.color = 'rgba(242,183,5,.7)';
+  } else {
+    hint.textContent = 'Press Continue to check your account.';
+    hint.style.color = 'rgba(255,255,255,.4)';
   }
 }
 
-function proceedWithName() {
+async function proceedWithName() {
   var name = document.getElementById('nameInput').value.trim();
   if (name.length < 2) {
     document.getElementById('nameHint').textContent = 'Please enter at least 2 characters.';
@@ -2250,7 +2250,21 @@ function proceedWithName() {
     return;
   }
   cand = name;
-  if (isRegistered(name)) {
+  document.getElementById('nameHint').textContent = 'Checking your account...';
+  document.getElementById('nameHint').style.color = 'rgba(255,255,255,.5)';
+  var known = false;
+  try {
+    var _cmPayload = { action: 'checkMember', member: name };
+    var resp = await _gasFetch(GAS_URL + '?action=checkMember&data=' + encodeURIComponent(JSON.stringify(_cmPayload)) + '&t=' + Date.now());
+    var json = await resp.json();
+    known = !!(json && json.registered);
+  } catch (e) {
+    document.getElementById('nameHint').textContent = 'Could not reach the server. Check your connection and try again.';
+    document.getElementById('nameHint').style.color = 'rgba(192,57,43,.9)';
+    return;
+  }
+  markKnown(name, known);
+  if (known) {
     // Returning member — go to PIN entry
     document.getElementById('pinName').textContent = name.split(' ')[0];
     buf = '';
@@ -2299,17 +2313,28 @@ function pinPress(d) {
 }
 function pinBack()  { buf=buf.slice(0,-1); updateDots('dot',buf); }
 function pinClear() { buf=''; updateDots('dot',buf); document.getElementById('pinError').textContent=''; }
-function checkPin() {
-  if (buf === getPin(cand)) {
-    sessionStorage.setItem(PRE+'member', cand);
-    sessionStorage.setItem(PRE+'ts', Date.now());
-    addRecent(cand);
-    login(cand);
-  } else {
-    document.getElementById('pinError').textContent = 'Incorrect PIN. Try again.';
-    for(var i=0;i<4;i++) document.getElementById('dot'+i).classList.add('shake');
+async function checkPin() {
+  var enteredPin = buf;
+  try {
+    var _vpPayload = { action: 'verifyPin', member: cand, pin: enteredPin };
+    var resp = await _gasFetch(GAS_URL + '?action=verifyPin&data=' + encodeURIComponent(JSON.stringify(_vpPayload)) + '&t=' + Date.now());
+    var json = await resp.json();
+    if (json && json.success) {
+      sessionStorage.setItem(PRE+'member', cand);
+      sessionStorage.setItem(PRE+'ts', Date.now());
+      addRecent(cand);
+      markKnown(cand, true);
+      login(cand);
+      return;
+    }
+  } catch (e) {
+    document.getElementById('pinError').textContent = 'Could not reach the server. Try again.';
     buf=''; setTimeout(function(){ updateDots('dot',buf); },400);
+    return;
   }
+  document.getElementById('pinError').textContent = 'Incorrect PIN. Try again.';
+  for(var i=0;i<4;i++) document.getElementById('dot'+i).classList.add('shake');
+  buf=''; setTimeout(function(){ updateDots('dot',buf); },400);
 }
 
 // ── NEW MEMBER: SET PIN ──
@@ -2350,15 +2375,31 @@ async function finalizeRegistration() {
     confirmBuf=''; setTimeout(function(){ updateDots('cdot',confirmBuf); },400);
     return;
   }
-  // Save PIN locally
-  savePin(cand, confirmBuf);
+  document.getElementById('confirmPinError').textContent = 'Setting up your account...';
+  document.getElementById('confirmPinError').style.color = 'rgba(255,255,255,.5)';
+  // Save PIN server-side (hashed), so it works on every device
+  try {
+    var _spPayload = { action: 'setPin', member: cand, pin: confirmBuf };
+    var resp = await _gasFetch(GAS_URL + '?action=setPin&data=' + encodeURIComponent(JSON.stringify(_spPayload)) + '&t=' + Date.now());
+    var json = await resp.json();
+    if (!json || !json.success) {
+      document.getElementById('confirmPinError').textContent = (json && json.error) ? json.error : 'Could not save your PIN. Try again.';
+      document.getElementById('confirmPinError').style.color = 'rgba(192,57,43,.9)';
+      return;
+    }
+  } catch (e) {
+    document.getElementById('confirmPinError').textContent = 'Could not reach the server. Check your connection and try again.';
+    document.getElementById('confirmPinError').style.color = 'rgba(192,57,43,.9)';
+    return;
+  }
   addRecent(cand);
-  // Register in Google Sheet
+  markKnown(cand, true);
+  // Register in Google Sheet (creates the member's tabs, etc.)
   try {
     var _rmPayload = {action:'registerMember',member:cand,date:dateStr(),
       joinedAt:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
     var _rmResp = await _gasFetch(GAS_URL+'?action=registerMember&data='+encodeURIComponent(JSON.stringify(_rmPayload))+'&t='+Date.now());
-  } catch(e) { /* registration still works locally */ }
+  } catch(e) { /* non-fatal */ }
   // Log in
   sessionStorage.setItem(PRE+'member', cand);
   sessionStorage.setItem(PRE+'ts', Date.now());
@@ -2381,12 +2422,27 @@ function forgotPress(d) {
 function forgotBack()  { forgotBuf=forgotBuf.slice(0,-1); updateDots('fdot',forgotBuf); }
 function forgotClear() { forgotBuf=''; updateDots('fdot',forgotBuf); }
 
-function confirmForgot() {
-  // Reset PIN directly — on their own device this is safe
-  savePin(cand, forgotBuf);
+async function confirmForgot() {
+  document.getElementById('forgotError').textContent = 'Resetting your PIN...';
+  document.getElementById('forgotError').style.color = 'rgba(255,255,255,.5)';
+  try {
+    var _rpPayload = { action: 'resetPin', member: cand, pin: forgotBuf };
+    var resp = await _gasFetch(GAS_URL + '?action=resetPin&data=' + encodeURIComponent(JSON.stringify(_rpPayload)) + '&t=' + Date.now());
+    var json = await resp.json();
+    if (!json || !json.success) {
+      document.getElementById('forgotError').textContent = (json && json.error) ? json.error : 'Could not reset your PIN. Try again.';
+      document.getElementById('forgotError').style.color = 'rgba(192,57,43,.9)';
+      return;
+    }
+  } catch (e) {
+    document.getElementById('forgotError').textContent = 'Could not reach the server. Check your connection and try again.';
+    document.getElementById('forgotError').style.color = 'rgba(192,57,43,.9)';
+    return;
+  }
   sessionStorage.setItem(PRE+'member', cand);
   sessionStorage.setItem(PRE+'ts', Date.now());
   addRecent(cand);
+  markKnown(cand, true);
   login(cand);
 }
 
@@ -2422,6 +2478,22 @@ function initAuthScreen() {
   document.getElementById('nameInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); proceedWithName(); }
   });
+}
+
+// ── LOGOUT ──
+// Clears this device's session so another warrior can sign in. Their
+// data (books, sessions) all lives server-side, so nothing is lost --
+// they (or anyone) can log back in on any device with the right PIN.
+function logout() {
+  sessionStorage.removeItem(PRE+'member');
+  sessionStorage.removeItem(PRE+'ts');
+  member = null;
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('memberScreen').classList.remove('hidden');
+  var nameInput = document.getElementById('nameInput');
+  if (nameInput) { nameInput.value = ''; nameInput.focus(); }
+  goToStep('stepName');
+  renderRecentMembers();
 }
 
 // ── LOGIN ──
