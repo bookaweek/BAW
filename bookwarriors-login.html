@@ -152,7 +152,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .member-screen{position:fixed;inset:0;background:var(--navy);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
 .member-screen.hidden{display:none}
 .ms-logo-wrap{position:relative;width:100px;height:100px;margin-bottom:28px;display:flex;align-items:center;justify-content:center}
-.ms-logo-img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;position:relative;z-index:2;filter:drop-shadow(0 6px 20px rgba(242,183,5,.5));animation:splashLogo .9s cubic-bezier(.34,1.56,.64,1) both}
+.ms-logo-img{display:block;width:100px;height:100px;object-fit:contain;position:relative;z-index:2;filter:drop-shadow(0 6px 20px rgba(242,183,5,.5));animation:splashLogo .9s cubic-bezier(.34,1.56,.64,1) both}
 @keyframes splashLogo{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.1) rotate(3deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
 .ms-ring{position:absolute;border-radius:50%;border:2px solid rgba(242,183,5,.25);top:50%;left:50%;transform:translate(-50%,-50%);animation:ringPulse 2.4s ease-out infinite}
 .ms-r1{width:90px;height:90px;animation-delay:0s}
