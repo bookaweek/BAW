@@ -152,7 +152,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .member-screen{position:fixed;inset:0;background:var(--navy);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
 .member-screen.hidden{display:none}
 .ms-logo-wrap{position:relative;width:100px;height:100px;margin-bottom:28px;display:flex;align-items:center;justify-content:center}
-.ms-logo-img{width:80px;height:80px;border-radius:18px;object-fit:contain;position:relative;z-index:2;filter:drop-shadow(0 6px 20px rgba(242,183,5,.5));animation:splashLogo .9s cubic-bezier(.34,1.56,.64,1) both}
+.ms-logo-img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;position:relative;z-index:2;filter:drop-shadow(0 6px 20px rgba(242,183,5,.5));animation:splashLogo .9s cubic-bezier(.34,1.56,.64,1) both}
 @keyframes splashLogo{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.1) rotate(3deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
 .ms-ring{position:absolute;border-radius:50%;border:2px solid rgba(242,183,5,.25);top:50%;left:50%;transform:translate(-50%,-50%);animation:ringPulse 2.4s ease-out infinite}
 .ms-r1{width:90px;height:90px;animation-delay:0s}
@@ -2287,7 +2287,7 @@ function renderRecentMembers() {
   if (!recent.length) { el.innerHTML = ''; return; }
   var items = recent.map(function(name) {
     var init = name.split(' ').map(function(w){ return w[0]; }).join('').toUpperCase().slice(0,2);
-    return '<button onclick="quickLogin(\''+name.replace(/'/g,"\'")+'\')"      style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;      background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);      border-radius:12px;color:#fff;font-family:DM Sans,sans-serif;font-size:14px;      cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:8px;      text-align:left;">      <div style="width:32px;height:32px;background:rgba(242,183,5,.15);border-radius:8px;        display:flex;align-items:center;justify-content:center;font-size:12px;        font-weight:700;color:var(--gold);flex-shrink:0;">'+init+'</div>      <span>'+name+'</span>      <span style="margin-left:auto;color:rgba(255,255,255,.3);font-size:12px;">&#x2192;</span>    </button>';
+    return '<button onclick="quickLogin(\''+name.replace(/'/g,"\'")+'\')"      style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;      background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);      border-radius:12px;color:#fff;font-family:DM Sans,sans-serif;font-size:14px;      cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:8px;      text-align:left;">      <div style="width:32px;height:32px;background:rgba(242,183,5,.15);border-radius:8px;        display:flex;align-items:center;justify-content:center;font-size:12px;        font-weight:700;color:var(--gold);flex-shrink:0;">'+init+'</div>      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+name+'</span>      <span style="flex-shrink:0;margin-left:8px;color:rgba(255,255,255,.3);font-size:12px;">&#x2192;</span>    </button>';
   }).join('');
   el.innerHTML = '<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;    color:rgba(255,255,255,.25);text-align:center;margin-bottom:10px;">Recent</div>' + items;
 }
