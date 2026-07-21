@@ -193,6 +193,61 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .pin-clear{font-size:16px;color:rgba(255,255,255,.4)}
 .pin-change{display:block;width:100%;margin-top:16px;padding:10px;background:transparent;border:none;color:rgba(255,255,255,.35);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
 
+/* ── READING TIMER — designed for flow, not distraction ──
+   No hard countdown target (real reading has no fixed length), so
+   the ring "breathes" gently while active rather than showing a
+   progress toward an arbitrary number. This mirrors how serious
+   focus-timer research treats indefinite deep-work sessions: the
+   goal is sustained attention, not racing a clock. */
+.timer-card {
+  margin: 14px 0 18px;
+  background: linear-gradient(135deg, rgba(10,42,102,.04), rgba(242,183,5,.03));
+  border: 1px solid var(--lgray);
+  border-radius: 18px;
+  padding: 20px 18px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.timer-ring-wrap { position: relative; width: 92px; height: 92px; flex-shrink: 0; }
+.timer-ring-svg { width: 92px; height: 92px; }
+.timer-ring-track { fill: none; stroke: var(--lgray); stroke-width: 6; }
+.timer-ring-fill {
+  fill: none; stroke: var(--gold); stroke-width: 6; stroke-linecap: round;
+  stroke-dasharray: 251.2; stroke-dashoffset: 251.2;
+  transform: rotate(-90deg); transform-origin: 46px 46px;
+  transition: stroke-dashoffset .3s linear;
+}
+.timer-ring-svg.running .timer-ring-fill { animation: timerBreathe 3s ease-in-out infinite; }
+@keyframes timerBreathe {
+  0%,100% { filter: drop-shadow(0 0 0 rgba(242,183,5,0)); }
+  50%     { filter: drop-shadow(0 0 6px rgba(242,183,5,.65)); }
+}
+.timer-flame-icon {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-size: 22px; transition: font-size .4s cubic-bezier(.34,1.56,.64,1);
+  filter: grayscale(1) opacity(.35);
+}
+.timer-flame-icon.lit { filter: none; }
+.timer-info { flex: 1; min-width: 0; }
+.timer-clock {
+  font-family: 'Playfair Display', serif;
+  font-size: 30px; font-weight: 900; color: var(--navy);
+  line-height: 1; letter-spacing: .01em; font-variant-numeric: tabular-nums;
+}
+.timer-status { font-size: 12px; color: var(--cgray); margin-top: 4px; min-height: 16px; }
+.timer-controls { display: flex; gap: 8px; margin-top: 10px; }
+.timer-btn {
+  height: 38px; padding: 0 18px; border-radius: 10px; border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  display: flex; align-items: center; gap: 6px; transition: opacity .12s, transform .12s;
+}
+.timer-btn:active { transform: scale(.96); }
+.timer-btn-play { background: var(--navy); color: var(--gold); }
+.timer-btn-pause { background: rgba(224,123,57,.15); color: var(--orange); border: 1.5px solid rgba(224,123,57,.35); }
+.timer-btn-reset { background: rgba(192,57,43,.08); color: var(--red); border: 1.5px solid rgba(192,57,43,.2); padding: 0 14px; }
+
 /* ── STREAK SYSTEM ── */
 .streak-card {
   margin: 14px 16px 0;
@@ -1230,6 +1285,23 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
               <option value="M12">M12: Lifelong Reader</option>
             </select>
           </div>
+          <div class="timer-card">
+            <div class="timer-ring-wrap">
+              <svg class="timer-ring-svg" id="timerRingSvg" viewBox="0 0 92 92">
+                <circle class="timer-ring-track" cx="46" cy="46" r="40"></circle>
+                <circle class="timer-ring-fill" id="timerRingFill" cx="46" cy="46" r="40"></circle>
+              </svg>
+              <div class="timer-flame-icon" id="timerFlameIcon">&#x1F525;</div>
+            </div>
+            <div class="timer-info">
+              <div class="timer-clock" id="timerClock">00:00</div>
+              <div class="timer-status" id="timerStatus">Tap Start when you open your book</div>
+              <div class="timer-controls">
+                <button type="button" class="timer-btn timer-btn-play" id="timerPlayBtn" onclick="timerToggle()">&#x25B6; Start</button>
+                <button type="button" class="timer-btn timer-btn-reset" id="timerResetBtn" onclick="timerReset()" style="display:none;">Reset</button>
+              </div>
+            </div>
+          </div>
           <div class="two-col">
             <div class="field"><label for="d-mins">Minutes <span class="req">*</span></label><input type="number" id="d-mins" placeholder="25" min="1" max="480" inputmode="numeric"></div>
             <div class="field"><label for="d-pages">Pages</label><input type="number" id="d-pages" placeholder="20" min="0" max="999" inputmode="numeric"></div>
@@ -1588,7 +1660,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // BUILD: 2026-04-30-v10-realtime (5-layer real-time engine)
 // ═══════════════════════════════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbw4zArlvnWzqoIamjRnZp2XD4UHlHxNVszdZwYF1t9d7SECk-upKhgiy65YqjJQiVC2qw/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzNSLcx7LjrQekWWEPzfVkcak1g_7-1M3QZ-9wAD6DpFhi1Gwq_V9lyuXH_QajV0NySGQ/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 // Preloaded once at script start so canvas-drawn share cards can
@@ -2510,6 +2582,7 @@ function login(name) {
   document.getElementById('mainApp').style.display='block';
   document.getElementById('greetName').textContent=name;
   refreshHeaderAvatar(); // show this warrior's own photo/initials immediately
+  _timerRestoreState(); // reading timer: restore this member's own paused/elapsed state
   loadLib(); setupWeekly(); setMode('daily');
   renderStreak();
   showNotifBanner();
@@ -2917,6 +2990,223 @@ async function submitBook(){
   finally{setBL(false);}
 }
 
+
+// ══════════════════════════════════════════════════════════════════
+// READING TIMER — built on four specific, evidence-based decisions:
+//
+// 1. NO forced countdown target. Real reading sessions have no fixed
+//    length, so this never pretends otherwise with a fake progress
+//    bar racing toward a number that isn't real. The ring instead
+//    "breathes" gently while active -- a calm ambient cue, not a
+//    race.
+//
+// 2. AUTO-PAUSES the instant the tab/app is hidden (backgrounded,
+//    screen locked, switched away). Never silently keeps counting
+//    while you're not actually reading. Self-tracking only works as
+//    a behavior-change tool if the numbers it produces are honest --
+//    an inflated streak built on stopwatch drift undermines the very
+//    mechanism (accurate self-monitoring) that makes tracking
+//    effective in the first place. Resuming is always a deliberate,
+//    manual tap -- never automatic.
+//
+// 3. WRITES DIRECTLY into the existing #d-mins field, live, every
+//    second it runs. This is friction removal: the single biggest
+//    reason people stop logging a habit is the effort of logging it
+//    after the fact. By the time a session ends, the log is already
+//    half-done.
+//
+// 4. Uses real wall-clock timestamps (Date.now()), not a naive tick
+//    counter -- so it stays accurate even if the browser throttles
+//    setInterval in a background tab, and survives a page reload
+//    mid-session without losing time.
+// ══════════════════════════════════════════════════════════════════
+
+var _timerRunning      = false;
+var _timerStartTs      = null;   // wall-clock ts when current run segment began
+var _timerAccumulatedMs = 0;     // total elapsed across all run segments so far
+var _timerInterval     = null;
+var _timerLastChimeMin = 0;
+
+function _timerStorageKey() { return PRE + (member || 'anon') + '_timer_state'; }
+
+function _timerSaveState() {
+  try {
+    localStorage.setItem(_timerStorageKey(), JSON.stringify({
+      running: _timerRunning,
+      startTs: _timerStartTs,
+      accumulatedMs: _timerAccumulatedMs
+    }));
+  } catch (e) {}
+}
+
+function _timerRestoreState() {
+  try {
+    var raw = localStorage.getItem(_timerStorageKey());
+    if (!raw) return;
+    var s = JSON.parse(raw);
+    _timerAccumulatedMs = s.accumulatedMs || 0;
+    // If it was left "running" (e.g. page closed mid-session), honor
+    // decision #2: we do NOT silently add the elapsed-while-closed
+    // time. We restore as PAUSED with whatever had already
+    // accumulated -- the honest amount up to the moment it was last
+    // actively ticking -- and require a fresh manual Start.
+    _timerRunning = false;
+    _timerStartTs = null;
+    _timerRender();
+    _timerSaveState();
+  } catch (e) {}
+}
+
+function _timerElapsedMs() {
+  return _timerAccumulatedMs + (_timerRunning && _timerStartTs ? (Date.now() - _timerStartTs) : 0);
+}
+
+function timerToggle() {
+  if (_timerRunning) {
+    // PAUSE
+    _timerAccumulatedMs = _timerElapsedMs();
+    _timerRunning = false;
+    _timerStartTs = null;
+    if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+  } else {
+    // START / RESUME
+    _timerRunning = true;
+    _timerStartTs = Date.now();
+    if (_timerInterval) clearInterval(_timerInterval);
+    _timerInterval = setInterval(_timerRender, 1000);
+  }
+  _timerSaveState();
+  _timerRender();
+}
+
+function timerReset() {
+  if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+  _timerRunning = false;
+  _timerStartTs = null;
+  _timerAccumulatedMs = 0;
+  _timerLastChimeMin = 0;
+  _timerSaveState();
+  _timerRender();
+  var mi = document.getElementById('d-mins');
+  if (mi) { mi.value = ''; prog(); }
+}
+
+// A brief, quiet two-note chime at each 5-minute mark -- goal-gradient
+// reinforcement (a small sense of progress at regular intervals keeps
+// motivation up over a long session) without ever interrupting focus
+// with a popup, banner, or vibration. Purely optional audio; silently
+// no-ops if WebAudio is unavailable.
+function _timerChime() {
+  try {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    var ctx = new Ctx();
+    [880, 1174.66].forEach(function(freq, i) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + i*0.14);
+      g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + i*0.14 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i*0.14 + 0.35);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(ctx.currentTime + i*0.14);
+      o.stop(ctx.currentTime + i*0.14 + 0.4);
+    });
+  } catch (e) {}
+}
+
+function _timerRender() {
+  var ms = _timerElapsedMs();
+  var totalSec = Math.floor(ms / 1000);
+  var mins = Math.floor(totalSec / 60);
+  var secs = totalSec % 60;
+  var hh = Math.floor(mins / 60);
+  var clockStr = hh > 0
+    ? String(hh).padStart(2,'0') + ':' + String(mins % 60).padStart(2,'0') + ':' + String(secs).padStart(2,'0')
+    : String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
+
+  var clockEl = document.getElementById('timerClock');
+  if (clockEl) clockEl.textContent = clockStr;
+
+  // Live-fill the real minutes field -- decision #3. Only overwrite
+  // while the timer has actually accumulated something, so a warrior
+  // who prefers typing manually (e.g. backlogging a past session)
+  // is never fought with.
+  var minsInput = document.getElementById('d-mins');
+  if (minsInput && ms > 0) {
+    minsInput.value = Math.max(1, mins);
+    prog();
+  }
+
+  // Ring: "breathing" glow while running (handled by CSS class), plus
+  // a gentle fill sweep across each rolling 5-minute stretch -- the
+  // goal-gradient cue -- rather than one giant target that never
+  // visibly moves for the first 20 minutes of a long session.
+  var ringFill = document.getElementById('timerRingFill');
+  var ringSvg  = document.getElementById('timerRingSvg');
+  if (ringFill) {
+    var cyclePct = (totalSec % 300) / 300; // 300s = 5min rolling cycle
+    var circumference = 251.2;
+    ringFill.style.strokeDashoffset = String(circumference - cyclePct * circumference);
+  }
+  if (ringSvg) ringSvg.classList.toggle('running', _timerRunning);
+
+  var flameEl = document.getElementById('timerFlameIcon');
+  if (flameEl) {
+    flameEl.classList.toggle('lit', ms > 0);
+    var growth = Math.min(1, mins / 30); // visually "grows" toward 30min, then holds
+    flameEl.style.fontSize = (20 + growth * 14) + 'px';
+  }
+
+  var statusEl = document.getElementById('timerStatus');
+  var playBtn  = document.getElementById('timerPlayBtn');
+  var resetBtn = document.getElementById('timerResetBtn');
+  if (statusEl) {
+    if (_timerRunning) {
+      var msgs = ['Reading in progress. Stay with it.', 'This is the work. Keep going.', 'Every minute here compounds.'];
+      statusEl.textContent = mins < 1 ? 'Just started \u2014 give it a few minutes.' : msgs[mins % msgs.length];
+      statusEl.style.color = 'rgba(13,122,110,.9)';
+    } else if (ms > 0) {
+      statusEl.textContent = 'Paused at ' + clockStr + ' \u2014 resume when ready.';
+      statusEl.style.color = 'var(--orange)';
+    } else {
+      statusEl.textContent = 'Tap Start when you open your book';
+      statusEl.style.color = 'var(--cgray)';
+    }
+  }
+  if (playBtn) {
+    playBtn.innerHTML = _timerRunning ? '&#x23F8; Pause' : (ms > 0 ? '&#x25B6; Resume' : '&#x25B6; Start');
+    playBtn.className = 'timer-btn ' + (_timerRunning ? 'timer-btn-pause' : 'timer-btn-play');
+  }
+  if (resetBtn) resetBtn.style.display = ms > 0 ? 'flex' : 'none';
+
+  // Quiet milestone chime every 5 minutes while actively running.
+  if (_timerRunning && mins > 0 && mins % 5 === 0 && mins !== _timerLastChimeMin) {
+    _timerLastChimeMin = mins;
+    _timerChime();
+  }
+}
+
+// Decision #2 in practice: the moment the tab/app is hidden, pause
+// for real. Covers switching apps, locking the phone, or closing the
+// browser -- any of which should stop the clock, not just backgrounding.
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden && _timerRunning) {
+    timerToggle(); // pauses and persists honestly
+  }
+});
+window.addEventListener('beforeunload', function() {
+  if (_timerRunning) {
+    _timerAccumulatedMs = _timerElapsedMs();
+    _timerSaveState();
+  }
+});
+
+// Reset the timer automatically after a successful log submission or
+// a full form reset, so the next session starts clean rather than
+// silently carrying over a previous day's leftover elapsed time.
+function _timerResetForNewSession() {
+  timerReset();
+}
 
 // ── DAILY ──
 function toggleRest(){
@@ -3380,6 +3670,7 @@ function resetDaily(){
   document.querySelectorAll('.star-btn').forEach(function(b){b.classList.remove('on');});
   document.getElementById('progFill').style.width='0%';
   document.getElementById('dailyErr').classList.remove('show');
+  _timerResetForNewSession();
   dropBooks();
 }
 
