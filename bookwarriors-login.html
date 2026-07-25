@@ -193,60 +193,171 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .pin-clear{font-size:16px;color:rgba(255,255,255,.4)}
 .pin-change{display:block;width:100%;margin-top:16px;padding:10px;background:transparent;border:none;color:rgba(255,255,255,.35);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
 
-/* ── READING TIMER — designed for flow, not distraction ──
-   No hard countdown target (real reading has no fixed length), so
-   the ring "breathes" gently while active rather than showing a
-   progress toward an arbitrary number. This mirrors how serious
-   focus-timer research treats indefinite deep-work sessions: the
-   goal is sustained attention, not racing a clock. */
+/* ══════════════════════════════════════════════════════════════════
+   READING TIMER — hero-scale, on-brand, built on the Cirillo
+   Technique's real ratios (25:5 baseline, every 4th session earns a
+   longer break) with fully honest tracking. Visual language pulls
+   directly from BookAWeek's own identity -- navy, gold, teal,
+   Playfair Display serif numerals, the app's own open-book mark as a
+   watermark -- rather than any generic timer-app or dashboard style.
+   ══════════════════════════════════════════════════════════════════ */
 .timer-card {
   margin: 14px 0 18px;
-  background: linear-gradient(135deg, rgba(10,42,102,.04), rgba(242,183,5,.03));
-  border: 1px solid var(--lgray);
-  border-radius: 18px;
-  padding: 20px 18px;
-  display: flex;
-  align-items: center;
-  gap: 18px;
+  background: linear-gradient(160deg, #0A1F44 0%, #0D2A5C 100%);
+  border-radius: 24px;
+  padding: 28px 22px 24px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 34px rgba(10,31,68,.28);
 }
-.timer-ring-wrap { position: relative; width: 92px; height: 92px; flex-shrink: 0; }
-.timer-ring-svg { width: 92px; height: 92px; }
-.timer-ring-track { fill: none; stroke: var(--lgray); stroke-width: 6; }
+.timer-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--orange), var(--gold));
+  background-size: 200% 100%; animation: timerShimmer 5s linear infinite;
+}
+@keyframes timerShimmer { 0%{background-position:0% 0} 100%{background-position:200% 0} }
+.timer-watermark {
+  position: absolute; top: 50%; left: 50%; width: 260px; height: 260px;
+  transform: translate(-50%,-50%); color: rgba(242,183,5,.05);
+  pointer-events: none; z-index: 0;
+}
+.timer-card > *:not(.timer-watermark) { position: relative; z-index: 1; }
+
+/* ── SETUP ── */
+.timer-setup-label { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 16px; text-align: center; }
+.timer-chip-row { display: flex; flex-wrap: wrap; gap: 9px; justify-content: center; margin-bottom: 16px; }
+.timer-chip {
+  height: 46px; min-width: 46px; padding: 0 14px; border-radius: 23px;
+  border: 1.5px solid rgba(242,183,5,.25); background: rgba(255,255,255,.05); color: rgba(255,255,255,.75);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: all .18s cubic-bezier(.34,1.56,.64,1);
+}
+.timer-chip-wide { padding: 0 18px; font-size: 12.5px; }
+.timer-chip.active {
+  border-color: var(--gold); background: linear-gradient(135deg, var(--gold), #E8A800);
+  color: var(--navy); transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(242,183,5,.35);
+}
+.timer-chip:active { transform: scale(.94); }
+.timer-custom-row { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 18px; }
+.timer-custom-btn {
+  width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid rgba(242,183,5,.3);
+  background: rgba(255,255,255,.06); color: var(--gold); font-size: 19px; font-weight: 900;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; display: flex;
+  align-items: center; justify-content: center; transition: all .12s;
+}
+.timer-custom-btn:active { transform: scale(.88); background: rgba(242,183,5,.18); }
+.timer-custom-val { font-family: 'Playfair Display', serif; font-size: 23px; font-weight: 900; color: #fff; min-width: 92px; text-align: center; }
+.timer-start-btn {
+  width: 100%; height: 56px; border: none; border-radius: 16px;
+  background: linear-gradient(135deg, var(--gold), #F5C842); color: var(--navy);
+  font-family: 'Playfair Display', serif; font-size: 16.5px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+  -webkit-tap-highlight-color: transparent; box-shadow: 0 8px 24px rgba(242,183,5,.3);
+  transition: transform .12s;
+}
+.timer-start-btn:active { transform: scale(.98); }
+.timer-start-icon {
+  width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent;
+  border-left: 11px solid var(--navy);
+}
+
+/* ── RUNNING: centered hero dial ── */
+.timer-running { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.timer-phase-label {
+  font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 18px;
+}
+.timer-phase-label.phase-break { color: #4DD9C0; }
+.timer-ring-wrap { position: relative; width: 216px; height: 216px; margin-bottom: 18px; }
+.timer-ring-svg { width: 216px; height: 216px; }
+.timer-ring-track { fill: none; stroke: rgba(255,255,255,.08); stroke-width: 8; }
+.timer-ring-ticks line { stroke: rgba(255,255,255,.14); stroke-width: 2; }
 .timer-ring-fill {
-  fill: none; stroke: var(--gold); stroke-width: 6; stroke-linecap: round;
-  stroke-dasharray: 251.2; stroke-dashoffset: 251.2;
-  transform: rotate(-90deg); transform-origin: 46px 46px;
-  transition: stroke-dashoffset .3s linear;
+  fill: none; stroke: var(--gold); stroke-width: 8; stroke-linecap: round;
+  stroke-dasharray: 653.45; stroke-dashoffset: 653.45;
+  transform: rotate(-90deg); transform-origin: 120px 120px;
+  transition: stroke-dashoffset .3s linear, stroke .3s;
 }
+.timer-ring-svg.phase-break .timer-ring-fill { stroke: #4DD9C0; }
 .timer-ring-svg.running .timer-ring-fill { animation: timerBreathe 3s ease-in-out infinite; }
 @keyframes timerBreathe {
   0%,100% { filter: drop-shadow(0 0 0 rgba(242,183,5,0)); }
-  50%     { filter: drop-shadow(0 0 6px rgba(242,183,5,.65)); }
+  50%     { filter: drop-shadow(0 0 10px rgba(242,183,5,.55)); }
 }
-.timer-flame-icon {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  font-size: 22px; transition: font-size .4s cubic-bezier(.34,1.56,.64,1);
-  filter: grayscale(1) opacity(.35);
+.timer-ring-svg.phase-break.running .timer-ring-fill { animation: timerBreatheTeal 3s ease-in-out infinite; }
+@keyframes timerBreatheTeal {
+  0%,100% { filter: drop-shadow(0 0 0 rgba(77,217,192,0)); }
+  50%     { filter: drop-shadow(0 0 10px rgba(77,217,192,.5)); }
 }
-.timer-flame-icon.lit { filter: none; }
-.timer-info { flex: 1; min-width: 0; }
+.timer-ring-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px;
+}
 .timer-clock {
   font-family: 'Playfair Display', serif;
-  font-size: 30px; font-weight: 900; color: var(--navy);
+  font-size: 44px; font-weight: 900; color: #fff;
   line-height: 1; letter-spacing: .01em; font-variant-numeric: tabular-nums;
 }
-.timer-status { font-size: 12px; color: var(--cgray); margin-top: 4px; min-height: 16px; }
-.timer-controls { display: flex; gap: 8px; margin-top: 10px; }
+.timer-flame-icon {
+  font-size: 20px; opacity: .4; filter: grayscale(1);
+  transition: font-size .4s cubic-bezier(.34,1.56,.64,1), opacity .4s, filter .4s;
+}
+.timer-flame-icon.lit { opacity: 1; filter: none; }
+.timer-status { font-size: 13px; color: rgba(255,255,255,.55); margin-bottom: 20px; min-height: 18px; max-width: 260px; }
+.timer-controls { display: flex; gap: 10px; width: 100%; max-width: 300px; }
 .timer-btn {
-  height: 38px; padding: 0 18px; border-radius: 10px; border: none;
-  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700;
+  flex: 1; height: 48px; border-radius: 14px; border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
-  display: flex; align-items: center; gap: 6px; transition: opacity .12s, transform .12s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: opacity .12s, transform .12s;
 }
 .timer-btn:active { transform: scale(.96); }
-.timer-btn-play { background: var(--navy); color: var(--gold); }
-.timer-btn-pause { background: rgba(224,123,57,.15); color: var(--orange); border: 1.5px solid rgba(224,123,57,.35); }
-.timer-btn-reset { background: rgba(192,57,43,.08); color: var(--red); border: 1.5px solid rgba(192,57,43,.2); padding: 0 14px; }
+.timer-btn-play { background: linear-gradient(135deg, var(--gold), #E8A800); color: var(--navy); }
+.timer-btn-pause { background: rgba(224,123,57,.22); color: #FFB88C; border: 1.5px solid rgba(224,123,57,.4); }
+.timer-btn-reset { background: rgba(255,255,255,.06); color: rgba(255,255,255,.6); border: 1.5px solid rgba(255,255,255,.14); }
+
+/* ── COMPLETION ── */
+.timer-complete { text-align: center; padding: 4px 0 2px; position: relative; }
+.timer-complete-burst {
+  position: absolute; top: -10px; left: 50%; width: 6px; height: 6px;
+  pointer-events: none;
+}
+.timer-complete-burst::before, .timer-complete-burst::after {
+  content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold); box-shadow:
+    26px 6px 0 -1px var(--orange), -26px 6px 0 -1px var(--teal),
+    16px -22px 0 -1px var(--gold), -16px -22px 0 -1px var(--orange),
+    0px -30px 0 -1px var(--teal), 36px -14px 0 -1px var(--gold),
+    -36px -14px 0 -1px var(--orange);
+  animation: timerBurst .7s ease-out both;
+}
+@keyframes timerBurst { from{opacity:1;transform:scale(0)} to{opacity:0;transform:scale(2.6)} }
+.timer-complete-emoji { font-size: 46px; margin-bottom: 10px; animation: timerPop .55s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes timerPop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+.timer-complete-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 900; color: #fff; margin-bottom: 8px; }
+.timer-complete-sub { font-size: 13px; color: rgba(255,255,255,.5); line-height: 1.55; max-width: 280px; margin: 0 auto 20px; }
+.timer-break-adjust {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px; padding: 15px 20px; margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.timer-break-label { font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,.8); }
+.timer-break-stepper { display: flex; align-items: center; gap: 16px; }
+.timer-break-val { font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 900; color: #4DD9C0; min-width: 60px; text-align: center; }
+.timer-complete-actions { display: flex; flex-direction: column; gap: 10px; }
+.timer-skip-btn {
+  width: 100%; height: 46px; border-radius: 14px; border: 1.5px solid rgba(255,255,255,.14);
+  background: transparent; color: rgba(255,255,255,.5); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.timer-skip-btn:active { background: rgba(255,255,255,.06); }
+.timer-longbreak-badge {
+  display: inline-flex; align-items: center; gap: 6px; background: rgba(242,183,5,.12);
+  color: var(--gold); border: 1px solid rgba(242,183,5,.3); border-radius: 20px;
+  padding: 5px 14px; font-size: 11.5px; font-weight: 700; margin-bottom: 16px;
+}
 
 /* ── STREAK SYSTEM ── */
 .streak-card {
@@ -1285,22 +1396,86 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
               <option value="M12">M12: Lifelong Reader</option>
             </select>
           </div>
-          <div class="timer-card">
-            <div class="timer-ring-wrap">
-              <svg class="timer-ring-svg" id="timerRingSvg" viewBox="0 0 92 92">
-                <circle class="timer-ring-track" cx="46" cy="46" r="40"></circle>
-                <circle class="timer-ring-fill" id="timerRingFill" cx="46" cy="46" r="40"></circle>
+          <div class="timer-card" id="timerCard">
+            <div class="timer-watermark" aria-hidden="true">
+              <svg viewBox="0 0 200 200" width="100%" height="100%">
+                <path d="M100 46 C 92 40, 60 36, 40 40 L 40 150 C 60 146, 92 150, 100 158 C 108 150, 140 146, 160 150 L 160 40 C 140 36, 108 40, 100 46 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+                <path d="M100 46 L 100 158" fill="none" stroke="currentColor" stroke-width="3"/>
               </svg>
-              <div class="timer-flame-icon" id="timerFlameIcon">&#x1F525;</div>
             </div>
-            <div class="timer-info">
-              <div class="timer-clock" id="timerClock">00:00</div>
-              <div class="timer-status" id="timerStatus">Tap Start when you open your book</div>
+
+            <div class="timer-setup" id="timerSetupView">
+              <div class="timer-setup-label">How long do you want to read?</div>
+              <div class="timer-chip-row" id="timerChipRow">
+                <button type="button" class="timer-chip" data-mins="15" onclick="timerSelectDuration(15)">15</button>
+                <button type="button" class="timer-chip active" data-mins="25" onclick="timerSelectDuration(25)">25</button>
+                <button type="button" class="timer-chip" data-mins="45" onclick="timerSelectDuration(45)">45</button>
+                <button type="button" class="timer-chip" data-mins="60" onclick="timerSelectDuration(60)">60</button>
+                <button type="button" class="timer-chip timer-chip-wide" data-mins="custom" onclick="timerSelectDuration('custom')">Custom</button>
+                <button type="button" class="timer-chip timer-chip-wide" data-mins="0" onclick="timerSelectDuration(0)">No limit</button>
+              </div>
+              <div class="timer-custom-row" id="timerCustomRow" style="display:none;">
+                <button type="button" class="timer-custom-btn" onclick="timerCustomAdjust(-5)">&#x2212;</button>
+                <div class="timer-custom-val" id="timerCustomVal">25 min</div>
+                <button type="button" class="timer-custom-btn" onclick="timerCustomAdjust(5)">&#x2B;</button>
+              </div>
+              <button type="button" class="timer-start-btn" onclick="timerStart()">
+                <span class="timer-start-icon"></span> Start Focus Session
+              </button>
+            </div>
+
+            <div class="timer-running" id="timerRunningView" style="display:none;">
+              <div class="timer-phase-label" id="timerPhaseLabel">Focus Session</div>
+              <div class="timer-ring-wrap">
+                <svg class="timer-ring-svg" id="timerRingSvg" viewBox="0 0 240 240">
+                  <circle class="timer-ring-track" cx="120" cy="120" r="104"></circle>
+                  <g class="timer-ring-ticks" id="timerTicks"></g>
+                  <circle class="timer-ring-fill" id="timerRingFill" cx="120" cy="120" r="104"></circle>
+                </svg>
+                <div class="timer-ring-center">
+                  <div class="timer-clock" id="timerClock">00:00</div>
+                  <div class="timer-flame-icon" id="timerFlameIcon"></div>
+                </div>
+              </div>
+              <div class="timer-status" id="timerStatus">Reading in progress</div>
               <div class="timer-controls">
-                <button type="button" class="timer-btn timer-btn-play" id="timerPlayBtn" onclick="timerToggle()">&#x25B6; Start</button>
-                <button type="button" class="timer-btn timer-btn-reset" id="timerResetBtn" onclick="timerReset()" style="display:none;">Reset</button>
+                <button type="button" class="timer-btn timer-btn-reset" id="timerStopBtn" onclick="timerStopEarly()">Stop</button>
+                <button type="button" class="timer-btn timer-btn-play" id="timerPlayBtn" onclick="timerToggle()">&#x23F8; Pause</button>
               </div>
             </div>
+
+            <div class="timer-complete" id="timerCompleteView" style="display:none;">
+              <div class="timer-complete-burst" aria-hidden="true"></div>
+              <div class="timer-complete-emoji">&#x1F4D6;</div>
+              <div id="timerLongBreakBadge" style="display:none;">
+                <div class="timer-longbreak-badge">Four sessions complete &middot; longer break earned</div>
+              </div>
+              <div class="timer-complete-title"><span id="timerCompleteMins">25</span> minutes of reading logged</div>
+              <div class="timer-complete-sub">A short break now helps your brain actually hold on to what you just read.</div>
+              <div class="timer-break-adjust">
+                <span class="timer-break-label">Recommended break</span>
+                <div class="timer-break-stepper">
+                  <button type="button" class="timer-custom-btn" onclick="timerAdjustBreak(-1)">&#x2212;</button>
+                  <div class="timer-break-val"><span id="timerBreakVal">5</span> min</div>
+                  <button type="button" class="timer-custom-btn" onclick="timerAdjustBreak(1)">&#x2B;</button>
+                </div>
+              </div>
+              <div class="timer-complete-actions">
+                <button type="button" class="timer-start-btn" onclick="timerStartBreak()">Start Break</button>
+                <button type="button" class="timer-skip-btn" onclick="timerSkipBreak()">Skip Break &middot; Log Session Now</button>
+              </div>
+            </div>
+
+            <div class="timer-complete" id="timerBreakCompleteView" style="display:none;">
+              <div class="timer-complete-emoji">&#x1F4D6;</div>
+              <div class="timer-complete-title">Break's over</div>
+              <div class="timer-complete-sub" id="timerBreakCompleteSub">Ready to get back to it?</div>
+              <div class="timer-complete-actions">
+                <button type="button" class="timer-start-btn" onclick="timerBackToReading()">Start Another Session</button>
+                <button type="button" class="timer-skip-btn" onclick="timerFinishAndLog()">I'm Done &middot; Log Session</button>
+              </div>
+            </div>
+
           </div>
           <div class="two-col">
             <div class="field"><label for="d-mins">Minutes <span class="req">*</span></label><input type="number" id="d-mins" placeholder="25" min="1" max="480" inputmode="numeric"></div>
@@ -2992,111 +3167,325 @@ async function submitBook(){
 
 
 // ══════════════════════════════════════════════════════════════════
-// READING TIMER — built on four specific, evidence-based decisions:
+// READING TIMER — a full Pomodoro-grade focus system, not a stopwatch.
 //
-// 1. NO forced countdown target. Real reading sessions have no fixed
-//    length, so this never pretends otherwise with a fake progress
-//    bar racing toward a number that isn't real. The ring instead
-//    "breathes" gently while active -- a calm ambient cue, not a
-//    race.
+// Built on the ORIGINAL Cirillo Technique's own proven structure,
+// not a generic countdown:
 //
-// 2. AUTO-PAUSES the instant the tab/app is hidden (backgrounded,
-//    screen locked, switched away). Never silently keeps counting
-//    while you're not actually reading. Self-tracking only works as
-//    a behavior-change tool if the numbers it produces are honest --
-//    an inflated streak built on stopwatch drift undermines the very
-//    mechanism (accurate self-monitoring) that makes tracking
-//    effective in the first place. Resuming is always a deliberate,
-//    manual tap -- never automatic.
+//  1. WORK:BREAK RATIO -- defaults follow the technique's own 25:5
+//     baseline (~20%), scaled proportionally for other durations.
+//     This isn't arbitrary; it's the ratio the method was validated
+//     around, so scaling it (rather than inventing a new one) keeps
+//     the break genuinely proportionate to the effort just spent.
 //
-// 3. WRITES DIRECTLY into the existing #d-mins field, live, every
-//    second it runs. This is friction removal: the single biggest
-//    reason people stop logging a habit is the effort of logging it
-//    after the fact. By the time a session ends, the log is already
-//    half-done.
+//  2. EVERY 4TH SESSION EARNS A LONGER BREAK -- this is the original
+//     technique's own rule, not an added extra. Sustained deep focus
+//     has a real fatigue cost that a short break doesn't fully clear;
+//     periodically scheduling a longer recovery window (rather than
+//     never) is what the method actually specifies.
 //
-// 4. Uses real wall-clock timestamps (Date.now()), not a naive tick
-//    counter -- so it stays accurate even if the browser throttles
-//    setInterval in a background tab, and survives a page reload
-//    mid-session without losing time.
+//  3. HONEST TRACKING -- stopping early logs the ACTUAL time spent
+//     reading, never the original target. A tracker that rounds up
+//     in your favor stops being useful the moment you start trusting
+//     the wrong number.
+//
+//  4. NO SILENT BACKGROUND COUNTING -- exactly like the original
+//     open-timer, the moment the tab/app is hidden, the clock
+//     honestly pauses. Resuming is always a deliberate tap.
+//
+//  5. CALM ALARMS, NOT ALARMS -- completion is signaled with a
+//     pleasant ascending chime + gentle vibration, never a harsh
+//     jarring tone.
 // ══════════════════════════════════════════════════════════════════
 
-var _timerRunning      = false;
-var _timerStartTs      = null;   // wall-clock ts when current run segment began
-var _timerAccumulatedMs = 0;     // total elapsed across all run segments so far
-var _timerInterval     = null;
+var _timer = {
+  phase: 'setup',
+  running: false,
+  startTs: null,
+  segmentAccumMs: 0,
+  targetMs: 25 * 60000,
+  customMins: 25,
+  totalWorkMs: 0,
+  breakMinutes: 5,
+  sessionCount: 0
+};
+var _timerInterval = null;
 var _timerLastChimeMin = 0;
 
-function _timerStorageKey() { return PRE + (member || 'anon') + '_timer_state'; }
+function _timerStorageKey() { return PRE + (member || 'anon') + '_timer_state_v2'; }
 
 function _timerSaveState() {
-  try {
-    localStorage.setItem(_timerStorageKey(), JSON.stringify({
-      running: _timerRunning,
-      startTs: _timerStartTs,
-      accumulatedMs: _timerAccumulatedMs
-    }));
-  } catch (e) {}
+  try { localStorage.setItem(_timerStorageKey(), JSON.stringify(_timer)); } catch (e) {}
 }
 
 function _timerRestoreState() {
   try {
     var raw = localStorage.getItem(_timerStorageKey());
-    if (!raw) return;
+    if (!raw) { _timerShowPhase('setup'); return; }
     var s = JSON.parse(raw);
-    _timerAccumulatedMs = s.accumulatedMs || 0;
-    // If it was left "running" (e.g. page closed mid-session), honor
-    // decision #2: we do NOT silently add the elapsed-while-closed
-    // time. We restore as PAUSED with whatever had already
-    // accumulated -- the honest amount up to the moment it was last
-    // actively ticking -- and require a fresh manual Start.
-    _timerRunning = false;
-    _timerStartTs = null;
+    _timer = Object.assign(_timer, s, { running: false, startTs: null });
+    if (_timer.phase === 'work' || _timer.phase === 'break') {
+      _timerShowPhase(_timer.phase === 'work' ? 'running-work' : 'running-break');
+    } else {
+      _timerShowPhase(_timer.phase);
+    }
     _timerRender();
-    _timerSaveState();
-  } catch (e) {}
+  } catch (e) { _timerShowPhase('setup'); }
 }
 
-function _timerElapsedMs() {
-  return _timerAccumulatedMs + (_timerRunning && _timerStartTs ? (Date.now() - _timerStartTs) : 0);
+function _timerShowPhase(view) {
+  var setupV = document.getElementById('timerSetupView');
+  var runV   = document.getElementById('timerRunningView');
+  var compV  = document.getElementById('timerCompleteView');
+  var bcV    = document.getElementById('timerBreakCompleteView');
+  if (!setupV) return;
+  setupV.style.display = view === 'setup' ? 'block' : 'none';
+  runV.style.display   = (view === 'running-work' || view === 'running-break') ? 'flex' : 'none';
+  compV.style.display  = view === 'workComplete' ? 'block' : 'none';
+  bcV.style.display    = view === 'breakComplete' ? 'block' : 'none';
+  if (view === 'running-work' || view === 'running-break') _timerDrawTicks();
+}
+
+// Fine-watch-style tick marks around the dial -- 12 marks, drawn once
+// and reused, giving the ring a crafted, deliberate feel rather than
+// a bare flat progress bar.
+var _timerTicksDrawn = false;
+function _timerDrawTicks() {
+  if (_timerTicksDrawn) return;
+  var g = document.getElementById('timerTicks');
+  if (!g) return;
+  var cx = 120, cy = 120, rOuter = 104, tickLen = 8;
+  var svgNS = 'http://www.w3.org/2000/svg';
+  for (var i = 0; i < 12; i++) {
+    var angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
+    var x1 = cx + Math.cos(angle) * (rOuter + 8);
+    var y1 = cy + Math.sin(angle) * (rOuter + 8);
+    var x2 = cx + Math.cos(angle) * (rOuter + 8 - tickLen);
+    var y2 = cy + Math.sin(angle) * (rOuter + 8 - tickLen);
+    var line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', x1.toFixed(2)); line.setAttribute('y1', y1.toFixed(2));
+    line.setAttribute('x2', x2.toFixed(2)); line.setAttribute('y2', y2.toFixed(2));
+    g.appendChild(line);
+  }
+  _timerTicksDrawn = true;
+}
+
+function timerSelectDuration(mins) {
+  document.querySelectorAll('.timer-chip').forEach(function(c) {
+    c.classList.toggle('active', String(c.dataset.mins) === String(mins));
+  });
+  var customRow = document.getElementById('timerCustomRow');
+  if (mins === 'custom') {
+    customRow.style.display = 'flex';
+    _timer.targetMs = _timer.customMins * 60000;
+  } else {
+    customRow.style.display = 'none';
+    _timer.targetMs = mins === 0 ? null : mins * 60000;
+  }
+}
+
+function timerCustomAdjust(delta) {
+  _timer.customMins = Math.max(5, Math.min(180, _timer.customMins + delta));
+  document.getElementById('timerCustomVal').textContent = _timer.customMins + ' min';
+  _timer.targetMs = _timer.customMins * 60000;
+}
+
+function timerStart() {
+  _timer.phase = 'work';
+  _timer.running = true;
+  _timer.startTs = Date.now();
+  _timer.segmentAccumMs = 0;
+  _timer.totalWorkMs = 0;
+  _timerLastChimeMin = 0;
+  _timerShowPhase('running-work');
+  _timerStartInterval();
+  _timerSaveState();
+  _timerRender();
 }
 
 function timerToggle() {
-  if (_timerRunning) {
-    // PAUSE
-    _timerAccumulatedMs = _timerElapsedMs();
-    _timerRunning = false;
-    _timerStartTs = null;
-    if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+  if (_timer.running) {
+    _timer.segmentAccumMs = _timerSegmentElapsedMs();
+    _timer.running = false;
+    _timer.startTs = null;
+    _timerStopInterval();
   } else {
-    // START / RESUME
-    _timerRunning = true;
-    _timerStartTs = Date.now();
-    if (_timerInterval) clearInterval(_timerInterval);
-    _timerInterval = setInterval(_timerRender, 1000);
+    _timer.running = true;
+    _timer.startTs = Date.now();
+    _timerStartInterval();
   }
   _timerSaveState();
   _timerRender();
 }
 
-function timerReset() {
+function _timerSegmentElapsedMs() {
+  return _timer.segmentAccumMs + (_timer.running && _timer.startTs ? (Date.now() - _timer.startTs) : 0);
+}
+
+function _timerStartInterval() {
+  if (_timerInterval) clearInterval(_timerInterval);
+  _timerInterval = setInterval(_timerTick, 1000);
+}
+function _timerStopInterval() {
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
-  _timerRunning = false;
-  _timerStartTs = null;
-  _timerAccumulatedMs = 0;
+}
+
+function _timerTick() {
+  var elapsed = _timerSegmentElapsedMs();
+  if (_timer.targetMs && elapsed >= _timer.targetMs) {
+    if (_timer.phase === 'work') { _timerCompleteWork(); return; }
+    if (_timer.phase === 'break') { _timerCompleteBreak(); return; }
+  }
+  _timerRender();
+}
+
+function timerStopEarly() {
+  var elapsed = _timerSegmentElapsedMs();
+  _timerStopInterval();
+  _timer.running = false; _timer.startTs = null;
+
+  if (_timer.phase === 'work') {
+    _timer.totalWorkMs += elapsed;
+    _timerFinishWorkSegment(false);
+  } else if (_timer.phase === 'break') {
+    _timer.phase = 'breakComplete';
+    document.getElementById('timerBreakCompleteSub').textContent = 'Break ended early. Ready to get back to it?';
+    _timerShowPhase('breakComplete');
+    _timerSaveState();
+  }
+}
+
+function _timerCompleteWork() {
+  _timerStopInterval();
+  _timer.totalWorkMs += _timer.targetMs;
+  _timer.running = false; _timer.startTs = null;
+  _timerFinishWorkSegment(true);
+}
+
+function _timerFinishWorkSegment(completedFully) {
+  _timer.sessionCount = completedFully ? (_timer.sessionCount + 1) : _timer.sessionCount;
+
+  var totalMins = Math.max(1, Math.round(_timer.totalWorkMs / 60000));
+  document.getElementById('timerCompleteMins').textContent = totalMins;
+
+  var lastSegmentMins = Math.max(1, Math.round((completedFully ? _timer.targetMs : (_timer.totalWorkMs)) / 60000));
+  var isLongBreak = completedFully && _timer.sessionCount > 0 && _timer.sessionCount % 4 === 0;
+  var suggested = isLongBreak
+    ? Math.max(15, Math.round(lastSegmentMins * 0.6))
+    : Math.max(3, Math.round(lastSegmentMins * 0.2));
+  _timer.breakMinutes = suggested;
+  document.getElementById('timerBreakVal').textContent = _timer.breakMinutes;
+  document.getElementById('timerLongBreakBadge').style.display = isLongBreak ? 'block' : 'none';
+
+  var minsInput = document.getElementById('d-mins');
+  if (minsInput) { minsInput.value = totalMins; prog(); }
+
+  _timerAlarm('work');
+  _timer.phase = 'workComplete';
+  _timerShowPhase('workComplete');
+  _timerSaveState();
+}
+
+function timerAdjustBreak(delta) {
+  _timer.breakMinutes = Math.max(1, Math.min(60, _timer.breakMinutes + delta));
+  document.getElementById('timerBreakVal').textContent = _timer.breakMinutes;
+  _timerSaveState();
+}
+
+function timerStartBreak() {
+  _timer.phase = 'break';
+  _timer.targetMs = _timer.breakMinutes * 60000;
+  _timer.running = true;
+  _timer.startTs = Date.now();
+  _timer.segmentAccumMs = 0;
   _timerLastChimeMin = 0;
+  _timerShowPhase('running-break');
+  _timerStartInterval();
   _timerSaveState();
   _timerRender();
+}
+
+function _timerCompleteBreak() {
+  _timerStopInterval();
+  _timer.running = false; _timer.startTs = null;
+  _timerAlarm('break');
+  _timer.phase = 'breakComplete';
+  document.getElementById('timerBreakCompleteSub').textContent = 'Ready to get back to it?';
+  _timerShowPhase('breakComplete');
+  _timerSaveState();
+}
+
+function timerSkipBreak() {
+  _timerFinalizeToSetup('Session logged below. Add your insight and submit when ready.');
+}
+
+function timerBackToReading() {
+  _timer.phase = 'work';
+  _timer.targetMs = _timer.customMins ? _timer.customMins * 60000 : (_timer.targetMs || 25*60000);
+  _timer.running = true;
+  _timer.startTs = Date.now();
+  _timer.segmentAccumMs = 0;
+  _timerLastChimeMin = 0;
+  _timerShowPhase('running-work');
+  _timerStartInterval();
+  _timerSaveState();
+  _timerRender();
+}
+
+function timerFinishAndLog() {
+  _timerFinalizeToSetup('Session logged below. Add your insight and submit when ready.');
+}
+
+function _timerFinalizeToSetup(toastMsg) {
+  _timerStopInterval();
+  _timer.phase = 'setup';
+  _timer.running = false; _timer.startTs = null;
+  _timer.segmentAccumMs = 0; _timer.totalWorkMs = 0;
+  _timerLastChimeMin = 0;
+  _timerShowPhase('setup');
+  _timerSaveState();
+  if (typeof toast === 'function' && toastMsg) toast(toastMsg);
+}
+
+function timerReset() {
+  _timerStopInterval();
+  _timer.phase = 'setup';
+  _timer.running = false; _timer.startTs = null;
+  _timer.segmentAccumMs = 0; _timer.totalWorkMs = 0;
+  _timerLastChimeMin = 0;
+  _timerShowPhase('setup');
+  _timerSaveState();
   var mi = document.getElementById('d-mins');
   if (mi) { mi.value = ''; prog(); }
 }
+function _timerResetForNewSession() { timerReset(); }
 
-// A brief, quiet two-note chime at each 5-minute mark -- goal-gradient
-// reinforcement (a small sense of progress at regular intervals keeps
-// motivation up over a long session) without ever interrupting focus
-// with a popup, banner, or vibration. Purely optional audio; silently
-// no-ops if WebAudio is unavailable.
-function _timerChime() {
+function _timerAlarm(kind) {
+  try {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) {
+      var ctx = new Ctx();
+      var notes = kind === 'work' ? [523.25, 659.25, 783.99, 1046.5] : [783.99, 659.25, 523.25];
+      notes.forEach(function(freq, i) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = freq;
+        var t0 = ctx.currentTime + i * 0.16;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.09, t0 + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t0); o.stop(t0 + 0.6);
+      });
+    }
+  } catch (e) {}
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate(kind === 'work' ? [120, 80, 120, 80, 220] : [150, 100, 150]);
+    }
+  } catch (e) {}
+}
+
+function _timerMidChime() {
   try {
     var Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return;
@@ -3104,19 +3493,24 @@ function _timerChime() {
     [880, 1174.66].forEach(function(freq, i) {
       var o = ctx.createOscillator(), g = ctx.createGain();
       o.type = 'sine'; o.frequency.value = freq;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime + i*0.14);
-      g.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + i*0.14 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i*0.14 + 0.35);
+      var t0 = ctx.currentTime + i * 0.14;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.05, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
       o.connect(g); g.connect(ctx.destination);
-      o.start(ctx.currentTime + i*0.14);
-      o.stop(ctx.currentTime + i*0.14 + 0.4);
+      o.start(t0); o.stop(t0 + 0.4);
     });
   } catch (e) {}
 }
 
 function _timerRender() {
-  var ms = _timerElapsedMs();
-  var totalSec = Math.floor(ms / 1000);
+  if (_timer.phase !== 'work' && _timer.phase !== 'break') return;
+
+  var elapsed = _timerSegmentElapsedMs();
+  var remainingMs = _timer.targetMs ? Math.max(0, _timer.targetMs - elapsed) : null;
+  var displayMs = remainingMs !== null ? remainingMs : elapsed;
+
+  var totalSec = Math.floor(displayMs / 1000);
   var mins = Math.floor(totalSec / 60);
   var secs = totalSec % 60;
   var hh = Math.floor(mins / 60);
@@ -3127,86 +3521,94 @@ function _timerRender() {
   var clockEl = document.getElementById('timerClock');
   if (clockEl) clockEl.textContent = clockStr;
 
-  // Live-fill the real minutes field -- decision #3. Only overwrite
-  // while the timer has actually accumulated something, so a warrior
-  // who prefers typing manually (e.g. backlogging a past session)
-  // is never fought with.
-  var minsInput = document.getElementById('d-mins');
-  if (minsInput && ms > 0) {
-    minsInput.value = Math.max(1, mins);
-    prog();
+  var elapsedMins = Math.floor(elapsed / 60000);
+
+  if (_timer.phase === 'work') {
+    var minsInput = document.getElementById('d-mins');
+    if (minsInput && elapsed > 0) {
+      minsInput.value = Math.max(1, Math.round((_timer.totalWorkMs + elapsed) / 60000));
+      prog();
+    }
   }
 
-  // Ring: "breathing" glow while running (handled by CSS class), plus
-  // a gentle fill sweep across each rolling 5-minute stretch -- the
-  // goal-gradient cue -- rather than one giant target that never
-  // visibly moves for the first 20 minutes of a long session.
   var ringFill = document.getElementById('timerRingFill');
   var ringSvg  = document.getElementById('timerRingSvg');
   if (ringFill) {
-    var cyclePct = (totalSec % 300) / 300; // 300s = 5min rolling cycle
-    var circumference = 251.2;
-    ringFill.style.strokeDashoffset = String(circumference - cyclePct * circumference);
+    var circumference = 653.45;
+    var pct;
+    if (_timer.targetMs) {
+      pct = Math.min(1, elapsed / _timer.targetMs);
+    } else {
+      pct = (Math.floor(elapsed/1000) % 300) / 300;
+    }
+    ringFill.style.strokeDashoffset = String(circumference - pct * circumference);
   }
-  if (ringSvg) ringSvg.classList.toggle('running', _timerRunning);
+  if (ringSvg) {
+    ringSvg.classList.toggle('running', _timer.running);
+    ringSvg.classList.toggle('phase-break', _timer.phase === 'break');
+  }
+
+  var phaseLabelEl = document.getElementById('timerPhaseLabel');
+  if (phaseLabelEl) {
+    phaseLabelEl.textContent = _timer.phase === 'break' ? 'BREAK' : 'FOCUS SESSION';
+    phaseLabelEl.classList.toggle('phase-break', _timer.phase === 'break');
+  }
 
   var flameEl = document.getElementById('timerFlameIcon');
   if (flameEl) {
-    flameEl.classList.toggle('lit', ms > 0);
-    var growth = Math.min(1, mins / 30); // visually "grows" toward 30min, then holds
-    flameEl.style.fontSize = (20 + growth * 14) + 'px';
+    flameEl.textContent = _timer.phase === 'break' ? String.fromCodePoint(0x2615) : String.fromCodePoint(0x1F525);
+    flameEl.classList.toggle('lit', elapsed > 0);
+    var growth = Math.min(1, elapsedMins / 25);
+    flameEl.style.fontSize = (20 + growth * 16) + 'px';
   }
 
   var statusEl = document.getElementById('timerStatus');
   var playBtn  = document.getElementById('timerPlayBtn');
-  var resetBtn = document.getElementById('timerResetBtn');
   if (statusEl) {
-    if (_timerRunning) {
+    if (_timer.phase === 'break') {
+      statusEl.textContent = _timer.running ? 'Step away. This is part of the work too.' : 'Break paused.';
+      statusEl.style.color = 'var(--teal)';
+    } else if (_timer.running) {
       var msgs = ['Reading in progress. Stay with it.', 'This is the work. Keep going.', 'Every minute here compounds.'];
-      statusEl.textContent = mins < 1 ? 'Just started \u2014 give it a few minutes.' : msgs[mins % msgs.length];
+      statusEl.textContent = elapsedMins < 1 ? 'Just started, give it a few minutes.' : msgs[elapsedMins % msgs.length];
       statusEl.style.color = 'rgba(13,122,110,.9)';
-    } else if (ms > 0) {
-      statusEl.textContent = 'Paused at ' + clockStr + ' \u2014 resume when ready.';
-      statusEl.style.color = 'var(--orange)';
     } else {
-      statusEl.textContent = 'Tap Start when you open your book';
-      statusEl.style.color = 'var(--cgray)';
+      statusEl.textContent = 'Paused at ' + clockStr + ' remaining, resume when ready.';
+      statusEl.style.color = 'var(--orange)';
     }
   }
   if (playBtn) {
-    playBtn.innerHTML = _timerRunning ? '&#x23F8; Pause' : (ms > 0 ? '&#x25B6; Resume' : '&#x25B6; Start');
-    playBtn.className = 'timer-btn ' + (_timerRunning ? 'timer-btn-pause' : 'timer-btn-play');
+    playBtn.innerHTML = _timer.running ? '&#x23F8; Pause' : '&#x25B6; Resume';
+    playBtn.className = 'timer-btn ' + (_timer.running ? 'timer-btn-pause' : 'timer-btn-play');
   }
-  if (resetBtn) resetBtn.style.display = ms > 0 ? 'flex' : 'none';
 
-  // Quiet milestone chime every 5 minutes while actively running.
-  if (_timerRunning && mins > 0 && mins % 5 === 0 && mins !== _timerLastChimeMin) {
-    _timerLastChimeMin = mins;
-    _timerChime();
+  if (_timer.running && elapsedMins > 0 && elapsedMins % 5 === 0 && elapsedMins !== _timerLastChimeMin) {
+    _timerLastChimeMin = elapsedMins;
+    _timerMidChime();
   }
 }
 
-// Decision #2 in practice: the moment the tab/app is hidden, pause
-// for real. Covers switching apps, locking the phone, or closing the
-// browser -- any of which should stop the clock, not just backgrounding.
-document.addEventListener('visibilitychange', function() {
-  if (document.hidden && _timerRunning) {
-    timerToggle(); // pauses and persists honestly
-  }
-});
+// The timer intentionally does NOT pause when the screen locks or the
+// phone goes to sleep -- many BookWarriors read a physical book with
+// the app just running as a timer, or read on-screen with the display
+// timing out between page turns. Locking the screen isn't the same as
+// stopping reading, so elapsed time keeps counting for real, computed
+// from actual timestamps (Date.now()) rather than a naive tick count --
+// accurate whether the interval below fires on schedule or gets
+// throttled while the screen is off, since the true elapsed time is
+// recalculated fresh the moment the app is back in view. Only a
+// manual Pause tap ever stops the clock.
 window.addEventListener('beforeunload', function() {
-  if (_timerRunning) {
-    _timerAccumulatedMs = _timerElapsedMs();
+  if (_timer.running) {
+    _timer.segmentAccumMs = _timerSegmentElapsedMs();
     _timerSaveState();
   }
 });
-
-// Reset the timer automatically after a successful log submission or
-// a full form reset, so the next session starts clean rather than
-// silently carrying over a previous day's leftover elapsed time.
-function _timerResetForNewSession() {
-  timerReset();
-}
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && _timer.running) {
+    _timerRender(); // catch up the display instantly on return, no waiting for the next tick
+  }
+});
 
 // ── DAILY ──
 function toggleRest(){
