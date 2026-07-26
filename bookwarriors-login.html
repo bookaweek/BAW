@@ -3290,7 +3290,36 @@ function timerCustomAdjust(delta) {
   _timer.targetMs = _timer.customMins * 60000;
 }
 
+// ── AUDIO PRIMING ──────────────────────────────────────────────────
+// Browsers block a freshly-created AudioContext from producing sound
+// unless it's created/resumed synchronously inside a genuine user tap.
+// The alarm fires from inside a setInterval callback (the moment the
+// countdown silently reaches zero) -- which is NOT a user gesture --
+// so a context created there gets silently suspended and never makes
+// a sound, with no error thrown anywhere. The fix: create ONE shared
+// context the moment the person actually taps Start/Resume/Start
+// Break, and reuse that same already-unlocked context for the alarm
+// later, instead of creating a new one at alarm time.
+var _timerAudioCtx = null;
+function _timerPrimeAudio() {
+  try {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!_timerAudioCtx || _timerAudioCtx.state === 'closed') _timerAudioCtx = new Ctx();
+    if (_timerAudioCtx.state === 'suspended') _timerAudioCtx.resume();
+    // Play a near-silent blip -- on iOS Safari specifically, the
+    // context isn't fully unlocked until a sound actually starts
+    // during the gesture, not merely on construction.
+    var o = _timerAudioCtx.createOscillator();
+    var g = _timerAudioCtx.createGain();
+    g.gain.value = 0.00001;
+    o.connect(g); g.connect(_timerAudioCtx.destination);
+    o.start(); o.stop(_timerAudioCtx.currentTime + 0.01);
+  } catch (e) {}
+}
+
 function timerStart() {
+  _timerPrimeAudio();
   _timer.phase = 'work';
   _timer.running = true;
   _timer.startTs = Date.now();
@@ -3310,6 +3339,7 @@ function timerToggle() {
     _timer.startTs = null;
     _timerStopInterval();
   } else {
+    _timerPrimeAudio();
     _timer.running = true;
     _timer.startTs = Date.now();
     _timerStartInterval();
@@ -3393,6 +3423,7 @@ function timerAdjustBreak(delta) {
 }
 
 function timerStartBreak() {
+  _timerPrimeAudio();
   _timer.phase = 'break';
   _timer.targetMs = _timer.breakMinutes * 60000;
   _timer.running = true;
@@ -3420,6 +3451,7 @@ function timerSkipBreak() {
 }
 
 function timerBackToReading() {
+  _timerPrimeAudio();
   _timer.phase = 'work';
   _timer.targetMs = _timer.customMins ? _timer.customMins * 60000 : (_timer.targetMs || 25*60000);
   _timer.running = true;
@@ -3462,19 +3494,20 @@ function _timerResetForNewSession() { timerReset(); }
 
 function _timerAlarm(kind) {
   try {
-    var Ctx = window.AudioContext || window.webkitAudioContext;
-    if (Ctx) {
-      var ctx = new Ctx();
+    _timerPrimeAudio(); // safety net: re-primes if it somehow wasn't already
+    var ctx = _timerAudioCtx;
+    if (ctx) {
+      if (ctx.state === 'suspended') ctx.resume();
       var notes = kind === 'work' ? [523.25, 659.25, 783.99, 1046.5] : [783.99, 659.25, 523.25];
       notes.forEach(function(freq, i) {
         var o = ctx.createOscillator(), g = ctx.createGain();
         o.type = 'sine'; o.frequency.value = freq;
         var t0 = ctx.currentTime + i * 0.16;
         g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(0.09, t0 + 0.03);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+        g.gain.exponentialRampToValueAtTime(0.14, t0 + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
         o.connect(g); g.connect(ctx.destination);
-        o.start(t0); o.stop(t0 + 0.6);
+        o.start(t0); o.stop(t0 + 0.65);
       });
     }
   } catch (e) {}
@@ -3487,15 +3520,15 @@ function _timerAlarm(kind) {
 
 function _timerMidChime() {
   try {
-    var Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    var ctx = new Ctx();
+    var ctx = _timerAudioCtx;
+    if (!ctx) return; // not primed yet (e.g. a restored session) -- skip silently rather than trying to create a blocked context
+    if (ctx.state === 'suspended') ctx.resume();
     [880, 1174.66].forEach(function(freq, i) {
       var o = ctx.createOscillator(), g = ctx.createGain();
       o.type = 'sine'; o.frequency.value = freq;
       var t0 = ctx.currentTime + i * 0.14;
       g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.05, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.06, t0 + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
       o.connect(g); g.connect(ctx.destination);
       o.start(t0); o.stop(t0 + 0.4);
