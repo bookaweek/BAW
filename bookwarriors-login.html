@@ -261,6 +261,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent;
   border-left: 11px solid var(--navy);
 }
+.timer-test-sound-btn {
+  display: block; width: 100%; margin-top: 10px; padding: 10px;
+  background: none; border: none; color: rgba(255,255,255,.35);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+  text-decoration: underline; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
 
 /* ── RUNNING: centered hero dial ── */
 .timer-running { display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -458,6 +464,49 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .ms-word   { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: #fff; margin: 8px 0 4px; }
 .ms-sub    { font-size: 15px; color: rgba(255,255,255,.6); line-height: 1.6; max-width: 280px; margin-bottom: 28px; }
 .ms-close  { height: 52px; padding: 0 40px; background: var(--gold); color: var(--navy); border: none; border-radius: 14px; font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; cursor: pointer; }
+
+/* ── ALARM OVERLAY — rings until stopped, never auto-dismisses ── */
+.alarm-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 800;
+  background: radial-gradient(ellipse at center, #14306B 0%, #0A1F44 70%);
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 28px; text-align: center;
+}
+.alarm-overlay.show { display: flex; animation: fadeIn .25s ease; }
+.alarm-pulse-ring {
+  position: absolute; width: 180px; height: 180px; border-radius: 50%;
+  border: 3px solid var(--gold);
+  animation: alarmPulseRing 1.1s ease-out infinite;
+}
+@keyframes alarmPulseRing {
+  0%   { transform: scale(.8); opacity: .9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.alarm-icon {
+  font-size: 68px; margin-bottom: 22px; position: relative; z-index: 1;
+  animation: alarmShake 0.5s ease-in-out infinite;
+}
+@keyframes alarmShake {
+  0%,100% { transform: rotate(0deg); }
+  25%     { transform: rotate(-8deg); }
+  75%     { transform: rotate(8deg); }
+}
+.alarm-title { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 900; color: #fff; margin-bottom: 8px; position: relative; z-index: 1; }
+.alarm-sub   { font-size: 14px; color: rgba(255,255,255,.55); margin-bottom: 40px; position: relative; z-index: 1; }
+.alarm-stop-btn {
+  height: 60px; padding: 0 56px; position: relative; z-index: 1;
+  background: linear-gradient(135deg, var(--gold), #F5C842); color: var(--navy);
+  border: none; border-radius: 18px;
+  font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 8px 28px rgba(242,183,5,.4);
+  animation: alarmBtnPulse 1.1s ease-in-out infinite;
+}
+@keyframes alarmBtnPulse {
+  0%,100% { transform: scale(1); }
+  50%     { transform: scale(1.05); }
+}
 
 
 /* ── BOOK COMPLETION MODAL ── */
@@ -1298,6 +1347,16 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     <button class="ms-close" onclick="closeMilestone()">Keep Going &#x1F525;</button>
   </div>
 
+  <!-- ── ALARM RINGING OVERLAY — stays on screen and keeps sounding
+       until the BookWarrior explicitly stops it. ── -->
+  <div class="alarm-overlay" id="alarmOverlay">
+    <div class="alarm-pulse-ring"></div>
+    <div class="alarm-icon" id="alarmIcon">&#x1F4D6;</div>
+    <div class="alarm-title" id="alarmTitle">Time's up</div>
+    <div class="alarm-sub" id="alarmSub">Your reading session is complete</div>
+    <button class="alarm-stop-btn" onclick="timerStopAlarm()">Stop</button>
+  </div>
+
   <!-- Notification prompt — always visible until granted -->
   <div id="notif-bar" style="display:none;margin:14px 16px 0;">
     <button onclick="enableNotifs()" style="
@@ -1422,6 +1481,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
               <button type="button" class="timer-start-btn" onclick="timerStart()">
                 <span class="timer-start-icon"></span> Start Focus Session
               </button>
+              <button type="button" class="timer-test-sound-btn" onclick="timerTestSound()">Test Alarm Sound</button>
             </div>
 
             <div class="timer-running" id="timerRunningView" style="display:none;">
@@ -3410,10 +3470,16 @@ function _timerFinishWorkSegment(completedFully) {
   var minsInput = document.getElementById('d-mins');
   if (minsInput) { minsInput.value = totalMins; prog(); }
 
-  _timerAlarm('work');
   _timer.phase = 'workComplete';
-  _timerShowPhase('workComplete');
   _timerSaveState();
+
+  if (completedFully) {
+    // Reached the target on its own -- ring for real, until dismissed.
+    _timerStartRingingAlarm('work', totalMins + ' minutes of reading complete');
+  } else {
+    // Manually stopped early -- no ringing needed, straight to the screen.
+    _timerShowPhase('workComplete');
+  }
 }
 
 function timerAdjustBreak(delta) {
@@ -3439,11 +3505,10 @@ function timerStartBreak() {
 function _timerCompleteBreak() {
   _timerStopInterval();
   _timer.running = false; _timer.startTs = null;
-  _timerAlarm('break');
   _timer.phase = 'breakComplete';
   document.getElementById('timerBreakCompleteSub').textContent = 'Ready to get back to it?';
-  _timerShowPhase('breakComplete');
   _timerSaveState();
+  _timerStartRingingAlarm('break', 'Your break is over');
 }
 
 function timerSkipBreak() {
@@ -3492,30 +3557,75 @@ function timerReset() {
 }
 function _timerResetForNewSession() { timerReset(); }
 
-function _timerAlarm(kind) {
+var _alarmRingInterval = null;
+var _timerPendingView = null; // which screen to reveal once the alarm is dismissed
+
+// Plays one loud siren burst (two alternating tones). Called
+// repeatedly by the ringing loop below until stopped.
+function _timerPlayBurst(kind) {
   try {
-    _timerPrimeAudio(); // safety net: re-primes if it somehow wasn't already
     var ctx = _timerAudioCtx;
-    if (ctx) {
-      if (ctx.state === 'suspended') ctx.resume();
-      var notes = kind === 'work' ? [523.25, 659.25, 783.99, 1046.5] : [783.99, 659.25, 523.25];
-      notes.forEach(function(freq, i) {
-        var o = ctx.createOscillator(), g = ctx.createGain();
-        o.type = 'sine'; o.frequency.value = freq;
-        var t0 = ctx.currentTime + i * 0.16;
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(0.14, t0 + 0.03);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
-        o.connect(g); g.connect(ctx.destination);
-        o.start(t0); o.stop(t0 + 0.65);
-      });
-    }
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var hi = kind === 'work' ? 1046.5 : 880;
+    var lo = kind === 'work' ? 783.99 : 659.25;
+    [hi, lo, hi].forEach(function(freq, i) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'square'; // brighter, more attention-grabbing than sine for an actual alarm
+      o.frequency.value = freq;
+      var t0 = ctx.currentTime + i * 0.18;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t0); o.stop(t0 + 0.18);
+    });
   } catch (e) {}
   try {
-    if (navigator.vibrate) {
-      navigator.vibrate(kind === 'work' ? [120, 80, 120, 80, 220] : [150, 100, 150]);
-    }
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
   } catch (e) {}
+}
+
+// Starts the full-screen ringing overlay and keeps sounding a burst
+// roughly every second until timerStopAlarm() is tapped -- exactly
+// like a real alarm clock, not a chime that plays once and gives up.
+function _timerStartRingingAlarm(kind, subtitle) {
+  _timerPendingView = kind === 'work' ? 'workComplete' : 'breakComplete';
+
+  var overlay = document.getElementById('alarmOverlay');
+  var icon = document.getElementById('alarmIcon');
+  var title = document.getElementById('alarmTitle');
+  var sub = document.getElementById('alarmSub');
+  if (icon)  icon.textContent = kind === 'work' ? String.fromCodePoint(0x1F4D6) : String.fromCodePoint(0x2615);
+  if (title) title.textContent = kind === 'work' ? "Time's up" : "Break's over";
+  if (sub)   sub.textContent = subtitle || '';
+  if (overlay) overlay.classList.add('show');
+
+  _timerPrimeAudio();
+  _timerPlayBurst(kind);
+  if (_alarmRingInterval) clearInterval(_alarmRingInterval);
+  _alarmRingInterval = setInterval(function() { _timerPlayBurst(kind); }, 1000);
+}
+
+// The ONLY way the alarm stops -- a real tap on the Stop button.
+function timerStopAlarm() {
+  if (_alarmRingInterval) { clearInterval(_alarmRingInterval); _alarmRingInterval = null; }
+  var overlay = document.getElementById('alarmOverlay');
+  if (overlay) overlay.classList.remove('show');
+  if (_timerPendingView) {
+    _timerShowPhase(_timerPendingView);
+    _timerPendingView = null;
+  }
+}
+
+// Diagnostic button on the setup screen -- plays one immediate burst
+// directly from a real tap, so a BookWarrior can confirm sound is
+// actually reaching the speaker (and that the phone isn't on silent,
+// which no amount of code can override on iOS) before ever starting
+// a session and waiting on it.
+function timerTestSound() {
+  _timerPrimeAudio();
+  _timerPlayBurst('work');
 }
 
 function _timerMidChime() {
