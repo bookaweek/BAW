@@ -1777,13 +1777,16 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <!-- ══ DASHBOARD MODE ══ -->
   <div id="mode-dash" style="display:none">
 
-    <!-- Sub-tabs: My Progress | Leaderboard -->
+    <!-- Sub-tabs: My Progress | Leaderboard | Strikes -->
     <div class="dash-tabs">
       <button class="dash-tab active" id="dtab-progress" onclick="setDashTab('progress')">
         &#x1F4CA; My Progress
       </button>
       <button class="dash-tab" id="dtab-board" onclick="setDashTab('board')">
         &#x1F3C6; Leaderboard
+      </button>
+      <button class="dash-tab" id="dtab-strikes" onclick="setDashTab('strikes')">
+        &#x26A0; Strikes
       </button>
     </div>
 
@@ -1870,6 +1873,29 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <!-- List 4+ -->
         <div class="lb-list" id="lb-list" style="display:none"></div>
       </div>
+    </div>
+
+    <!-- STRIKES -->
+    <div id="dash-strikes" style="display:none">
+      <div class="dash-loading" id="strikes-loading">
+        <div class="spin"></div>Loading strikes...
+      </div>
+
+      <div id="strikes-admin-panel" style="display:none;margin:14px 16px 0;background:rgba(242,183,5,.08);border:1px solid rgba(242,183,5,.3);border-radius:16px;padding:16px;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;">Assign a Strike</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <select id="strike-target-select" style="height:44px;padding:0 10px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;"></select>
+          <select id="strike-type-select" style="height:44px;padding:0 10px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;">
+            <option value="BOOK">Book Strike</option>
+            <option value="LOG">Log Strike</option>
+            <option value="REFLECT">Reflect Strike</option>
+          </select>
+        </div>
+        <button onclick="strikeAdminAdd()" style="width:100%;height:44px;background:var(--gold);color:var(--navy);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Add Strike</button>
+        <div id="strikes-admin-msg" style="font-size:12px;text-align:center;margin-top:8px;min-height:16px;"></div>
+      </div>
+
+      <div id="strikes-list" style="margin:14px 16px 0;"></div>
     </div>
 
   </div>
@@ -4562,12 +4588,17 @@ function setDashTab(tab) {
   _dashTab = tab;
   var tp = document.getElementById('dtab-progress');
   var tb = document.getElementById('dtab-board');
+  var ts = document.getElementById('dtab-strikes');
   var dp = document.getElementById('dash-progress');
   var db = document.getElementById('dash-board');
+  var ds = document.getElementById('dash-strikes');
   if (tp) tp.classList.toggle('active', tab === 'progress');
   if (tb) tb.classList.toggle('active', tab === 'board');
+  if (ts) ts.classList.toggle('active', tab === 'strikes');
   if (dp) dp.style.display = tab === 'progress' ? 'block' : 'none';
   if (db) db.style.display = tab === 'board'    ? 'block' : 'none';
+  if (ds) ds.style.display = tab === 'strikes'  ? 'block' : 'none';
+  if (tab === 'strikes') loadStrikes();
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -5128,6 +5159,119 @@ function renderLeaderboard(board) {
 // called from tab button — re-renders from current _board (no fetch)
 function loadLeaderboard() {
   renderLeaderboard(_board);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STRIKE SYSTEM — visible to every BookWarrior, but only Jesulayomi's
+// account can assign or remove a strike. The admin panel below is
+// only ever SHOWN when the locally logged-in member is Jesulayomi --
+// that's just UI convenience. The real enforcement happens on the
+// server: every add request carries the logged-in member's name, and
+// GAS itself rejects the change unless that name is Jesulayomi,
+// exactly the way every other write in this app already trusts the
+// server as the source of truth rather than the client.
+// ══════════════════════════════════════════════════════════════════
+var STRIKE_ADMIN_NAME = 'Jesulayomi';
+var STRIKE_TYPE_LABELS = { BOOK: 'Book', LOG: 'Log', REFLECT: 'Reflect' };
+var STRIKE_TYPE_COLORS = { BOOK: 'var(--blue)', LOG: 'var(--orange)', REFLECT: 'var(--red)' };
+var _strikesData = null;
+var _strikesMax = 5;
+
+function loadStrikes() {
+  document.getElementById('strikes-loading').style.display = 'flex';
+  document.getElementById('strikes-list').innerHTML = '';
+
+  _gasFetch(GAS_URL + '?action=getStrikes&t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('strikes-loading').style.display = 'none';
+      if (!d || !d.success) { showToastSafe('Could not load strikes.'); return; }
+      _strikesData = d.strikes || {};
+      _strikesMax = d.max || 5;
+      renderStrikes();
+      setupStrikeAdminPanel();
+    })
+    .catch(function() {
+      document.getElementById('strikes-loading').style.display = 'none';
+      showToastSafe('Could not load strikes. Check your connection.');
+    });
+}
+
+function showToastSafe(msg) { if (typeof toast === 'function') toast(msg); }
+
+function renderStrikes() {
+  var el = document.getElementById('strikes-list');
+  if (!el || !_strikesData) return;
+  var names = Object.keys(_strikesData);
+  names.sort();
+
+  el.innerHTML = names.map(function(name) {
+    var counts = _strikesData[name] || { BOOK:0, LOG:0, REFLECT:0 };
+    var rows = ['BOOK','LOG','REFLECT'].map(function(type) {
+      var n = counts[type] || 0;
+      var dots = '';
+      for (var i = 0; i < _strikesMax; i++) {
+        var filled = i < n;
+        dots += '<span style="display:inline-block;width:16px;height:16px;border-radius:50%;margin-right:4px;' +
+          (filled ? 'background:' + STRIKE_TYPE_COLORS[type] + ';' : 'background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);') +
+          '"></span>';
+      }
+      return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;">' +
+        '<span style="width:64px;flex-shrink:0;font-size:11px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.04em;">' + STRIKE_TYPE_LABELS[type] + '</span>' +
+        '<span>' + dots + '</span>' +
+        '<span style="margin-left:auto;font-size:12px;font-weight:700;color:' + (n >= _strikesMax ? 'var(--red)' : 'rgba(255,255,255,.4)') + ';">' + n + '/' + _strikesMax + '</span>' +
+        '</div>';
+    }).join('');
+
+    return '<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;margin-bottom:10px;">' +
+      '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;">' + escHtml(name) + '</div>' +
+      rows +
+      '</div>';
+  }).join('');
+}
+
+function setupStrikeAdminPanel() {
+  var panel = document.getElementById('strikes-admin-panel');
+  if (!panel) return;
+  var isAdmin = (member === STRIKE_ADMIN_NAME);
+  panel.style.display = isAdmin ? 'block' : 'none';
+  if (!isAdmin || !_strikesData) return;
+
+  var sel = document.getElementById('strike-target-select');
+  var current = sel.value;
+  sel.innerHTML = Object.keys(_strikesData).sort().map(function(name) {
+    return '<option value="' + escHtml(name) + '">' + escHtml(name) + '</option>';
+  }).join('');
+  if (current) sel.value = current;
+}
+
+async function strikeAdminAdd() {
+  var target = document.getElementById('strike-target-select').value;
+  var type = document.getElementById('strike-type-select').value;
+  var msgEl = document.getElementById('strikes-admin-msg');
+  if (!target || !type) return;
+
+  msgEl.textContent = 'Adding strike...';
+  msgEl.style.color = 'rgba(255,255,255,.5)';
+
+  try {
+    var payload = { action: 'addStrike', requester: member, target: target, type: type };
+    var resp = await _gasFetch(GAS_URL + '?action=addStrike&data=' + encodeURIComponent(JSON.stringify(payload)) + '&t=' + Date.now());
+    var json = await resp.json();
+    if (json && json.success) {
+      msgEl.textContent = target + ' now has ' + json.strikes[type] + ' ' + STRIKE_TYPE_LABELS[type] + ' strike' + (json.strikes[type] === 1 ? '' : 's') + '.';
+      msgEl.style.color = 'rgba(13,122,110,.9)';
+      if (!_strikesData[target]) _strikesData[target] = { BOOK:0, LOG:0, REFLECT:0 };
+      _strikesData[target] = json.strikes;
+      renderStrikes();
+    } else {
+      msgEl.textContent = (json && json.error) ? json.error : 'Could not add strike.';
+      msgEl.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    msgEl.textContent = 'Could not reach the server. Try again.';
+    msgEl.style.color = 'var(--red)';
+  }
 }
 
 // ── SHARED UTILS ──
