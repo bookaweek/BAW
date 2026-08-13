@@ -1891,7 +1891,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
             <option value="REFLECT">Reflect Strike</option>
           </select>
         </div>
-        <button onclick="strikeAdminAdd()" style="width:100%;height:44px;background:var(--gold);color:var(--navy);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Add Strike</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button onclick="strikeAdminAdd()" style="height:44px;background:var(--gold);color:var(--navy);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Add Strike</button>
+          <button onclick="strikeAdminRemove()" style="height:44px;background:rgba(192,57,43,.15);color:#FF8A80;border:1.5px solid rgba(192,57,43,.4);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Remove Strike</button>
+        </div>
         <div id="strikes-admin-msg" style="font-size:12px;text-align:center;margin-top:8px;min-height:16px;"></div>
       </div>
 
@@ -1921,7 +1924,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // BUILD: 2026-04-30-v10-realtime (5-layer real-time engine)
 // ═══════════════════════════════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx8_bE9oa4-aWI5hLDWFMTyGtbPA0gLusrwaJDNoDWF6bff3yOY0E2mT-3LD5AgVt2K/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzNSLcx7LjrQekWWEPzfVkcak1g_7-1M3QZ-9wAD6DpFhi1Gwq_V9lyuXH_QajV0NySGQ/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 // Preloaded once at script start so canvas-drawn share cards can
@@ -5104,12 +5107,11 @@ function renderLeaderboard(board) {
   podium.innerHTML = ''; list.innerHTML = '';
 
   var myLo = lettersOnly(member);
-  // Inject local streak for the logged-in member
-  board.forEach(function(w) {
-    if (w.nameLo === myLo || w.nameLo.indexOf(myLo) === 0 || myLo.indexOf(w.nameLo) === 0) {
-      w.streak = getStreak();
-    }
-  });
+  // Streak now comes straight from the server (w.streak, populated by
+  // getDashboard) for every warrior -- computed from their real Daily
+  // sheet, not a per-device localStorage counter. That's what makes
+  // it visible to everyone instead of only the person currently
+  // logged in on this exact device.
 
   // PODIUM (top 3 — arranged 2nd, 1st, 3rd)
   var medals   = ['🥇','🥈','🥉'];
@@ -5266,6 +5268,35 @@ async function strikeAdminAdd() {
       renderStrikes();
     } else {
       msgEl.textContent = (json && json.error) ? json.error : 'Could not add strike.';
+      msgEl.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    msgEl.textContent = 'Could not reach the server. Try again.';
+    msgEl.style.color = 'var(--red)';
+  }
+}
+
+async function strikeAdminRemove() {
+  var target = document.getElementById('strike-target-select').value;
+  var type = document.getElementById('strike-type-select').value;
+  var msgEl = document.getElementById('strikes-admin-msg');
+  if (!target || !type) return;
+
+  msgEl.textContent = 'Removing strike...';
+  msgEl.style.color = 'rgba(255,255,255,.5)';
+
+  try {
+    var payload = { action: 'removeStrike', requester: member, target: target, type: type };
+    var resp = await _gasFetch(GAS_URL + '?action=removeStrike&data=' + encodeURIComponent(JSON.stringify(payload)) + '&t=' + Date.now());
+    var json = await resp.json();
+    if (json && json.success) {
+      msgEl.textContent = target + ' now has ' + json.strikes[type] + ' ' + STRIKE_TYPE_LABELS[type] + ' strike' + (json.strikes[type] === 1 ? '' : 's') + '.';
+      msgEl.style.color = 'rgba(13,122,110,.9)';
+      if (!_strikesData[target]) _strikesData[target] = { BOOK:0, LOG:0, REFLECT:0 };
+      _strikesData[target] = json.strikes;
+      renderStrikes();
+    } else {
+      msgEl.textContent = (json && json.error) ? json.error : 'Could not remove strike.';
       msgEl.style.color = 'var(--red)';
     }
   } catch (e) {
