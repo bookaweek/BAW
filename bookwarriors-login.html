@@ -2810,7 +2810,7 @@ function initAuthScreen() {
     localStorage.removeItem(PRE+'migrated_v2');
     localStorage.removeItem(PRE+'migrated_v3');
     // Seed the recent list with known warrior names
-    var knownNames = ['Dorcas','Haliyah','Jesulayomi','Juliet','Motolani','EA'];
+    var knownNames = ['Dorcas','Goodness','Jesulayomi','Juliet','Motolani','EA'];
     try { localStorage.setItem(PRE+'recent', JSON.stringify(knownNames)); } catch(e){}
     // Do NOT wipe the registry — preserve any PINs already set by warriors
     // This means existing warriors keep their PINs and don't get reset
@@ -4573,7 +4573,7 @@ _board = [
   { name:'Juliet',     nameLo:'juliet',     booksCompleted:1,  daysLogged:16, totalMins:2141, totalPages:956  },
   { name:'Motolani',   nameLo:'motolani',   booksCompleted:1,  daysLogged:12, totalMins:1180, totalPages:575  },
   { name:'EA',         nameLo:'ea',         booksCompleted:1,  daysLogged:2,  totalMins:300,  totalPages:26   },
-  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
+  { name:'Goodness',    nameLo:'Goodness',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
 ];
 
 function sortBoard(b) {
@@ -6117,7 +6117,7 @@ function _xhrGet(url, onSuccess, onError) {
 // against hardcoded sheet names ('Daily Log', 'Daily Logs', gid=1).
 // That was wrong: this spreadsheet's REAL structure (visible in the
 // actual GAS script) is SIX SEPARATE per-warrior tabs — "📅 Dorcas
-// Daily", "📅 Haliyah Daily", etc. — not one shared log sheet. The
+// Daily", "📅 Goodness Daily", etc. — not one shared log sheet. The
 // old code was silently failing through three layers of guesses
 // before showing "Could not load feed", because none of those
 // hardcoded names ever matched anything real.
