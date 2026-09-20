@@ -445,6 +445,141 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .sb-ice    { background: rgba(13,122,110,.2); color: var(--teal);   border: 1px solid rgba(13,122,110,.4); }
 .sb-legend { background: rgba(107,63,160,.2); color: #B388FF;       border: 1px solid rgba(107,63,160,.4); }
 
+/* ── STRIKE ALERT — escalating danger visuals, six levels (0-5) ──
+   Grounded in the same color logic as real hazard signage (ANSI Z535):
+   calm green/teal at zero, through amber, orange, to an unmistakable
+   pulsing red at the maximum. Motion (pulse speed, shake amplitude)
+   increases with severity too -- peripheral motion is what actually
+   grabs attention, a static red badge is easy to tune out. */
+.strike-alert-card {
+  margin: 16px 16px 0;
+  border-radius: 22px;
+  padding: 22px 20px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.6s ease, border-color 0.6s ease;
+}
+.strike-alert-pulse {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+}
+.strike-alert-top { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
+.strike-alert-icon { font-size: 40px; flex-shrink: 0; transition: transform 0.3s; line-height: 1; }
+.strike-alert-info { flex: 1; min-width: 0; }
+.strike-alert-title {
+  font-family: 'Playfair Display', serif; font-weight: 900; line-height: 1;
+  font-size: 26px; letter-spacing: .01em; text-transform: uppercase;
+}
+.strike-alert-sub { font-size: 13px; margin-top: 5px; opacity: .85; line-height: 1.35; }
+
+/* THE NUMBER. The single thing the eye lands on first — deliberately
+   oversized, because a strike count that has to be hunted for is a
+   strike count nobody reckons with. Scales with the viewport so it is
+   always the biggest element on the home screen, on any phone. */
+.strike-alert-count {
+  position: relative; z-index: 1;
+  display: flex; align-items: baseline; justify-content: center;
+  gap: 10px; margin: 6px 0 2px;
+}
+.strike-alert-count-num {
+  font-family: 'Playfair Display', serif; font-weight: 900;
+  font-size: clamp(74px, 27vw, 132px); line-height: .92;
+  letter-spacing: -.03em; color: currentColor;
+  font-variant-numeric: tabular-nums;
+}
+.strike-alert-count-of {
+  font-size: 13px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; opacity: .55; padding-bottom: 10px;
+}
+
+.strike-alert-bars { display: flex; gap: 12px; margin-top: 14px; position: relative; z-index: 1; }
+.strike-alert-bar-group { flex: 1; }
+.strike-alert-bar-label {
+  font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+  opacity: .65; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 4px;
+}
+.strike-alert-bar-label b { font-weight: 900; opacity: .9; }
+.strike-alert-bar-track { display: flex; gap: 4px; }
+.strike-alert-bar-dot { flex: 1; height: 12px; border-radius: 4px; background: rgba(255,255,255,.12); }
+.strike-alert-bar-dot.filled { background: currentColor; }
+.strike-alert-bar-dot.maxed { animation: strikeDotFlash 0.9s ease-in-out infinite; }
+
+/* The verdict line — plain language consequence, not decoration.
+   Hazard signage works because it states what happens, not just that
+   something is wrong. */
+.strike-alert-verdict {
+  position: relative; z-index: 1;
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  font-size: 12.5px; font-weight: 700; line-height: 1.4;
+  letter-spacing: .02em; text-align: center;
+}
+
+/* Everyone's totals, one line. Strikes are public in this house —
+   seeing where you sit against the room is most of the deterrent. */
+.strike-alert-roster {
+  position: relative; z-index: 1;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 12px; justify-content: center;
+}
+.strike-roster-chip {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .03em;
+  padding: 4px 9px; border-radius: 20px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  color: rgba(255,255,255,.55);
+}
+.strike-roster-chip.me { color: currentColor; border-color: currentColor; background: rgba(255,255,255,.04); }
+.strike-roster-chip.hot { color: #FF8A80; border-color: rgba(231,76,60,.5); }
+@keyframes strikeDotFlash { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+.strike-alert-card[data-level="0"] {
+  background: rgba(13,122,110,.08); border: 1px solid rgba(13,122,110,.25); color: var(--teal);
+}
+.strike-alert-card[data-level="1"] {
+  background: rgba(242,183,5,.1); border: 1px solid rgba(242,183,5,.3); color: var(--gold);
+}
+.strike-alert-card[data-level="2"] {
+  background: rgba(224,123,57,.12); border: 1px solid rgba(224,123,57,.35); color: var(--orange);
+}
+.strike-alert-card[data-level="2"] .strike-alert-pulse {
+  opacity: 1; background: radial-gradient(ellipse at center, rgba(224,123,57,.15), transparent 70%);
+  animation: strikePulseSlow 3s ease-in-out infinite;
+}
+.strike-alert-card[data-level="3"] {
+  background: rgba(224,90,57,.14); border: 1.5px solid rgba(224,90,57,.45); color: #FF8A5C;
+}
+.strike-alert-card[data-level="3"] .strike-alert-pulse {
+  opacity: 1; background: radial-gradient(ellipse at center, rgba(224,90,57,.2), transparent 70%);
+  animation: strikePulseSlow 2s ease-in-out infinite;
+}
+.strike-alert-card[data-level="3"] .strike-alert-icon { animation: strikeShakeMild 1.4s ease-in-out infinite; }
+.strike-alert-card[data-level="4"] {
+  background: rgba(192,57,43,.16); border: 1.5px solid rgba(192,57,43,.55); color: #FF6B5C;
+  box-shadow: 0 0 20px rgba(192,57,43,.15);
+}
+.strike-alert-card[data-level="4"] .strike-alert-pulse {
+  opacity: 1; background: radial-gradient(ellipse at center, rgba(192,57,43,.25), transparent 70%);
+  animation: strikePulseFast 1.2s ease-in-out infinite;
+}
+.strike-alert-card[data-level="4"] .strike-alert-icon { animation: strikeShakeMild 0.9s ease-in-out infinite; }
+.strike-alert-card[data-level="5"] {
+  background: rgba(192,57,43,.22); border: 2px solid #E74C3C; color: #FF7A6B;
+  box-shadow: 0 0 28px rgba(231,76,60,.35);
+  animation: strikeBorderFlash 1s ease-in-out infinite;
+}
+.strike-alert-card[data-level="5"] .strike-alert-pulse {
+  opacity: 1; background: radial-gradient(ellipse at center, rgba(231,76,60,.35), transparent 70%);
+  animation: strikePulseFast 0.8s ease-in-out infinite;
+}
+.strike-alert-card[data-level="5"] .strike-alert-icon { animation: strikeShakeHard 0.6s ease-in-out infinite; }
+.strike-alert-card[data-level="5"] .strike-alert-title { animation: strikeTextFlash 1s ease-in-out infinite; }
+
+@keyframes strikePulseSlow { 0%,100%{opacity:.4} 50%{opacity:1} }
+@keyframes strikePulseFast { 0%,100%{opacity:.5} 50%{opacity:1} }
+@keyframes strikeShakeMild { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-6deg)} 75%{transform:rotate(6deg)} }
+@keyframes strikeShakeHard { 0%,100%{transform:rotate(0) scale(1)} 25%{transform:rotate(-10deg) scale(1.08)} 75%{transform:rotate(10deg) scale(1.08)} }
+@keyframes strikeBorderFlash { 0%,100%{border-color:#E74C3C} 50%{border-color:#FF9B8F} }
+@keyframes strikeTextFlash { 0%,100%{opacity:1} 50%{opacity:.6} }
+
 /* Streak milestone toast */
 .milestone-overlay {
   display: none;
@@ -1338,6 +1473,26 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     <div class="streak-badges" id="streakBadges"></div>
   </div>
 
+  <!-- ── STRIKE ALERT — always visible, escalates visually with real
+       danger the same way hazard signage does. ── -->
+  <div class="strike-alert-card" id="strikeAlertCard" data-level="0" style="display:none;">
+    <div class="strike-alert-pulse" id="strikeAlertPulse"></div>
+    <div class="strike-alert-top">
+      <div class="strike-alert-icon" id="strikeAlertIcon">&#x2705;</div>
+      <div class="strike-alert-info">
+        <div class="strike-alert-title" id="strikeAlertTitle">Clean Record</div>
+        <div class="strike-alert-sub" id="strikeAlertSub">No strikes on your account</div>
+      </div>
+    </div>
+    <div class="strike-alert-count">
+      <span class="strike-alert-count-num" id="strikeAlertCountNum">0</span>
+      <span class="strike-alert-count-of" id="strikeAlertCountOf">strikes</span>
+    </div>
+    <div class="strike-alert-bars" id="strikeAlertBars"></div>
+    <div class="strike-alert-verdict" id="strikeAlertVerdict"></div>
+    <div class="strike-alert-roster" id="strikeAlertRoster"></div>
+  </div>
+
   <!-- ── MILESTONE OVERLAY ── -->
   <div class="milestone-overlay" id="milestoneOverlay">
     <div class="ms-emoji" id="msEmoji">&#x1F525;</div>
@@ -1924,7 +2079,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // BUILD: 2026-04-30-v10-realtime (5-layer real-time engine)
 // ═══════════════════════════════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyPGsEdCnI67JqaZhYJU6waY6z8S4QGZJKjGCo9mJ4V4GNXqJ-TdpGLf0RiOtlPO3IHmA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzNSLcx7LjrQekWWEPzfVkcak1g_7-1M3QZ-9wAD6DpFhi1Gwq_V9lyuXH_QajV0NySGQ/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 // Preloaded once at script start so canvas-drawn share cards can
@@ -2810,7 +2965,7 @@ function initAuthScreen() {
     localStorage.removeItem(PRE+'migrated_v2');
     localStorage.removeItem(PRE+'migrated_v3');
     // Seed the recent list with known warrior names
-    var knownNames = ['Dorcas','Goodness','Jesulayomi','Juliet','Motolani','EA'];
+    var knownNames = ['Dorcas','Haliyah','Jesulayomi','Juliet','Motolani','EA'];
     try { localStorage.setItem(PRE+'recent', JSON.stringify(knownNames)); } catch(e){}
     // Do NOT wipe the registry — preserve any PINs already set by warriors
     // This means existing warriors keep their PINs and don't get reset
@@ -2849,6 +3004,7 @@ function login(name) {
   _timerRestoreState(); // reading timer: restore this member's own paused/elapsed state
   loadLib(); setupWeekly(); setMode('daily');
   renderStreak();
+  loadHomeStrikes(); // home-screen strike alert — fetch this warrior's record
   showNotifBanner();
   flushOnLogin();
   startRealtimeEngine(); // Layer 1+5: keepalive + background sync start immediately
@@ -4573,7 +4729,7 @@ _board = [
   { name:'Juliet',     nameLo:'juliet',     booksCompleted:1,  daysLogged:16, totalMins:2141, totalPages:956  },
   { name:'Motolani',   nameLo:'motolani',   booksCompleted:1,  daysLogged:12, totalMins:1180, totalPages:575  },
   { name:'EA',         nameLo:'ea',         booksCompleted:1,  daysLogged:2,  totalMins:300,  totalPages:26   },
-  { name:'Goodness',    nameLo:'Goodness',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
+  { name:'Haliyah',    nameLo:'haliyah',    booksCompleted:0,  daysLogged:7,  totalMins:375,  totalPages:115  }
 ];
 
 function sortBoard(b) {
@@ -5192,6 +5348,7 @@ function loadStrikes() {
       _strikesMax = d.max || 5;
       renderStrikes();
       setupStrikeAdminPanel();
+      renderHomeStrikeAlert(); // same fetch feeds the home card — no extra request
     })
     .catch(function() {
       document.getElementById('strikes-loading').style.display = 'none';
@@ -5200,6 +5357,122 @@ function loadStrikes() {
 }
 
 function showToastSafe(msg) { if (typeof toast === 'function') toast(msg); }
+
+// ══════════════════════════════════════════════════════════════════
+// HOME-SCREEN STRIKE ALERT
+//
+// The markup and the escalating-danger CSS for this card already
+// existed, but nothing ever fetched the data or unhid it — so the
+// card sat at display:none forever and strikes were only visible to
+// anyone who deliberately went digging in the Strikes sub-tab. That
+// is exactly backwards: a penalty nobody sees is a penalty nobody
+// feels. This puts the warrior's own record on the home screen, at
+// the top, at a size that cannot be scrolled past.
+//
+// Severity level = the WORST single category, not the total. Five
+// Log strikes and zero elsewhere is still maximum danger, and
+// averaging it away with the two clean categories would soften
+// precisely the signal that needs to be loudest.
+// ══════════════════════════════════════════════════════════════════
+var STRIKE_LEVEL_UI = {
+  0: { icon:'\u2705', title:'Clean Record',  verdict:'Nothing against your name. Keep it that way.' },
+  1: { icon:'\u26A0\uFE0F', title:'First Mark', verdict:'One strike on record. Easy to forget — easier to repeat.' },
+  2: { icon:'\u26A0\uFE0F', title:'Caution',   verdict:'You are drifting. Two more and this stops being recoverable quietly.' },
+  3: { icon:'\uD83D\uDD25', title:'Danger',    verdict:'Over halfway to the limit. This is the point people look back on.' },
+  4: { icon:'\uD83D\uDEA8', title:'Critical',  verdict:'ONE strike from the maximum. The next slip is the last one.' },
+  5: { icon:'\u2620\uFE0F', title:'Maximum',   verdict:'Limit reached. You are out of room — this is as far as it goes.' }
+};
+
+// Remembers the last level rendered, so the phone only buzzes when a
+// warrior CROSSES into a worse band — not on every routine poll.
+var _lastStrikeLevelSeen = null;
+
+function loadHomeStrikes() {
+  if (!member) return;
+  _gasFetch(GAS_URL + '?action=getStrikes&t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d || !d.success) return;
+      _strikesData = d.strikes || {};
+      _strikesMax  = d.max || 5;
+      renderHomeStrikeAlert();
+    })
+    .catch(function() { /* silent — the home card just stays as-is */ });
+}
+
+function renderHomeStrikeAlert() {
+  var card = document.getElementById('strikeAlertCard');
+  if (!card || !_strikesData || !member) return;
+
+  var counts = _strikesData[member] || { BOOK:0, LOG:0, REFLECT:0 };
+  var types  = ['BOOK','LOG','REFLECT'];
+
+  var total = 0, worst = 0;
+  types.forEach(function(t) {
+    var n = counts[t] || 0;
+    total += n;
+    if (n > worst) worst = n;
+  });
+  var level = Math.min(worst, 5);
+  var ui = STRIKE_LEVEL_UI[level];
+
+  card.style.display = 'block';
+  card.setAttribute('data-level', String(level));
+
+  document.getElementById('strikeAlertIcon').innerHTML  = ui.icon;
+  document.getElementById('strikeAlertTitle').textContent = ui.title;
+  document.getElementById('strikeAlertCountNum').textContent = total;
+  document.getElementById('strikeAlertCountOf').textContent =
+    total === 1 ? 'strike' : 'strikes';
+  document.getElementById('strikeAlertVerdict').textContent = ui.verdict;
+
+  // Sub-line names the specific failing category — "you have strikes"
+  // is noise, "your Log record is at 4 of 5" is actionable.
+  var subEl = document.getElementById('strikeAlertSub');
+  if (total === 0) {
+    subEl.textContent = 'No strikes on your account';
+  } else {
+    var worstTypes = types.filter(function(t) { return (counts[t] || 0) === worst; })
+                          .map(function(t) { return STRIKE_TYPE_LABELS[t]; });
+    subEl.textContent = worstTypes.join(' & ') + ' at ' + worst + ' of ' + _strikesMax;
+  }
+
+  // Per-category tracks
+  document.getElementById('strikeAlertBars').innerHTML = types.map(function(t) {
+    var n = counts[t] || 0;
+    var dots = '';
+    for (var i = 0; i < _strikesMax; i++) {
+      var cls = 'strike-alert-bar-dot';
+      if (i < n) cls += ' filled';
+      if (i < n && n >= _strikesMax) cls += ' maxed';
+      dots += '<span class="' + cls + '"></span>';
+    }
+    return '<div class="strike-alert-bar-group">' +
+             '<div class="strike-alert-bar-label"><span>' + STRIKE_TYPE_LABELS[t] + '</span><b>' + n + '/' + _strikesMax + '</b></div>' +
+             '<div class="strike-alert-bar-track">' + dots + '</div>' +
+           '</div>';
+  }).join('');
+
+  // Whole-room totals
+  var rosterEl = document.getElementById('strikeAlertRoster');
+  if (rosterEl) {
+    rosterEl.innerHTML = Object.keys(_strikesData).sort().map(function(name) {
+      var c = _strikesData[name] || {};
+      var t = (c.BOOK||0) + (c.LOG||0) + (c.REFLECT||0);
+      var w = Math.max(c.BOOK||0, c.LOG||0, c.REFLECT||0);
+      var cls = 'strike-roster-chip' + (name === member ? ' me' : (w >= 4 ? ' hot' : ''));
+      return '<span class="' + cls + '">' + escHtml(name) + ' ' + t + '</span>';
+    }).join('');
+  }
+
+  // A short haptic buzz the moment someone crosses into Critical or
+  // Maximum. Only on the crossing — a phone that vibrates every poll
+  // gets ignored within a day.
+  if (_lastStrikeLevelSeen !== null && level > _lastStrikeLevelSeen && level >= 4) {
+    try { if (navigator.vibrate) navigator.vibrate([90, 60, 90, 60, 160]); } catch (e) {}
+  }
+  _lastStrikeLevelSeen = level;
+}
 
 function renderStrikes() {
   var el = document.getElementById('strikes-list');
@@ -5266,6 +5539,7 @@ async function strikeAdminAdd() {
       if (!_strikesData[target]) _strikesData[target] = { BOOK:0, LOG:0, REFLECT:0 };
       _strikesData[target] = json.strikes;
       renderStrikes();
+      renderHomeStrikeAlert(); // reflect the change on the home card immediately
     } else {
       msgEl.textContent = (json && json.error) ? json.error : 'Could not add strike.';
       msgEl.style.color = 'var(--red)';
@@ -5295,6 +5569,7 @@ async function strikeAdminRemove() {
       if (!_strikesData[target]) _strikesData[target] = { BOOK:0, LOG:0, REFLECT:0 };
       _strikesData[target] = json.strikes;
       renderStrikes();
+      renderHomeStrikeAlert(); // reflect the change on the home card immediately
     } else {
       msgEl.textContent = (json && json.error) ? json.error : 'Could not remove strike.';
       msgEl.style.color = 'var(--red)';
@@ -6117,7 +6392,7 @@ function _xhrGet(url, onSuccess, onError) {
 // against hardcoded sheet names ('Daily Log', 'Daily Logs', gid=1).
 // That was wrong: this spreadsheet's REAL structure (visible in the
 // actual GAS script) is SIX SEPARATE per-warrior tabs — "📅 Dorcas
-// Daily", "📅 Goodness Daily", etc. — not one shared log sheet. The
+// Daily", "📅 Haliyah Daily", etc. — not one shared log sheet. The
 // old code was silently failing through three layers of guesses
 // before showing "Could not load feed", because none of those
 // hardcoded names ever matched anything real.
