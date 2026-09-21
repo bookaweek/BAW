@@ -5387,17 +5387,47 @@ var STRIKE_LEVEL_UI = {
 // warrior CROSSES into a worse band — not on every routine poll.
 var _lastStrikeLevelSeen = null;
 
-function loadHomeStrikes() {
+function loadHomeStrikes(_attempt) {
   if (!member) return;
+  _attempt = _attempt || 1;
   _gasFetch(GAS_URL + '?action=getStrikes&t=' + Date.now())
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (!d || !d.success) return;
+      if (!d || !d.success) {
+        console.warn('[strikes] server rejected getStrikes:', d && d.error);
+        _showStrikeAlertUnavailable(d && d.error ? d.error : 'Server did not return strike data');
+        return;
+      }
       _strikesData = d.strikes || {};
       _strikesMax  = d.max || 5;
       renderHomeStrikeAlert();
     })
-    .catch(function() { /* silent — the home card just stays as-is */ });
+    .catch(function(e) {
+      console.warn('[strikes] getStrikes failed (attempt ' + _attempt + '):', e);
+      // One retry — a single cold-start timeout on GAS shouldn't leave
+      // the card blank for the whole session.
+      if (_attempt < 2) { setTimeout(function() { loadHomeStrikes(2); }, 4000); return; }
+      _showStrikeAlertUnavailable('Could not reach the server');
+    });
+}
+
+// If the record can't be loaded, say so on the card rather than
+// hiding it. A blank space where the strike count should be is
+// indistinguishable from a clean record — which is the one wrong
+// message this card must never send.
+function _showStrikeAlertUnavailable(reason) {
+  var card = document.getElementById('strikeAlertCard');
+  if (!card || _strikesData) return; // real data already on screen — leave it
+  card.style.display = 'block';
+  card.setAttribute('data-level', '1');
+  document.getElementById('strikeAlertIcon').innerHTML = '\u2753';
+  document.getElementById('strikeAlertTitle').textContent = 'Record Unavailable';
+  document.getElementById('strikeAlertSub').textContent = reason || 'Could not load your strike record';
+  document.getElementById('strikeAlertCountNum').textContent = '\u2013';
+  document.getElementById('strikeAlertCountOf').textContent = 'strikes';
+  document.getElementById('strikeAlertBars').innerHTML = '';
+  document.getElementById('strikeAlertVerdict').textContent = 'Pull down to refresh, or check back shortly.';
+  document.getElementById('strikeAlertRoster').innerHTML = '';
 }
 
 function renderHomeStrikeAlert() {
