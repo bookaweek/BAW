@@ -1088,6 +1088,32 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   color: rgba(255,255,255,.55); letter-spacing: .02em;
 }
 
+/* ── Dedicated Streaks board ── Bigger, plainer than the all-time
+   badge: the fire count IS the row, not a small accent competing with
+   a book badge. Tiered color mirrors the home streak card's own
+   escalation so the same length "feels" the same everywhere. */
+.streak-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.streak-row:last-child { border-bottom: none; }
+.streak-row.me { background: rgba(242,183,5,.08); border-left: 3px solid var(--gold); }
+.streak-row-fire { font-size: 26px; flex-shrink: 0; width: 34px; text-align: center; }
+.streak-row-info { flex: 1; min-width: 0; }
+.streak-row-name { font-size: 14.5px; font-weight: 800; color: #fff; }
+.streak-row-sub { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 2px; }
+.streak-row-count {
+  font-family: 'Playfair Display', serif; font-weight: 900; font-size: 22px;
+  line-height: 1; text-align: right; min-width: 44px;
+}
+.streak-row-count-unit { font-size: 9.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; opacity: .55; display: block; margin-top: 2px; }
+.streak-row-count.tier-none   { color: rgba(255,255,255,.3); }
+.streak-row-count.tier-new    { color: #E07B39; }
+.streak-row-count.tier-week   { color: #F2B705; }
+.streak-row-count.tier-fort   { color: #4FC3F7; }
+.streak-row-count.tier-month  { color: #F5C842; }
+.streak-row-count.tier-legend { color: #FF6B6B; }
+
 /* Loading spinner for dashboard */
 .dash-loading {
   padding: 40px 0;
@@ -2085,6 +2111,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       <div class="lb-scope-toggle">
         <button type="button" class="lb-scope-btn active" id="lbScopeAllBtn" onclick="setLbScope('all')">All-Time</button>
         <button type="button" class="lb-scope-btn" id="lbScopeWeekBtn" onclick="setLbScope('week')">This Week</button>
+        <button type="button" class="lb-scope-btn" id="lbScopeStreakBtn" onclick="setLbScope('streak')">Streaks &#x1F525;</button>
       </div>
       <div class="lb-wrap" id="lb-wrap-all">
         <div class="dash-loading" id="lb-loading">
@@ -2101,6 +2128,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         </div>
         <div style="text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.4);margin:0 0 8px;" id="lb-week-range"></div>
         <div class="lb-list" id="lb-week-list" style="display:none"></div>
+      </div>
+      <!-- STREAKS — its own dedicated board, not a badge buried inside
+           the all-time list. Every warrior's current streak, ranked,
+           with anyone at 0 shown plainly rather than hidden. -->
+      <div class="lb-wrap" id="lb-wrap-streak" style="display:none">
+        <div id="streak-board-list"></div>
       </div>
     </div>
 
@@ -2153,7 +2186,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // BUILD: 2026-04-30-v10-realtime (5-layer real-time engine)
 // ═══════════════════════════════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyPGsEdCnI67JqaZhYJU6waY6z8S4QGZJKjGCo9mJ4V4GNXqJ-TdpGLf0RiOtlPO3IHmA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzNSLcx7LjrQekWWEPzfVkcak1g_7-1M3QZ-9wAD6DpFhi1Gwq_V9lyuXH_QajV0NySGQ/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 // Preloaded once at script start so canvas-drawn share cards can
@@ -4895,6 +4928,7 @@ function optimisticUpdate(payload) {
   if (_onStatsTab) {
     renderMyProgress();
     renderLeaderboard(_board);
+    if (_lbScope === 'streak') renderStreakBoard();
   }
 }
 
@@ -5002,6 +5036,7 @@ function fetchLiveBoard(forceRender) {
       if (_onStatsTab) {
         renderMyProgress();
         renderLeaderboard(_board);
+        if (_lbScope === 'streak') renderStreakBoard();
         showSyncBadge(Date.now() - t0);
       }
 
@@ -5100,6 +5135,7 @@ function loadDashboard() {
   setDashTab(_dashTab);
   renderMyProgress();         // instant from _board (already fresh from bg sync)
   renderLeaderboard(_board);  // instant
+  if (_lbScope === 'streak') renderStreakBoard();
   // Start fast active poll
   if (_activePoll) clearInterval(_activePoll);
   _activePoll = setInterval(fetchLiveBoard, 5000);
@@ -5482,9 +5518,62 @@ function setLbScope(scope) {
   _lbScope = scope;
   document.getElementById('lbScopeAllBtn').classList.toggle('active', scope === 'all');
   document.getElementById('lbScopeWeekBtn').classList.toggle('active', scope === 'week');
-  document.getElementById('lb-wrap-all').style.display  = scope === 'all'  ? 'block' : 'none';
-  document.getElementById('lb-wrap-week').style.display = scope === 'week' ? 'block' : 'none';
-  if (scope === 'week') loadWeeklyBoard(); // always fetch fresh on switching in
+  document.getElementById('lbScopeStreakBtn').classList.toggle('active', scope === 'streak');
+  document.getElementById('lb-wrap-all').style.display    = scope === 'all'    ? 'block' : 'none';
+  document.getElementById('lb-wrap-week').style.display   = scope === 'week'   ? 'block' : 'none';
+  document.getElementById('lb-wrap-streak').style.display = scope === 'streak' ? 'block' : 'none';
+  if (scope === 'week')   loadWeeklyBoard();   // always fetch fresh on switching in
+  if (scope === 'streak') renderStreakBoard(); // _board already carries .streak — no fetch needed
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DEDICATED STREAKS BOARD — its own space, not a badge sharing a row
+// with book counts. Reuses the SAME _board array the all-time
+// leaderboard already keeps fresh via its own 30s background poll
+// (see Layer 5 above) — the streak field has ridden along on every
+// getDashboard() response since the server started computing it, so
+// no separate fetch is needed here, and this stays in sync with
+// whatever the background poll last pulled in.
+// ══════════════════════════════════════════════════════════════════
+function _streakTier(n) {
+  if (n <= 0)  return { cls:'tier-none',   fire:'&#x1F634;' }; // asleep
+  if (n < 7)   return { cls:'tier-new',    fire:'&#x1F4A5;' };
+  if (n < 14)  return { cls:'tier-week',   fire:'&#x1F525;' };
+  if (n < 30)  return { cls:'tier-fort',   fire:'&#x26A1;'  };
+  if (n < 90)  return { cls:'tier-month',  fire:'&#x1F451;' };
+  return              { cls:'tier-legend', fire:'&#x1F3C6;' };
+}
+
+function renderStreakBoard() {
+  var container = document.getElementById('streak-board-list');
+  if (!container) return;
+
+  var rows = (_board || []).slice().sort(function(a, b) {
+    var sa = a.streak || 0, sb = b.streak || 0;
+    if (sb !== sa) return sb - sa;
+    return a.name.localeCompare(b.name);
+  });
+
+  var myLo = lettersOnly(member);
+  container.innerHTML = rows.map(function(w) {
+    var n    = w.streak || 0;
+    var tier = _streakTier(n);
+    var nameLo = lettersOnly(w.name);
+    var isMe = (nameLo === myLo || nameLo.indexOf(myLo) === 0 || myLo.indexOf(nameLo) === 0);
+    var sub = n === 0
+      ? 'No active streak'
+      : (n === 1 ? 'Logged today' : 'days in a row, unbroken');
+    return '<div class="streak-row' + (isMe ? ' me' : '') + '">' +
+      '<div class="streak-row-fire">' + tier.fire + '</div>' +
+      '<div class="streak-row-info">' +
+        '<div class="streak-row-name">' + escHtml(w.name) + (isMe ? ' <span style="color:var(--gold);font-size:10px;">(You)</span>' : '') + '</div>' +
+        '<div class="streak-row-sub">' + sub + '</div>' +
+      '</div>' +
+      '<div class="streak-row-count ' + tier.cls + '">' + n +
+        '<span class="streak-row-count-unit">' + (n === 1 ? 'day' : 'days') + '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('') || '<div style="text-align:center;padding:24px 16px;font-size:12.5px;color:rgba(255,255,255,.4);">No data yet.</div>';
 }
 
 // ── PAST WEEKS ──
