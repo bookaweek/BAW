@@ -1046,6 +1046,48 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .lb-badge.bronze { background: rgba(205,127,50,.2);  color: #CD7F32; }
 .lb-badge.regular{ background: rgba(255,255,255,.06);color: rgba(255,255,255,.35); }
 
+/* All-Time / This Week toggle above the leaderboard */
+.lb-scope-toggle {
+  display: flex; gap: 8px; margin: 14px 16px 0;
+}
+.lb-scope-btn {
+  flex: 1; padding: 10px 0; border-radius: 12px; border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04); color: rgba(255,255,255,.5);
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 800;
+  letter-spacing: .03em; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.lb-scope-btn.active { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+
+/* Cross-member weekly board reused inside the Weekly reflection tab —
+   same row styling as the leaderboard so it reads as one visual system. */
+.wk-board-wrap {
+  margin: 14px 16px 0; background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 16px; overflow: hidden;
+}
+.wk-board-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 4px;
+}
+.wk-board-title { font-family: 'Playfair Display', serif; font-weight: 900; font-size: 15px; color: #fff; }
+.wk-board-range { font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,.4); letter-spacing: .02em; }
+
+.wk-past-toggle {
+  margin: 12px 16px 0; width: calc(100% - 32px); padding: 12px 0;
+  border-radius: 12px; border: 1px dashed rgba(255,255,255,.2);
+  background: transparent; color: rgba(255,255,255,.6);
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 800;
+  letter-spacing: .02em; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.wk-past-wrap { display: none; }
+.wk-past-week-card {
+  margin: 10px 16px 0; background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 16px; overflow: hidden;
+}
+.wk-past-week-head {
+  padding: 12px 16px 2px; font-size: 12.5px; font-weight: 800;
+  color: rgba(255,255,255,.55); letter-spacing: .02em;
+}
+
 /* Loading spinner for dashboard */
 .dash-loading {
   padding: 40px 0;
@@ -1833,6 +1875,27 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       <div class="um-sub">Unlocks every <strong style="color:var(--gold)">Sunday</strong>.</div>
       <div class="um-days" id="weekDays"></div>
     </div>
+
+    <!-- EVERYONE'S PROGRESS THIS WEEK — visible every day, not just
+         when the reflection form unlocks on Sunday. Same source of
+         truth (getWeeklyBoard) also feeds the leaderboard's "This
+         Week" toggle. -->
+    <div class="wk-board-wrap" id="wkBoardWrap">
+      <div class="wk-board-head">
+        <div class="wk-board-title">This Week &middot; Everyone</div>
+        <div class="wk-board-range" id="wkBoardRange"></div>
+      </div>
+      <div class="dash-loading" id="wkBoardLoading" style="padding:20px 0;">
+        <div class="spin"></div>Loading this week...
+      </div>
+      <div id="wkBoardList"></div>
+    </div>
+
+    <button type="button" class="wk-past-toggle" id="wkPastToggleBtn" onclick="toggleWeeklyHistory()">
+      View Past Weeks &#9662;
+    </button>
+    <div class="wk-past-wrap" id="wkPastWrap"></div>
+
     <div id="weeklyUnlocked">
       <div class="card">
         <div class="card-title">This Week</div>
@@ -2019,7 +2082,11 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
     <!-- LEADERBOARD -->
     <div id="dash-board" style="display:none">
-      <div class="lb-wrap">
+      <div class="lb-scope-toggle">
+        <button type="button" class="lb-scope-btn active" id="lbScopeAllBtn" onclick="setLbScope('all')">All-Time</button>
+        <button type="button" class="lb-scope-btn" id="lbScopeWeekBtn" onclick="setLbScope('week')">This Week</button>
+      </div>
+      <div class="lb-wrap" id="lb-wrap-all">
         <div class="dash-loading" id="lb-loading">
           <div class="spin"></div>Loading leaderboard...
         </div>
@@ -2027,6 +2094,13 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <div class="lb-podium" id="lb-podium" style="display:none"></div>
         <!-- List 4+ -->
         <div class="lb-list" id="lb-list" style="display:none"></div>
+      </div>
+      <div class="lb-wrap" id="lb-wrap-week" style="display:none">
+        <div class="dash-loading" id="lb-week-loading">
+          <div class="spin"></div>Loading this week...
+        </div>
+        <div style="text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.4);margin:0 0 8px;" id="lb-week-range"></div>
+        <div class="lb-list" id="lb-week-list" style="display:none"></div>
       </div>
     </div>
 
@@ -2079,7 +2153,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // BUILD: 2026-04-30-v10-realtime (5-layer real-time engine)
 // ═══════════════════════════════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyPGsEdCnI67JqaZhYJU6waY6z8S4QGZJKjGCo9mJ4V4GNXqJ-TdpGLf0RiOtlPO3IHmA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzNSLcx7LjrQekWWEPzfVkcak1g_7-1M3QZ-9wAD6DpFhi1Gwq_V9lyuXH_QajV0NySGQ/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 // Preloaded once at script start so canvas-drawn share cards can
@@ -3036,7 +3110,7 @@ function setMode(m) {
   });
   if(m==='daily'){dropBooks();prog();stopActivePoll();}
   if(m==='books'){renderLib();stopActivePoll();}
-  if(m==='weekly'){setupWeekly();weekDropBooks();stopActivePoll();}
+  if(m==='weekly'){setupWeekly();weekDropBooks();stopActivePoll();loadWeeklyBoard();}
   if(m==='dash'){loadDashboard();} // loadDashboard sets _onStatsTab=true + starts 5s poll
   if(m==='feed'){loadFeed();}
 }
@@ -5317,6 +5391,143 @@ function renderLeaderboard(board) {
 // called from tab button — re-renders from current _board (no fetch)
 function loadLeaderboard() {
   renderLeaderboard(_board);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// WEEKLY BOARD — everyone's progress for the CURRENT week, shown two
+// places: always-on in the Weekly tab (so it's visible every day, not
+// gated behind Sunday's reflection unlock), and behind a This-Week
+// toggle on the main leaderboard. Both read from the same server
+// action (getWeeklyBoard) and the same _weeklyBoard cache — one
+// fetch, two views.
+//
+// The week itself resets automatically at Sun 11:59pm / Mon 00:00
+// WAT: the server computes "current week" from the challenge start
+// date every time, so the moment Monday begins this fetch simply
+// starts returning next week's (empty) rows — nothing on the client
+// has to reset anything.
+// ══════════════════════════════════════════════════════════════════
+var _weeklyBoard   = null; // last getWeeklyBoard() response
+var _weeklyHistory = null; // last getWeeklyHistory() response
+var _lbScope       = 'all';
+
+function loadWeeklyBoard() {
+  var wkLoading = document.getElementById('wkBoardLoading');
+  var lbLoading = document.getElementById('lb-week-loading');
+  if (wkLoading) wkLoading.style.display = 'flex';
+  if (lbLoading && _lbScope === 'week') lbLoading.style.display = 'flex';
+
+  _gasFetch(GAS_URL + '?action=getWeeklyBoard&t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (wkLoading) wkLoading.style.display = 'none';
+      if (lbLoading) lbLoading.style.display = 'none';
+      if (!d || !d.success) { showToastSafe('Could not load this week.'); return; }
+      _weeklyBoard = d;
+      renderWeeklyBoardEverywhere();
+    })
+    .catch(function() {
+      if (wkLoading) wkLoading.style.display = 'none';
+      if (lbLoading) lbLoading.style.display = 'none';
+      showToastSafe('Could not load this week. Check your connection.');
+    });
+}
+
+function renderWeeklyBoardEverywhere() {
+  if (!_weeklyBoard) return;
+  var rangeTxt = _weeklyBoard.weekRange ? _weeklyBoard.weekRange : ('Week ' + _weeklyBoard.weekNum);
+
+  var wkRangeEl = document.getElementById('wkBoardRange');
+  var wkListEl  = document.getElementById('wkBoardList');
+  if (wkRangeEl) wkRangeEl.textContent = rangeTxt;
+  if (wkListEl)  renderWeeklyRows(wkListEl, _weeklyBoard.board);
+
+  var lbRangeEl = document.getElementById('lb-week-range');
+  var lbListEl  = document.getElementById('lb-week-list');
+  if (lbRangeEl) lbRangeEl.textContent = rangeTxt;
+  if (lbListEl) {
+    renderWeeklyRows(lbListEl, _weeklyBoard.board);
+    lbListEl.style.display = 'block';
+  }
+}
+
+// Shared row renderer — same visual language as the all-time
+// leaderboard (.lb-row/.lb-pos/.lb-info/.lb-badge), just scored by
+// this-week booksLogged instead of all-time booksCompleted.
+function renderWeeklyRows(container, board) {
+  var myLo = lettersOnly(member);
+  container.innerHTML = (board || []).map(function(w, i) {
+    var nameLo = lettersOnly(w.name);
+    var isMe = (nameLo === myLo || nameLo.indexOf(myLo) === 0 || myLo.indexOf(nameLo) === 0);
+    return '<div class="lb-row' + (isMe ? ' me' : '') + '">' +
+      '<div class="lb-pos">#' + (i + 1) + '</div>' +
+      _buildLbRowAvatar(w.name) +
+      '<div class="lb-info">' +
+        '<div class="lb-name">' + escHtml(w.name) + (isMe ? ' <span style="color:var(--gold);font-size:10px;">(You)</span>' : '') + '</div>' +
+        '<div class="lb-detail">' +
+          exactNum(w.totalMins)  + ' min &nbsp;&middot;&nbsp; ' +
+          exactNum(w.totalPages) + ' pgs &nbsp;&middot;&nbsp; ' +
+          exactNum(w.daysRead)   + ' days' +
+        '</div>' +
+      '</div>' +
+      '<div class="lb-badge ' + (i < 3 && w.booksLogged > 0 ? ['gold','silver','bronze'][i] : 'regular') + '">' +
+        w.booksLogged + ' &#128218;' +
+      '</div>' +
+    '</div>';
+  }).join('') || '<div style="text-align:center;padding:24px 16px;font-size:12.5px;color:rgba(255,255,255,.4);">Nobody has logged a session yet this week.</div>';
+}
+
+// All-Time / This Week toggle on the main leaderboard
+function setLbScope(scope) {
+  _lbScope = scope;
+  document.getElementById('lbScopeAllBtn').classList.toggle('active', scope === 'all');
+  document.getElementById('lbScopeWeekBtn').classList.toggle('active', scope === 'week');
+  document.getElementById('lb-wrap-all').style.display  = scope === 'all'  ? 'block' : 'none';
+  document.getElementById('lb-wrap-week').style.display = scope === 'week' ? 'block' : 'none';
+  if (scope === 'week') loadWeeklyBoard(); // always fetch fresh on switching in
+}
+
+// ── PAST WEEKS ──
+function toggleWeeklyHistory() {
+  var wrap = document.getElementById('wkPastWrap');
+  var btn  = document.getElementById('wkPastToggleBtn');
+  var opening = wrap.style.display !== 'block';
+  wrap.style.display = opening ? 'block' : 'none';
+  btn.innerHTML = opening ? 'Hide Past Weeks &#9652;' : 'View Past Weeks &#9662;';
+  if (opening && !_weeklyHistory) loadWeeklyHistory();
+}
+
+function loadWeeklyHistory() {
+  var wrap = document.getElementById('wkPastWrap');
+  wrap.innerHTML = '<div class="dash-loading" style="padding:16px 0;"><div class="spin"></div>Loading past weeks...</div>';
+
+  _gasFetch(GAS_URL + '?action=getWeeklyHistory&limit=8&t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d || !d.success) { wrap.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:rgba(255,255,255,.4);">Could not load past weeks.</div>'; return; }
+      _weeklyHistory = d;
+      renderWeeklyHistory(d.weeks || []);
+    })
+    .catch(function() {
+      wrap.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:rgba(255,255,255,.4);">Could not load past weeks. Check your connection.</div>';
+    });
+}
+
+function renderWeeklyHistory(weeks) {
+  var wrap = document.getElementById('wkPastWrap');
+  if (!weeks.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:rgba(255,255,255,.4);">No completed weeks yet.</div>';
+    return;
+  }
+  wrap.innerHTML = weeks.map(function(wk) {
+    var rangeTxt = wk.weekRange ? wk.weekRange : ('Week ' + wk.weekNum);
+    var rowsHtml = document.createElement('div');
+    renderWeeklyRows(rowsHtml, wk.board);
+    return '<div class="wk-past-week-card">' +
+      '<div class="wk-past-week-head">Week ' + wk.weekNum + ' &middot; ' + escHtml(rangeTxt) + '</div>' +
+      rowsHtml.innerHTML +
+    '</div>';
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════════════════
