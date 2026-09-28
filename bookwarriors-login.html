@@ -2134,6 +2134,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
            with anyone at 0 shown plainly rather than hidden. -->
       <div class="lb-wrap" id="lb-wrap-streak" style="display:none">
         <div id="streak-board-list"></div>
+        <button type="button" class="wk-past-toggle" id="streakSyncTestBtn" style="margin:14px 16px 16px;" onclick="testStreakSync()">
+          Test My Streak Sync
+        </button>
+        <div id="streakSyncTestResult" style="display:none;margin:0 16px 16px;padding:14px 16px;border-radius:14px;font-size:12.5px;line-height:1.5;"></div>
       </div>
     </div>
 
@@ -5611,6 +5615,74 @@ function renderStreakBoard() {
       '</div>' +
     '</div>';
   }).join('') || '<div style="text-align:center;padding:24px 16px;font-size:12.5px;color:rgba(255,255,255,.4);">No data yet.</div>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STREAK SYNC SELF-TEST — a one-tap alternative to manually building
+// GAS_URL diagnostic links. Walks the ENTIRE pipeline live, right
+// from the app: sends this device's real home-screen streak to the
+// server, then immediately re-fetches the dashboard and checks
+// whether the leaderboard now agrees with it. Reports a plain-language
+// result instead of raw JSON, and tells you specifically what to do
+// next depending on which stage failed.
+// ══════════════════════════════════════════════════════════════════
+async function testStreakSync() {
+  var btn = document.getElementById('streakSyncTestBtn');
+  var box = document.getElementById('streakSyncTestResult');
+  if (!btn || !box) return;
+
+  var local = getStreak();
+
+  function setBox(bg, border, color, html) {
+    box.style.display    = 'block';
+    box.style.background = bg;
+    box.style.border     = border;
+    box.style.color      = color;
+    box.innerHTML        = html;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Testing...';
+  setBox('rgba(255,255,255,.06)', '1px solid rgba(255,255,255,.1)', 'rgba(255,255,255,.65)',
+    'Step 1 of 2 &mdash; sending your home-screen streak (' + local + ') to the server...');
+
+  try {
+    var reportRaw = await _gasFetch(GAS_URL + '?action=reportStreak&data=' + encodeURIComponent(JSON.stringify({ member: member, streak: local })) + '&t=' + Date.now());
+    var reportResp = await reportRaw.json();
+    if (!reportResp || !reportResp.success) {
+      throw new Error(reportResp && reportResp.error ? reportResp.error : 'Server rejected the report — check that the deployment includes the reportStreak action.');
+    }
+
+    setBox('rgba(255,255,255,.06)', '1px solid rgba(255,255,255,.1)', 'rgba(255,255,255,.65)',
+      'Step 2 of 2 &mdash; checking what the leaderboard sees right now...');
+
+    var dashRaw  = await _gasFetch(GAS_URL + '?action=getDashboard&t=' + Date.now());
+    var dashResp = await dashRaw.json();
+    if (!dashResp || !dashResp.success) throw new Error('Could not load the dashboard to verify.');
+
+    var myLo = lettersOnly(member);
+    var mine = (dashResp.board || []).find(function(w) {
+      var lo = lettersOnly(w.name);
+      return lo === myLo || lo.indexOf(myLo) === 0 || myLo.indexOf(lo) === 0;
+    });
+
+    if (!mine) {
+      setBox('rgba(231,76,60,.12)', '1px solid rgba(231,76,60,.4)', '#FF8A80',
+        '&#x26A0;&#xFE0F; Sent successfully, but "' + escHtml(member) + '" doesn\'t appear in the dashboard board at all. Check the name matches exactly (spelling, capitalization) in the Apps Script MEMBER_DAILY_TAB config.');
+    } else if ((mine.streak || 0) === local) {
+      setBox('rgba(46,204,113,.12)', '1px solid rgba(46,204,113,.4)', '#7DDC9E',
+        '&#x2705; Synced correctly. Your home screen shows <b>' + local + '</b>, and the leaderboard now shows <b>' + (mine.streak || 0) + '</b> too &mdash; every BookWarrior can see this on the Streaks tab.');
+    } else {
+      setBox('rgba(242,183,5,.12)', '1px solid rgba(242,183,5,.4)', '#F2B705',
+        '&#x26A0;&#xFE0F; Mismatch: your home screen shows <b>' + local + '</b>, but the leaderboard still shows <b>' + (mine.streak || 0) + '</b>. Your report reached the server fine &mdash; this almost always means the Apps Script is running an OLDER deployment. Go to Deploy &rarr; Manage deployments &rarr; New version, then test again.');
+    }
+  } catch (err) {
+    setBox('rgba(231,76,60,.12)', '1px solid rgba(231,76,60,.4)', '#FF8A80',
+      '&#x274C; Test failed: ' + escHtml(String((err && err.message) || err)) + '. Check that GAS_URL is correct and a deployment is live.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test My Streak Sync';
+  }
 }
 
 // ── PAST WEEKS ──
