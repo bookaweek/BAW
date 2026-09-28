@@ -2186,7 +2186,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // BOOKAWEEK — SINGLE CLEAN SCRIPT
 // BUILD: 2026-04-30-v10-realtime (5-layer real-time engine)
 // ═══════════════════════════════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyPGsEdCnI67JqaZhYJU6waY6z8S4QGZJKjGCo9mJ4V4GNXqJ-TdpGLf0RiOtlPO3IHmA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxVAatugvhE34ULdny4S1tIWm4zMmvIwI6B7V11D9P0lNxdJ56FdEaUon885nkYGiDxTw/exec';
 const PRE = 'baw_';
 let member = null, mode = 'daily', stars = 0, rest = false, lib = [];
 // Preloaded once at script start so canvas-drawn share cards can
@@ -4661,6 +4661,43 @@ function renderStreak() {
   if (streak >= 90)  html2 += '<div class="streak-badge sb-legend">&#x1F3C6; Elite</div>';
   if (streak === 0 && last === today) html2 += '<div class="streak-badge sb-ice">&#x2705; Today logged</div>';
   badges.innerHTML = html2;
+
+  reportStreakToServer(streak);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SHARE THE HOME-SCREEN STREAK — not a server recomputation.
+//
+// The number above IS the streak every warrior already trusts on
+// their own device. Earlier the leaderboard tried to independently
+// RE-DERIVE each warrior's streak from their Daily sheet's DATE/BOOK
+// cells, and that recomputation could disagree with what a warrior's
+// own home screen already showed (different day-boundary logic,
+// spreadsheet date-cell quirks). That's why streaks looked wrong or
+// missing on the leaderboard even when a warrior's own count was
+// right in front of them.
+//
+// The fix: stop re-deriving it. This device already knows its own
+// correct number — just tell the server what it is, the same way
+// uploadPhoto tells the server "here is my photo" rather than the
+// server trying to guess it. Only fires when the number actually
+// changed since the last report, so this never spams the server on
+// every render.
+// ══════════════════════════════════════════════════════════════════
+function reportStreakToServer(streak) {
+  if (!member) return;
+  var lastReportedKey = PRE + member + '_streak_reported';
+  var lastReported = localStorage.getItem(lastReportedKey);
+  if (lastReported !== null && parseInt(lastReported) === streak) return; // unchanged — nothing to send
+
+  _gasFetch(GAS_URL + '?action=reportStreak&data=' + encodeURIComponent(JSON.stringify({ member: member, streak: streak })) + '&t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d && d.success) {
+        try { localStorage.setItem(lastReportedKey, String(streak)); } catch (e) {}
+      }
+    })
+    .catch(function() { /* silent — will retry next render if still mismatched */ });
 }
 
 function showMilestone(days) {
