@@ -4699,9 +4699,30 @@ function reportStreakToServer(streak) {
     .then(function(d) {
       if (d && d.success) {
         try { localStorage.setItem(lastReportedKey, String(streak)); } catch (e) {}
+        // Pull a fresh board right away so the leaderboard/Streaks tab
+        // reflects this immediately, instead of waiting on whatever is
+        // left of the ~30s background poll cycle (or a poll that only
+        // re-renders while _onStatsTab is true — this warrior's own
+        // just-reported number shouldn't depend on either timing).
+        _refreshBoardAfterStreakReport();
       }
     })
     .catch(function() { /* silent — will retry next render if still mismatched */ });
+}
+
+function _refreshBoardAfterStreakReport() {
+  _gasFetch(GAS_URL + '?action=getDashboard&t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d && d.success && d.board) {
+        _board = _mapDashboardBoard(d.board);
+        if (_onStatsTab) {
+          renderLeaderboard(_board);
+          if (_lbScope === 'streak') renderStreakBoard();
+        }
+      }
+    })
+    .catch(function() { /* silent — the next scheduled poll will still catch it */ });
 }
 
 function showMilestone(days) {
@@ -4987,6 +5008,31 @@ function triggerPostSubmitFetch() {
 // ══════════════════════════════════════════════════════════════════════
 // LAYER 4 — CORE FETCH ENGINE (no abort spiral)
 // ══════════════════════════════════════════════════════════════════════
+// Single source of truth for turning a raw getDashboard() response's
+// board array into the shape the rest of the client expects
+// (nameLo added for "is this me" matching, numbers coerced, streak
+// included). Every place that consumes a fresh dashboard response —
+// the background poll below, and the streak-report refresh paths —
+// MUST go through this, rather than assigning a raw server board
+// straight into _board: a raw entry has no .nameLo, which crashes
+// renderLeaderboard, and a hand-rolled partial copy is exactly how
+// the .streak field got silently dropped from every poll for as long
+// as it did.
+function _mapDashboardBoard(rawBoard) {
+  return (rawBoard || []).map(function(w) {
+    return {
+      name:           String(w.name || '').trim(),
+      nameLo:         lettersOnly(w.name),
+      booksCompleted: parseInt(w.booksCompleted) || 0,
+      daysLogged:     parseInt(w.daysLogged)     || 0,
+      totalMins:      parseInt(w.totalMins)      || 0,
+      totalPages:     parseInt(w.totalPages)     || 0,
+      photoUrl:       String(w.photoUrl || '').trim(),
+      streak:         parseInt(w.streak) || 0
+    };
+  }).filter(function(w) { return w.name.length >= 2; });
+}
+
 function fetchLiveBoard(forceRender) {
   if (_inFlight) return; // don't pile up — let the current request finish
 
@@ -5043,17 +5089,7 @@ function fetchLiveBoard(forceRender) {
 
       if (!d || !d.success || !Array.isArray(d.board) || !d.board.length) return;
 
-      var fresh = d.board.map(function(w) {
-        return {
-          name:           String(w.name || '').trim(),
-          nameLo:         lettersOnly(w.name),
-          booksCompleted: parseInt(w.booksCompleted) || 0,
-          daysLogged:     parseInt(w.daysLogged)     || 0,
-          totalMins:      parseInt(w.totalMins)      || 0,
-          totalPages:     parseInt(w.totalPages)     || 0,
-          photoUrl:       String(w.photoUrl || '').trim()
-        };
-      }).filter(function(w) { return w.name.length >= 2; });
+      var fresh = _mapDashboardBoard(d.board);
 
       // Populate the shared photo registry from this poll — instantly
       // available to the Feed tab too without it needing a separate
@@ -5659,6 +5695,15 @@ async function testStreakSync() {
     var dashRaw  = await _gasFetch(GAS_URL + '?action=getDashboard&t=' + Date.now());
     var dashResp = await dashRaw.json();
     if (!dashResp || !dashResp.success) throw new Error('Could not load the dashboard to verify.');
+
+    // The diagnostic text above is only half the point — actually push
+    // this fresh board into the list you're looking at, rather than
+    // leaving it showing whatever was there before the test ran.
+    if (dashResp.board) {
+      _board = _mapDashboardBoard(dashResp.board);
+      renderLeaderboard(_board);
+      renderStreakBoard();
+    }
 
     var myLo = lettersOnly(member);
     var mine = (dashResp.board || []).find(function(w) {
